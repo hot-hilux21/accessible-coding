@@ -17,6 +17,21 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from accessible_ide import updater  # noqa: E402
 
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def load_app_module():
+    """The real app.py, so the exit hand-over is tested as shipped.
+
+    Loaded rather than reimplemented. A test that copied the function would
+    still pass after the real one was broken, which is the one thing a test
+    of this must never do.
+    """
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    import app
+    return app
+
 
 class VersionOrderingTests(unittest.TestCase):
     def test_ordinary_numbers_compare_as_expected(self):
@@ -341,6 +356,307 @@ class CheckResultTests(unittest.TestCase):
         })
         result = updater.check(force=True)
         self.assertFalse(result["update_available"])
+
+
+class WaitingBuildTests(unittest.TestCase):
+    """The record of a downloaded build, and what is allowed to act on it.
+
+    This is the last thing standing between a file on disk and a file being
+    swapped for the program, so it is tested against a record that lies.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        swapped(self, updater, "update_dir",
+                lambda: pathlib.Path(self.tmp.name) / "updates")
+
+    def build(self, name=updater.ASSET_NAME, body=b"MZ new build"):
+        staged = updater.update_dir() / name
+        staged.parent.mkdir(parents=True, exist_ok=True)
+        staged.write_bytes(body)
+        return staged
+
+    def test_a_downloaded_build_is_remembered(self):
+        staged = self.build()
+        updater.remember_staged(staged, "9.9.9")
+        found = updater.pending_build()
+        self.assertIsNotNone(found)
+        self.assertEqual(found[0], staged)
+        self.assertEqual(found[1], "9.9.9")
+
+    def test_nothing_remembered_means_nothing_to_do(self):
+        self.assertIsNone(updater.pending_build())
+
+    def test_a_record_naming_some_other_file_is_ignored(self):
+        elsewhere = self.build(name="something-else.exe")
+        updater.remember_staged(elsewhere, "9.9.9")
+        self.assertIsNone(updater.pending_build())
+
+    def test_a_record_whose_file_is_gone_is_ignored(self):
+        staged = self.build()
+        updater.remember_staged(staged, "9.9.9")
+        staged.unlink()
+        self.assertIsNone(updater.pending_build())
+
+    def test_a_damaged_record_is_ignored_rather_than_guessed_at(self):
+        updater.update_dir().mkdir(parents=True, exist_ok=True)
+        (updater.update_dir() / updater.STATE_NAME).write_text("{not json")
+        self.assertIsNone(updater.pending_build())
+
+    def test_a_record_missing_its_version_is_ignored(self):
+        state = updater.update_dir() / updater.STATE_NAME
+        state.parent.mkdir(parents=True, exist_ok=True)
+        state.write_text(json.dumps({"staged": str(self.build())}))
+        self.assertIsNone(updater.pending_build())
+
+    def test_remembering_leaves_no_part_file_behind(self):
+        updater.remember_staged(self.build(), "9.9.9")
+        leftovers = [p.name for p in updater.update_dir().iterdir()
+                     if p.name.endswith(".part")]
+        self.assertEqual(leftovers, [])
+
+    def test_clearing_forgets_the_build(self):
+        updater.remember_staged(self.build(), "9.9.9")
+        updater.clear_pending()
+        self.assertIsNone(updater.pending_build())
+        updater.clear_pending()  # must not mind being asked twice
+
+
+class HelperCleanupTests(unittest.TestCase):
+    """Helper copies are only tidied at a moment it is safe to."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        swapped(self, updater, "update_dir",
+                lambda: pathlib.Path(self.tmp.name) / "updates")
+
+    def test_leftover_helpers_go_and_other_files_stay(self):
+        directory = updater.update_dir()
+        directory.mkdir(parents=True, exist_ok=True)
+        helper = directory / f"{updater.HELPER_PREFIX}1234.exe"
+        build = directory / updater.ASSET_NAME
+        helper.write_bytes(b"old helper")
+        build.write_bytes(b"downloaded build")
+        updater.tidy_helpers()
+        self.assertFalse(helper.exists())
+        self.assertTrue(build.exists())
+
+    def test_tidying_an_absent_folder_is_not_an_error(self):
+        updater.tidy_helpers()
+
+
+class ExitHandOverTests(unittest.TestCase):
+    """What the app does on the way out, without ever stopping the exit."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        swapped(self, updater, "update_dir",
+                lambda: pathlib.Path(self.tmp.name) / "updates")
+        self.app = load_app_module()
+
+    def stage_build(self):
+        staged = updater.update_dir() / updater.ASSET_NAME
+        staged.parent.mkdir(parents=True, exist_ok=True)
+        staged.write_bytes(b"MZ new build")
+        updater.remember_staged(staged, "9.9.9")
+        return staged
+
+    def test_a_waiting_build_is_handed_to_the_helper(self):
+        staged = self.stage_build()
+        handed = {}
+        swapped(self, updater, "is_frozen", lambda: True)
+        swapped(self, updater, "install",
+                lambda path, relaunch=False: handed.update(
+                    path=path, relaunch=relaunch))
+        self.app._apply_staged_update_on_exit()
+        self.assertEqual(handed["path"], staged)
+        # The reader closed the app themselves. Starting it again for them
+        # would hide the fact that anything happened at all.
+        self.assertFalse(handed["relaunch"])
+
+    def test_nothing_waiting_means_nothing_handed_over(self):
+        calls = []
+        swapped(self, updater, "is_frozen", lambda: True)
+        swapped(self, updater, "install", lambda *a, **k: calls.append(1))
+        self.app._apply_staged_update_on_exit()
+        self.assertEqual(calls, [])
+
+    def test_a_failing_helper_never_stops_the_app_closing(self):
+        self.stage_build()
+
+        def explode(*args, **kwargs):
+            raise OSError("no room for a second copy")
+
+        swapped(self, updater, "is_frozen", lambda: True)
+        swapped(self, updater, "install", explode)
+        # The window is already closing. Raising here would strand the reader
+        # staring at a frozen app they cannot close.
+        self.app._apply_staged_update_on_exit()
+
+    def test_the_website_never_hands_anything_over(self):
+        self.stage_build()
+        calls = []
+        swapped(self, updater, "is_frozen", lambda: False)
+        swapped(self, updater, "install", lambda *a, **k: calls.append(1))
+        self.app._apply_staged_update_on_exit()
+        self.assertEqual(calls, [])
+
+
+@unittest.skipUnless(os.name == "nt", "Windows process handles")
+class RealProcessWaitTests(unittest.TestCase):
+    """process_has_exited against real processes, not mocks.
+
+    This is the one place the updater can hang forever, and a fake handle
+    would agree with every version of the code, so these use real ones.
+    """
+
+    def a_process_that_keeps_running(self):
+        import subprocess
+        child = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(30)"])
+        # Last-in-first-out, so the wait is registered before the kill.
+        self.addCleanup(child.wait, 10)
+        self.addCleanup(child.kill)
+        return child
+
+    def test_a_running_process_is_reported_as_still_running(self):
+        child = self.a_process_that_keeps_running()
+        self.assertFalse(updater.process_has_exited(child.pid, timeout=0.4))
+
+    def test_a_finished_process_is_reported_as_finished(self):
+        child = self.a_process_that_keeps_running()
+        child.kill()
+        child.wait(timeout=10)
+        # The handle is still open on the object above, which is exactly the
+        # case os.kill gets wrong.
+        self.assertTrue(updater.process_has_exited(child.pid, timeout=5))
+
+    def test_a_process_that_never_existed_is_not_waited_for(self):
+        # A pid that was never used is a pid nothing is holding open.
+        self.assertTrue(updater.process_has_exited(0x7FFFFFF0, timeout=5))
+
+
+class RealSwapTests(unittest.TestCase):
+    """The whole hand-over, with a real waiting process and a real file."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = pathlib.Path(self.tmp.name)
+        # Deliberately a different folder from the target. In the real app
+        # the download sits in the config folder and the program sits beside
+        # its shortcut, and the two are never the same file.
+        self.downloads = self.dir / "updates"
+        self.downloads.mkdir()
+        self.staged = self.downloads / updater.ASSET_NAME
+        self.staged.write_bytes(b"new build")
+        self.target = self.dir / "AccessibleIDE.exe"
+        self.target.write_bytes(b"old build")
+
+    def sleeper(self, seconds=30):
+        """A child that will still be running unless the test ends it."""
+        import subprocess
+        child = subprocess.Popen(
+            [sys.executable, "-c", f"import time; time.sleep({seconds})"])
+        # Cleanups run last-in-first-out, so the wait is registered before
+        # the kill on purpose: a wait that runs first would always time out.
+        self.addCleanup(child.wait, 10)
+        self.addCleanup(child.kill)
+        return child
+
+    def finished(self):
+        """A child that has already gone, and whose handle is still open."""
+        import subprocess
+        child = subprocess.Popen([sys.executable, "-c", "pass"])
+        child.wait(timeout=10)
+        return child
+
+    def wait_for_me(self, marker):
+        import subprocess
+        child = subprocess.Popen(
+            [sys.executable, "-c",
+             f"import time,pathlib; time.sleep(0.3); pathlib.Path(r'{marker}').write_text('x')"])
+        self.addCleanup(child.wait, 10)
+        return child
+
+    def swap_against(self, child):
+        return updater.run_helper([
+            "--wait-for", str(child.pid),
+            "--staged", str(self.staged),
+            "--target", str(self.target),
+        ])
+
+    def test_the_build_is_replaced_once_the_app_has_gone(self):
+        marker = self.dir / "gone"
+        child = self.wait_for_me(marker)
+        self.assertEqual(self.swap_against(child), 0)
+        self.assertEqual(self.target.read_bytes(), b"new build")
+        self.assertFalse(self.staged.exists())
+
+    def test_a_running_app_is_never_replaced(self):
+        child = self.sleeper()
+        # A short cap stands in for a reader leaving the app open overnight.
+        original = updater.WAIT_LIMIT_SECONDS
+        updater.WAIT_LIMIT_SECONDS = 0.5
+        self.addCleanup(setattr, updater, "WAIT_LIMIT_SECONDS", original)
+        self.assertEqual(self.swap_against(child), 1)
+        self.assertEqual(self.target.read_bytes(), b"old build")
+
+    def test_a_missing_build_leaves_the_old_one_alone(self):
+        self.staged.unlink()
+        self.assertEqual(self.swap_against(self.finished()), 1)
+        self.assertEqual(self.target.read_bytes(), b"old build")
+
+    def test_an_installed_build_is_not_installed_again(self):
+        updater.remember_staged(self.staged, "9.9.9")
+        self.assertEqual(self.swap_against(self.finished()), 0)
+        # The record has to go too, or the next close puts the same build
+        # back in again.
+        self.assertIsNone(updater.pending_build())
+
+    def test_no_arguments_at_all_does_not_do_anything(self):
+        self.assertEqual(updater.run_helper([]), 1)
+        self.assertEqual(updater.run_helper(["--wait-for", "not-a-number"]), 1)
+
+    def test_a_target_that_is_also_the_download_is_not_deleted(self):
+        # The two paths should never be the same file, but if they ever were,
+        # tidying up the download must not take the program with it.
+        self.assertEqual(updater.run_helper([
+            "--wait-for", str(self.finished().pid),
+            "--staged", str(self.target),
+            "--target", str(self.target),
+        ]), 0)
+        self.assertTrue(self.target.is_file())
+
+    def test_the_new_build_is_only_started_when_asked_to_be(self):
+        # Both processes made first: the stub below replaces the very call
+        # used to make them.
+        first = self.finished()
+        second = self.finished()
+        started = []
+        original = updater.subprocess.Popen
+        updater.subprocess.Popen = lambda command, **kw: started.append(command)
+        self.addCleanup(setattr, updater.subprocess, "Popen", original)
+
+        self.assertEqual(updater.run_helper([
+            "--wait-for", str(first.pid),
+            "--staged", str(self.staged),
+            "--target", str(self.target),
+        ]), 0)
+        self.assertEqual(started, [], "the app was started without being asked")
+
+        self.staged.write_bytes(b"newer build")
+        self.assertEqual(updater.run_helper([
+            "--wait-for", str(second.pid),
+            "--staged", str(self.staged),
+            "--target", str(self.target),
+            "--relaunch",
+        ]), 0)
+        self.assertEqual([str(self.target)], [str(c[0]) for c in started])
+        self.assertEqual(self.target.read_bytes(), b"newer build")
 
 
 if __name__ == "__main__":

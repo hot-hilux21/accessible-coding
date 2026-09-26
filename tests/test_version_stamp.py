@@ -182,5 +182,44 @@ class _Body:
         return False
 
 
+class WorkflowStampTests(unittest.TestCase):
+    """Every job that builds a program has to stamp it.
+
+    The portable build and the installer are separate jobs on separate
+    checkouts. Stamp one and not the other and the installer ships a program
+    that reports an older version than the one beside it, so a reader who
+    installs it is immediately offered an update they are already running.
+    """
+
+    WORKFLOWS = ("build-exe.yml", "build-release.yml")
+
+    def jobs_that_build(self, text):
+        import yaml
+        document = yaml.safe_load(text)
+        found = {}
+        for name, body in (document.get("jobs") or {}).items():
+            commands = " ".join(str(step.get("run", ""))
+                                for step in body.get("steps") or [])
+            if "pyinstaller" in commands:
+                found[name] = commands
+        return found
+
+    def test_every_build_job_stamps_its_version(self):
+        for name in self.WORKFLOWS:
+            text = (REPO_ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+            for job, commands in self.jobs_that_build(text).items():
+                with self.subTest(workflow=name, job=job):
+                    self.assertIn(
+                        "stamp_version.py stamp", commands,
+                        f"{name}:{job} builds a program without stamping it")
+
+    def test_there_is_at_least_one_build_job_to_check(self):
+        # Otherwise the test above would pass on an empty list.
+        for name in self.WORKFLOWS:
+            text = (REPO_ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+            with self.subTest(workflow=name):
+                self.assertTrue(self.jobs_that_build(text))
+
+
 if __name__ == "__main__":
     unittest.main()

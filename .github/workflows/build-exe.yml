@@ -88,6 +88,21 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: pip install flask pywebview pyinstaller
+      - name: Work out this build's version
+        id: stamp
+        shell: pwsh
+        run: |
+          # The same version the portable build is stamped with. Without this
+          # the installer would ship a program that reports the version it
+          # had when the tag was cut, and a reader who installed it would
+          # then be offered the very build they are already running.
+          $lastTag = (git describe --tags --abbrev=0 2>$null)
+          if (-not $lastTag) { $lastTag = "v0.0.0" }
+          $base = $lastTag -replace '^v', ''
+          $version = "$base.dev.${{ github.run_number }}"
+          python tools/stamp_version.py stamp --version $version
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "Stamping version $version"
       - name: Build onedir app
         run: pyinstaller AccessibleIDE-onedir.spec --noconfirm
       - name: Download installer prerequisites

@@ -76,6 +76,8 @@ def _run_desktop(port):
         print('AccessibleIDE could not start its local server.')
         sys.exit(1)
 
+    _tidy_leftover_updates()
+
     webview.create_window(
         'AccessibleIDE',
         url,
@@ -86,7 +88,50 @@ def _run_desktop(port):
     webview.start()
 
     # Window closed -> stop the server and exit.
+    #
+    # os._exit skips cleanup, so anything that has to happen on the way out
+    # has to happen here. Handing a downloaded build to the replacement helper
+    # is one of those things: the swap is done by a second copy of the app
+    # that waits for this process to end, and this is where that wait starts.
+    _apply_staged_update_on_exit()
     os._exit(0)
+
+
+def _tidy_leftover_updates():
+    """Clear away helper copies from updates that already happened.
+
+    Windows refuses to delete a running program, so each update leaves its
+    helper behind. Doing this at start rather than on the way out means the
+    tidy-up runs with nothing of ours running, which is the only time the
+    files are genuinely free.
+    """
+    try:
+        from accessible_ide import updater
+        if updater.is_frozen():
+            updater.tidy_helpers()
+    except Exception:
+        pass
+
+
+def _apply_staged_update_on_exit():
+    """Hand a downloaded build over to the helper, if one is waiting.
+
+    A failure here must not stop the app closing, and must not be noisy: the
+    reader has already shut the window, and a message on a console they have
+    stopped looking at helps nobody. The download stays on disk either way,
+    so the next start can try again.
+    """
+    try:
+        from accessible_ide import updater
+        if not updater.is_frozen():
+            return
+        waiting = updater.pending_build()
+        if waiting is None:
+            return
+        staged, _version = waiting
+        updater.install(staged, relaunch=False)
+    except Exception:
+        pass
 
 
 if __name__ == '__main__':
@@ -96,6 +141,12 @@ if __name__ == '__main__':
     if len(sys.argv) >= 3 and sys.argv[1] == '--run-script':
         runpy.run_path(sys.argv[2], run_name='__main__')
         sys.exit(0)
+
+    # The replacement helper. This is the only mode that never opens a window,
+    # so it is checked before anything else starts a server.
+    if '--apply-update' in sys.argv:
+        from accessible_ide import updater
+        sys.exit(updater.run_helper(sys.argv[1:]))
 
     port = int(os.environ.get('PORT', 5000))
     _run_desktop(port)

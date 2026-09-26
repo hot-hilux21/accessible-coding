@@ -69,6 +69,19 @@ DEFAULT_TIMEOUT = 6
 # GitHub fifty times. An explicit "check now" ignores this.
 CHECK_INTERVAL_SECONDS = 6 * 60 * 60
 
+# How long the replacement helper waits for the app to close before giving up.
+# It is long enough that closing the app tomorrow still installs the update,
+# and short enough that an abandoned helper does not outlive the machine.
+WAIT_LIMIT_SECONDS = 24 * 60 * 60
+
+# Windows will not delete a running program, so a helper copy is left behind
+# each time. They are named apart from the downloaded builds, and cleaned up
+# on the next start, so a reader never accumulates them.
+HELPER_PREFIX = 'updater-'
+
+# Records a verified build that is waiting for the app to close.
+STATE_NAME = 'pending.json'
+
 _VERSION_RE = re.compile(
     r'^\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?'      # 1, 1.2, 1.2.3
     r'(?:[-.]?([0-9A-Za-z.]+))?\s*$'             # optional suffix
@@ -333,27 +346,37 @@ def stage(manifest: dict) -> Path:
 
     digest = hashlib.sha256()
     written = 0
-    with _open_url(url, DEFAULT_TIMEOUT * 10, '*/*') as response:
-        with open(temporary, 'wb') as handle:
-            while True:
-                chunk = response.read(256 * 1024)
-                if not chunk:
-                    break
-                written += len(chunk)
-                if written > MAX_DOWNLOAD_BYTES:
-                    raise UpdateError('the downloaded file is larger than expected', code='too_large')
-                digest.update(chunk)
-                handle.write(chunk)
+    try:
+        with _open_url(url, DEFAULT_TIMEOUT * 10, '*/*') as response:
+            with open(temporary, 'wb') as handle:
+                while True:
+                    chunk = response.read(256 * 1024)
+                    if not chunk:
+                        break
+                    written += len(chunk)
+                    if written > MAX_DOWNLOAD_BYTES:
+                        raise UpdateError('the downloaded file is larger than expected', code='too_large')
+                    digest.update(chunk)
+                    handle.write(chunk)
 
-    if written == 0:
-        raise UpdateError('nothing was downloaded', code='download_failed')
-    expected_size = manifest.get('size')
-    if isinstance(expected_size, int) and expected_size and written != expected_size:
-        raise UpdateError('the downloaded file is the wrong size', code='download_failed')
-    if digest.hexdigest() != wanted_sha:
-        raise UpdateError('the downloaded file did not match its checksum', code='checksum_failed')
+        if written == 0:
+            raise UpdateError('nothing was downloaded', code='download_failed')
+        expected_size = manifest.get('size')
+        if isinstance(expected_size, int) and expected_size and written != expected_size:
+            raise UpdateError('the downloaded file is the wrong size', code='download_failed')
+        if digest.hexdigest() != wanted_sha:
+            raise UpdateError('the downloaded file did not match its checksum', code='checksum_failed')
 
-    os.replace(temporary, target)
+        os.replace(temporary, target)
+    except BaseException:
+        # A half-downloaded file left under the real name is the one thing
+        # that could make a later run install something unchecked, so the
+        # attempt is removed whether it failed or was interrupted.
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
     return target
 
 
@@ -368,13 +391,18 @@ def install(staged: Path, relaunch: bool = False) -> bool:
 
     Returns False when the helper could not be started, which leaves the
     downloaded build in place for the reader to run themselves.
+
+    ``relaunch`` starts the new build once the swap is done. It is off by
+    default and the app leaves it off, because the app has no way of knowing
+    whether the reader's work is saved, and closing the app for them is not a
+    decision this is entitled to make on their behalf.
     """
     if not is_frozen():
         raise UpdateError('updates only apply to the packaged app', code='not_applicable')
     if not staged.is_file():
         raise UpdateError('the downloaded build is missing', code='missing_build')
     target = Path(sys.executable)
-    helper = update_dir() / f'updater-{os.getpid()}.exe'
+    helper = update_dir() / f'{HELPER_PREFIX}{os.getpid()}.exe'
     try:
         helper.parent.mkdir(parents=True, exist_ok=True)
         # The copy is the point of the whole exercise: a program cannot
@@ -410,6 +438,128 @@ def _copy(source: Path, destination: Path) -> None:
             writer.write(chunk)
 
 
+def tidy_helpers() -> None:
+    """Remove helper copies left by earlier updates.
+
+    Only ever called while the app itself is running, at which point any
+    helper still on disk is one that has already given up or already
+    finished. Nothing here can touch the downloaded build the reader may be
+    about to install, because those are named after the release file.
+    """
+    directory = update_dir()
+    if not directory.is_dir():
+        return
+    for leftover in directory.glob(HELPER_PREFIX + '*'):
+        if leftover.is_file() and leftover != Path(sys.executable):
+            try:
+                leftover.unlink()
+            except OSError:
+                pass
+
+
+def _state_file() -> Path:
+    return update_dir() / STATE_NAME
+
+
+def remember_staged(path: Path, version: str) -> None:
+    """Record that a verified build is on disk, waiting for the app to close.
+
+    Written after the download has been checked, so a file that exists here
+    has already been proved to be the build that was offered. The name of the
+    staged file is checked against the one expected when reading it back, so
+    a tampered or stale record cannot point the installer at something else.
+    """
+    state = {'staged': str(path), 'version': version}
+    target = _state_file()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_suffix('.part')
+    temporary.write_text(json.dumps(state), encoding='utf-8')
+    os.replace(temporary, target)
+
+
+def pending_build() -> tuple[Path, str] | None:
+    """The build waiting to be installed, as (path, version).
+
+    None when there is nothing to do, when the record cannot be read, or when
+    the file it names is not there. Returning None in each of those cases is
+    deliberate: the caller is on the way out of the app, and the only
+    acceptable answer to a record it cannot trust is to do nothing.
+    """
+    try:
+        state = json.loads(_state_file().read_text(encoding='utf-8'))
+        staged = Path(state['staged'])
+        version = str(state['version'])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if staged.name != ASSET_NAME or not staged.is_file():
+        return None
+    return staged, version
+
+
+def clear_pending() -> None:
+    """Forget the staged build, whether or not it was installed."""
+    try:
+        _state_file().unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def process_has_exited(pid: int, timeout: float | None = None) -> bool:
+    """Has that process finished? True once it is safe to touch its files.
+
+    On Windows this waits on a real handle to the process. It does not poll
+    with ``os.kill(pid, 0)``, which was the obvious thing to reach for and is
+    wrong here twice over: a process that has finished but whose handle is
+    still open somewhere reports as alive, so a loop built on it would never
+    end and the update would silently never be installed; and the call is a
+    liveness test, not a wait, so it would spin a core for as long as the
+    reader had the app open.
+    """
+    if os.name != 'nt':
+        import time
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return True
+            except OSError:
+                # Permission problems mean it exists but is not ours to ask.
+                # Treating that as gone would replace a program still running.
+                return False
+            if deadline is not None and time.monotonic() >= deadline:
+                return False
+            time.sleep(0.3)
+
+    import ctypes
+
+    SYNCHRONIZE = 0x00100000
+    WAIT_OBJECT_0 = 0x00000000
+    INFINITE = 0xFFFFFFFF
+
+    kernel32 = ctypes.windll.kernel32
+    # A HANDLE is pointer-sized. Left as the default c_int, a real handle
+    # above 4 billion is truncated on the way out and every later call is
+    # made on a handle that never existed, so the wait would report a
+    # finished process the moment it opened one.
+    kernel32.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
+    kernel32.OpenProcess.restype = ctypes.c_void_p
+    kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    kernel32.WaitForSingleObject.restype = ctypes.c_ulong
+    kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel32.CloseHandle.restype = ctypes.c_int
+
+    handle = kernel32.OpenProcess(SYNCHRONIZE, False, int(pid))
+    if not handle:
+        # Nothing to wait for: either it never existed or it is already gone.
+        return True
+    try:
+        milliseconds = INFINITE if timeout is None else int(max(timeout, 0) * 1000)
+        return kernel32.WaitForSingleObject(handle, milliseconds) == WAIT_OBJECT_0
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def run_helper(arguments: list) -> int:
     """The helper's side of the swap, run by the copied exe.
 
@@ -417,7 +567,6 @@ def run_helper(arguments: list) -> int:
     it again if the reader asked for that. Returns an exit code so the
     workflow can report what happened.
     """
-    import time
     wanted = {}
     relaunch = False
     index = 0
@@ -431,30 +580,47 @@ def run_helper(arguments: list) -> int:
             relaunch = True
         index += 1
 
-    pid = int(wanted['wait-for'])
-    # The app closes its window and exits; wait for that to actually happen
-    # rather than assuming, or the file is still locked.
-    while True:
-        try:
-            os.kill(pid, 0)
-        except OSError:
-            break
-        time.sleep(0.3)
+    try:
+        pid = int(wanted['wait-for'])
+    except (KeyError, ValueError):
+        return 1
+
+    # A cap, so a reader who leaves the app open overnight does not leave a
+    # helper sitting there forever. The cap only decides when to give up; it
+    # never decides that a running app may be replaced.
+    if not process_has_exited(pid, timeout=WAIT_LIMIT_SECONDS):
+        return 1
 
     staged = Path(wanted['staged'])
     target = Path(wanted['target'])
-    backup = target.with_suffix('.old')
+    if not staged.is_file():
+        return 1
+
+    # The replacement is written beside the target and moved into place in one
+    # step. Moving inside the same folder is what makes it atomic: a reader
+    # who starts the app at the wrong moment gets either the whole old build
+    # or the whole new one, never half of each.
+    incoming = target.with_name(target.name + '.new')
     try:
-        # The old build is kept until the new one is in place, so a failure
-        # here leaves something that still runs.
-        if target.exists():
-            _copy(target, backup)
-        os.replace(staged, target)
+        _copy(staged, incoming)
+        os.replace(incoming, target)
     except OSError:
+        # The original was never touched, so the app still starts.
+        try:
+            incoming.unlink(missing_ok=True)
+        except OSError:
+            pass
         return 1
     finally:
+        # The helper is running from its own copy, which Windows will not let
+        # it delete while it is running. A later start tidies it away.
+        #
+        # Never the target itself. The two are different places in normal
+        # use, but if they were ever the same file this would delete the very
+        # program that was just put in place.
         try:
-            Path(sys.executable).unlink()
+            if staged != target:
+                staged.unlink(missing_ok=True)
         except OSError:
             pass
 
@@ -463,4 +629,8 @@ def run_helper(arguments: list) -> int:
             subprocess.Popen([str(target)], close_fds=True)
         except OSError:
             return 1
+
+    # The build is installed, so the record that said one was waiting must go
+    # too. Left behind, it would put the same build in again on the next close.
+    clear_pending()
     return 0

@@ -25,10 +25,35 @@ if SRC not in sys.path:
 from accessible_ide import create_app, i18n, routes, updater  # noqa: E402
 
 
+class _Body:
+    """The smallest thing updater.stage can be handed instead of a network."""
+
+    def __init__(self, body, headers=None):
+        self._body = body
+        self.headers = headers or {}
+
+    def read(self, amount=-1):
+        if amount is None or amount < 0:
+            data, self._body = self._body, b""
+            return data
+        data, self._body = self._body[:amount], self._body[amount:]
+        return data
+
+    def close(self):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
 class UpdateEndpointTestCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         tmp_path = pathlib.Path(self._tmp.name)
+        self.config_dir = tmp_path
 
         self._saved = {
             "CONFIG_DIR": routes.CONFIG_DIR,
@@ -83,6 +108,21 @@ class UpdateEndpointTestCase(unittest.TestCase):
 
     def check(self, **payload):
         return self.client.post("/api/update/check", json=payload)
+
+    def install(self, **payload):
+        return self.client.post("/api/update/install", json=payload)
+
+    def stage_fake_build(self, body=b"MZ a build that passed its checks"):
+        """A download that really is the right bytes, written in place."""
+        import hashlib
+        self.patch(updater, "update_dir",
+                   lambda: self.config_dir / "updates")
+        self.patch(updater, "_open_url", lambda url, timeout, accept: _Body(body))
+        return {
+            "url": f"{updater.RELEASES_BASE}/download/v/{updater.ASSET_NAME}",
+            "sha256": hashlib.sha256(body).hexdigest(),
+            "size": len(body),
+        }
 
 
 class VersionEndpointTests(UpdateEndpointTestCase):
@@ -244,6 +284,76 @@ class ErrorTextTests(UpdateEndpointTestCase):
         body = self.check(force=True, locale="fr").get_json()
         self.assertEqual(body["error_code"], "brand_new")
         self.assertEqual(body["error_text"], i18n.make_translator("fr")("update.error_unknown"))
+
+
+class InstallEndpointTests(UpdateEndpointTestCase):
+    """Downloading, and the promise that nothing is replaced yet."""
+
+    def test_a_downloaded_build_is_waiting_to_be_installed(self):
+        self.set_manifest("99.0.0", **self.stage_fake_build())
+        response = self.install()
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["version"], "99.0.0")
+        staged, version = updater.pending_build()
+        self.assertEqual(version, "99.0.0")
+        self.assertTrue(staged.is_file())
+
+    def test_nothing_is_installed_yet(self):
+        # The whole point of the design: the running program is not touched
+        # while the reader is still using it.
+        self.set_manifest("99.0.0", **self.stage_fake_build())
+        installed = []
+        self.patch(updater, "install", lambda *a, **k: installed.append(1))
+        self.install()
+        self.assertEqual(installed, [])
+
+    def test_the_website_is_told_it_has_nothing_to_install(self):
+        self.patch(updater, "is_frozen", lambda: False)
+        self.set_manifest("99.0.0", **self.stage_fake_build())
+        response = self.install()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()["error_code"], "not_applicable")
+
+    def test_asking_to_install_with_nothing_new_says_so_plainly(self):
+        self.set_manifest(updater.current_version())
+        response = self.install()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()["error_code"], "no_update")
+
+    def test_a_failed_download_leaves_nothing_waiting(self):
+        import hashlib
+        body = b"MZ a build that is not what was promised"
+        self.stage_fake_build(b"X" * len(body))
+        self.set_manifest("99.0.0", **{
+            "url": f"{updater.RELEASES_BASE}/download/v/{updater.ASSET_NAME}",
+            "sha256": hashlib.sha256(body).hexdigest(),
+            "size": len(body),
+        })
+        response = self.install()
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.get_json()["error_code"])
+        self.assertIsNone(updater.pending_build())
+
+    def test_a_failed_download_is_explained_in_the_readers_language(self):
+        import hashlib
+        body = b"MZ a build that is not what was promised"
+        self.stage_fake_build(b"X" * len(body))
+        self.set_manifest("99.0.0", **{
+            "url": f"{updater.RELEASES_BASE}/download/v/{updater.ASSET_NAME}",
+            "sha256": hashlib.sha256(body).hexdigest(),
+            "size": len(body),
+        })
+        body = self.install(locale="es").get_json()
+        self.assertEqual(body["error_code"], "checksum_failed")
+        self.assertEqual(body["error_text"],
+                         i18n.make_translator("es")("update.error_checksum"))
+
+    def test_it_is_gated_like_the_other_apis(self):
+        routes.ACCESS_CODE = "letmein"
+        self.set_manifest("99.0.0", **self.stage_fake_build())
+        self.assertTrue(self.install().get_json().get("code_required"))
 
 
 class AccessCodeTests(UpdateEndpointTestCase):
