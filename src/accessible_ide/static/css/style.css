@@ -4,6 +4,15 @@
    Calm, low-distraction design for dyslexic & neurodivergent users
    ============================================================ */
 
+/* The browser hides [hidden] with a UA rule that any author `display`
+   beats. Several things here are toggled by the `hidden` attribute --
+   the update download row, the error panel, the setup wizard's steps --
+   and the ones that also carry a `display` would silently stay visible
+   forever. This is the standard guard, and it has to come before them. */
+[hidden] {
+  display: none !important;
+}
+
 :root {
   --bg: #0d0d0d;
   --fg: #ffffff;
@@ -1109,4 +1118,173 @@ body[data-reduce-motion='true'] *::before,
 body[data-reduce-motion='true'] *::after {
   transition: none !important;
   animation: none !important;
+}
+
+/* ============================================================
+   First-run setup
+   ============================================================
+   Wider than Settings, because a font sample needs room to be
+   judged honestly. Everything else -- colours, the focus ring,
+   the 44px target -- is borrowed from the settings panel so the
+   two screens feel like the same app.
+   ============================================================ */
+
+.setup {
+  width: min(680px, calc(100vw - 2 * var(--space-4)));
+}
+
+/* The title is long in some languages, so the progress line drops
+   under it rather than squeezing it into an unreadable column. */
+.setup-header {
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+}
+
+.setup-progress {
+  margin: 0;
+  font-size: 0.95em;
+  font-weight: bold;
+  color: var(--fg);
+  opacity: 0.85;
+}
+
+.setup-panel {
+  margin: 0;
+}
+
+.setup-legend:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+/* ---------- The choice rows ---------- */
+
+.setup-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.setup-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-3);
+  border: 2px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  cursor: pointer;
+}
+
+/* The row is the target, not just the little radio in it, so a
+   missed click still lands on the option the reader aimed at. */
+.setup-choice:hover {
+  border-color: var(--fg);
+}
+
+/* The focus ring is drawn on the row when the radio inside it takes
+   focus. Without this the ring would sit on a 20px circle in the
+   corner of a much larger clickable area, which misrepresents where
+   the reader's attention has to go. */
+.setup-choice:focus-within {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.setup-choice:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--panel-bg);
+}
+
+.setup-choice input[type='radio'] {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.setup-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.setup-choice-name {
+  font-weight: bold;
+}
+
+.setup-choice-note {
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+/* The sample wraps rather than being clipped: a long localised
+   string in a narrow font must not push the layout sideways. */
+.setup-sample {
+  display: block;
+  font-size: 1.05em;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  color: var(--fg);
+}
+
+/* ---------- The tour ---------- */
+
+.setup-tour {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-tour li {
+  padding: var(--space-3);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-bg);
+}
+
+.setup-tour-name {
+  margin: 0 0 var(--space-1);
+  font-weight: bold;
+}
+
+.setup-tour-text {
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ---------- The bar along the bottom ---------- */
+
+.setup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  border-top: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+}
+
+.setup-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-inline-start: auto;
+}
+
+/* The buttons are what carry the reader between the questions, so they
+   have to be as easy to hit as the answer rows above them. .btn-small is
+   32px, which is a fair size for a crowded toolbar and too small for the
+   one screen somebody meets before anything else in the app - and it would
+   be strange for the rows to be 44px and the way forward to be 32px. */
+.setup-footer .btn {
+  min-height: 44px;
 }

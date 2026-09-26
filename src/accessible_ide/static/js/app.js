@@ -75,6 +75,8 @@
   var btnCheckUpdate = document.getElementById('btn-check-update');
   var updateStatus = document.getElementById('update-status');
   var updateVersion = document.getElementById('update-version');
+  var updateInstallRow = document.getElementById('update-install-row');
+  var btnInstallUpdate = document.getElementById('btn-install-update');
   var settingsDialog = document.getElementById('settings-dialog');
   var btnSettings = document.getElementById('btn-settings');
   var btnSettingsClose = document.getElementById('btn-settings-close');
@@ -91,6 +93,16 @@
   var colourError = document.getElementById('colour-error');
   var btnResetColour = document.getElementById('btn-reset-colour');
   var languageSelect = document.getElementById('language-select');
+  // The first-run setup screen. These are null once the reader has
+  // finished it, because the server stops rendering it - so every use
+  // below has to cope with that, and none of it may run at all.
+  var setupDialog = document.getElementById('setup-dialog');
+  var setupProgress = document.getElementById('setup-progress');
+  var setupStatus = document.getElementById('setup-status');
+  var setupBack = document.getElementById('setup-back');
+  var setupNext = document.getElementById('setup-next');
+  var setupSkip = document.getElementById('setup-skip');
+  var btnSetupAgain = document.getElementById('btn-setup-again');
 
   var body = document.body;
   var ttsEnabled = btnTts.getAttribute('aria-checked') === 'true';
@@ -345,8 +357,12 @@
     return backgroundIsDark ? '#ffffff' : '#000000';
   }
 
-  function applyFont(fontKey) {
-    var family = fontFamilyFor(fontKey);
+  function applyFont(fontKey, familyOverride) {
+    // The wizard offers the same fonts as radios rather than as the
+    // settings <select>, so it passes the stack it was rendered with.
+    // Reading it from the select would quietly fall back to the default
+    // family and the preview would show the wrong font.
+    var family = familyOverride || fontFamilyFor(fontKey);
     body.style.fontFamily = family;
     editorEl.style.fontFamily = family;
     // CodeMirror needs the font applied to its content
@@ -563,6 +579,168 @@
     if (settingsOpener && typeof settingsOpener.focus === 'function') {
       settingsOpener.focus();
     }
+  }
+
+  // ---------- First-run setup ----------
+  // Three steps: language, reading font, and a very short tour. It is shown
+  // only until the reader has finished it, which is why the server decides
+  // whether it exists at all.
+  //
+  // The step is derived from the panels in the page rather than from a list
+  // written out here, so adding a step to index.html cannot leave this
+  // file stepping past the end of its own navigation.
+  function setupPanels() {
+    if (!setupDialog) return [];
+    return setupDialog.querySelectorAll('.setup-panel');
+  }
+
+  function setupCurrentStep() {
+    var panels = setupPanels();
+    for (var i = 0; i < panels.length; i++) {
+      if (!panels[i].hidden) return i + 1;
+    }
+    return 1;
+  }
+
+  function showSetupStep(step) {
+    var panels = setupPanels();
+    var total = panels.length;
+    if (!total) return;
+    step = Math.max(1, Math.min(step, total));
+
+    for (var i = 0; i < total; i++) {
+      panels[i].hidden = (i + 1) !== step;
+    }
+    if (setupProgress) setupProgress.textContent = t('setup.step_of', step, total);
+    if (setupBack) setupBack.hidden = step === 1;
+    // The last step finishes rather than advancing, so the button says so.
+    if (setupNext) {
+      setupNext.textContent = step === total ? t('setup.start') : t('setup.next');
+    }
+    // Move focus to the new question. Staying on the Next button would
+    // leave a screen reader announcing the same button after it changes.
+    var heading = panels[step - 1].querySelector('.setup-legend');
+    if (heading && heading.focus) heading.focus();
+  }
+
+  function setupError() {
+    if (!setupStatus) return;
+    setupStatus.hidden = false;
+    setupStatus.textContent = t('setup.error_saved');
+  }
+
+  // Reached at the end. Reloading is the point: the whole page, wizard
+  // included, is drawn by the server in the chosen language and font, so
+  // this is the only way the reader ever sees the app as they set it up.
+  function finishSetup(extra) {
+    var payload = extra || {};
+    payload.setup_complete = true;
+    saveConfig(payload).then(function (result) {
+      if (result && result.ok) {
+        window.location.reload();
+        return;
+      }
+      setupError();
+    });
+  }
+
+  function openSetup() {
+    if (!setupDialog) return;
+    if (typeof setupDialog.showModal === 'function') {
+      setupDialog.showModal();
+    } else {
+      setupDialog.setAttribute('open', '');
+    }
+    var heading = setupDialog.querySelector('.setup-panel:not([hidden]) .setup-legend');
+    if (heading && heading.focus) heading.focus();
+  }
+
+  if (setupDialog) {
+    // Escape does not close this one. The screen exists to be answered,
+    // and dismissing it by reflex would leave the reader on the default
+    // font with no idea there was a choice to make. Skipping is a visible
+    // button instead, so there is still a way out.
+    setupDialog.addEventListener('cancel', function (event) {
+      event.preventDefault();
+    });
+
+    if (setupNext) {
+      setupNext.addEventListener('click', function () {
+        var panels = setupPanels();
+        var step = setupCurrentStep();
+        if (step >= panels.length) {
+          finishSetup();
+          return;
+        }
+        showSetupStep(step + 1);
+      });
+    }
+
+    if (setupBack) {
+      setupBack.addEventListener('click', function () {
+        showSetupStep(setupCurrentStep() - 1);
+      });
+    }
+
+    if (setupSkip) {
+      // Only marks the setup done. Anything already chosen stays chosen,
+      // so a reader who picked a font and then bailed out keeps it.
+      setupSkip.addEventListener('click', function () {
+        finishSetup();
+      });
+    }
+
+    var localeRadios = setupDialog.querySelectorAll('input[name="setup-locale"]');
+    Array.prototype.forEach.call(localeRadios, function (radio) {
+      radio.addEventListener('change', function () {
+        var chosen = radio.value;
+        if (!chosen || chosen === META.locale) return;
+        body.setAttribute('data-locale', chosen);
+        // Saving the step first is what stops the reload from throwing
+        // the reader back to the first question they already answered.
+        saveConfig({ locale: chosen, setup_step: setupCurrentStep() })
+          .then(function (result) {
+            if (result && result.ok) {
+              window.location.reload();
+              return;
+            }
+            setupError();
+          });
+      });
+    });
+
+    var fontRadios = setupDialog.querySelectorAll('input[name="setup-font"]');
+    Array.prototype.forEach.call(fontRadios, function (radio) {
+      radio.addEventListener('change', function () {
+        var family = radio.getAttribute('data-family');
+        // Applied to the whole page, wizard included, rather than to a
+        // snippet in isolation: the point is to see the font against the
+        // real interface before agreeing to it.
+        applyFont(radio.value, family);
+        body.setAttribute('data-font', radio.value);
+        // Saved straight away, so a reader who chooses a font and then
+        // skips does not lose the choice.
+        saveConfig({ font: radio.value }).then(function (result) {
+          if (!result || !result.ok) setupError();
+        });
+      });
+    });
+  }
+
+  // For anyone who skipped the first-run screen and wants it after all.
+  if (btnSetupAgain) {
+    btnSetupAgain.addEventListener('click', function () {
+      saveConfig({ setup_complete: false, setup_step: 1 }).then(function (result) {
+        if (result && result.ok) {
+          window.location.reload();
+          return;
+        }
+        if (settingsStatus) {
+          settingsStatus.textContent = t('setup.error_saved');
+          settingsStatus.classList.add('is-error');
+        }
+      });
+    });
   }
 
   // ---------- TTS ----------
@@ -1502,6 +1680,18 @@
     updateStatus.classList.toggle('is-error', !!isError);
   }
 
+  // The download row is only offered when there is something to download.
+  // Showing an empty button that quietly does nothing is worse than showing
+  // nothing at all.
+  function showInstallRow(show) {
+    if (updateInstallRow) updateInstallRow.hidden = !show;
+  }
+
+  function setUpdateControlsDisabled(disabled) {
+    if (btnCheckUpdate) btnCheckUpdate.disabled = disabled;
+    if (btnInstallUpdate) btnInstallUpdate.disabled = disabled;
+  }
+
   function paintAutoUpdateSwitch() {
     if (!autoUpdateEl) return;
     autoUpdateEl.setAttribute('aria-checked', autoUpdateOn ? 'true' : 'false');
@@ -1517,13 +1707,16 @@
   function reportCheck(result) {
     if (!result || result.success === false) return;
     if (!result.applicable) {
+      showInstallRow(false);
       say(t('update.status_not_applicable'));
       return;
     }
     if (result.update_available) {
+      showInstallRow(true);
       say(t('update.status_available', result.latest || ''), false);
       return;
     }
+    showInstallRow(false);
     if (result.error === 'checked_recently') return;
     if (result.error) {
       // The server sends a sentence already in the reader's language.
@@ -1561,7 +1754,52 @@
       })
       .then(function (data) {
         updateBusy = false;
-        if (btnCheckUpdate) btnCheckUpdate.disabled = false;
+        setUpdateControlsDisabled(false);
+        return data;
+      });
+  }
+
+  // Downloads the new build and checks it. Nothing is replaced here, and
+  // nothing is closed: the download is checked, the app carries on, and the
+  // swap happens the next time the reader closes the app themselves.
+  //
+  // The request is not sent until they ask, so nothing changes on their disk
+  // without them choosing to. The one thing that does change without asking
+  // is the check, which is the part the switch in Settings controls.
+  function installUpdate() {
+    if (updateBusy) return Promise.resolve(null);
+    updateBusy = true;
+    setUpdateControlsDisabled(true);
+    say(t('update.status_downloading'));
+    return fetch('/api/update/install', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_code: accessCode, locale: META.locale })
+    })
+      .then(function (res) {
+        return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+      })
+      .then(function (answer) {
+        if (!answer.ok || answer.data.success === false) {
+          // The server sends a sentence already in the reader's language.
+          // The access-code refusal arrives under a different name, because
+          // it is not an updater error at all.
+          say(answer.data.error_text || answer.data.error || t('update.error_unknown'), true);
+          return null;
+        }
+        // The row has done its job. Leaving it up would ask again for a
+        // build that is already downloaded and waiting.
+        showInstallRow(false);
+        say(t('update.status_ready', answer.data.version || ''));
+        return answer.data;
+      })
+      .catch(function () {
+        say(t('update.error_network'), true);
+        return null;
+      })
+      .then(function (data) {
+        updateBusy = false;
+        setUpdateControlsDisabled(false);
         return data;
       });
   }
@@ -1570,6 +1808,7 @@
     if (!autoUpdateEl) return;
     autoUpdateOn = autoUpdateEl.getAttribute('aria-checked') === 'true';
     paintAutoUpdateSwitch();
+    showInstallRow(false);
 
     fetch('/api/version')
       .then(function (res) { return res.json(); })
@@ -1580,10 +1819,11 @@
         }
         if (!updateApplicable) {
           // Nothing here can change a file on the reader's computer, so the
-          // switch and button would be controls that do nothing. Say so
+          // switch and buttons would be controls that do nothing. Say so
           // instead of leaving them looking live.
           if (autoUpdateEl) autoUpdateEl.disabled = true;
           if (btnCheckUpdate) btnCheckUpdate.disabled = true;
+          showInstallRow(false);
           say(t('update.status_not_applicable'));
           return;
         }
@@ -1613,6 +1853,12 @@
   if (btnCheckUpdate) {
     btnCheckUpdate.addEventListener('click', function () {
       checkForUpdates(true);
+    });
+  }
+
+  if (btnInstallUpdate) {
+    btnInstallUpdate.addEventListener('click', function () {
+      installUpdate();
     });
   }
 
@@ -1729,4 +1975,9 @@
       editor.refresh();
     });
   }
+
+  // Last, so the app has already painted itself in the saved font and
+  // size. The setup screen draws over all of it, and a wizard appearing
+  // on top of a half-styled page looks like the app failed to load.
+  openSetup();
 })();

@@ -177,6 +177,10 @@
               {% endfor %}
             </select>
             <p class="field-help">{{ t('language.help') }}</p>
+            <!-- For anyone who skipped the first-run screen and decides
+                 later they do want it. Without this, skipping is permanent
+                 and the only way back is editing config.json by hand. -->
+            <button id="btn-setup-again" class="btn btn-small" type="button">{{ t('settings.setup_again') }}</button>
           </div>
         </fieldset>
 
@@ -469,6 +473,17 @@
                moving focus away from whatever the reader is doing. -->
           <p id="update-status" class="field-value" role="status" aria-live="polite"></p>
 
+          <!-- Only shown once a build has actually been downloaded and
+               checked. Hidden before then so the panel does not offer an
+               action that cannot do anything yet. -->
+          <div class="field" id="update-install-row" hidden>
+            <span class="field-label-static" id="update-install-label">{{ t('update.install_button') }}</span>
+            <button id="btn-install-update" class="btn btn-small" type="button" aria-describedby="update-install-label">
+              {{ t('update.install_button') }}
+            </button>
+            <p class="field-help" id="update-install-help">{{ t('update.install_help') }}</p>
+          </div>
+
           <p class="field-help" id="update-version"></p>
         </fieldset>
       </div>
@@ -476,6 +491,124 @@
       <p id="settings-status" class="settings-status" role="status" aria-live="polite"></p>
     </div>
   </dialog>
+
+  {% if setup_open %}
+  <!-- First-run setup. Rendered by the server only while the reader has not
+       finished it, and shown as a modal by app.js on load. Deciding this
+       server-side is the whole point: a wizard that appears a moment after
+       the editor does reads as the app having hiccuped, and the reader has
+       already started typing. -->
+  <dialog id="setup-dialog" class="settings setup" aria-labelledby="setup-title">
+    <div class="settings-form">
+      <header class="settings-header setup-header">
+        <h2 id="setup-title" class="settings-title">{{ t('setup.title') }}</h2>
+        <!-- Spoken as well as drawn. "Step 2 of 3" in words is the only
+             part of a progress indicator a screen reader can use. -->
+        <p id="setup-progress" class="setup-progress" role="status" aria-live="polite">
+          {{ t('setup.step_of', setup_step, setup_total) }}
+        </p>
+      </header>
+
+      <div class="settings-body">
+        <p id="setup-status" class="settings-status is-error" role="alert" hidden></p>
+
+        <!-- ---------- Step 1: language ---------- -->
+        <section id="setup-panel-language" class="setup-panel"
+                 {% if setup_step != 1 %}hidden{% endif %}>
+          <fieldset class="settings-group">
+            <!-- tabindex="-1" so app.js can move focus to the question when
+                 the step changes. Without it, focus would stay on the Next
+                 button and the reader would not be told what changed. -->
+            <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.language_legend') }}</legend>
+            <!-- Native radios, not a div with role="radiogroup". Arrow-key
+                 movement, the checked state and the announcement all come
+                 from the browser, which is the only version of this that
+                 works reliably. -->
+            <div class="setup-choices">
+              {% for code, endonym_label, english_name, lang_direction in languages %}
+              <label class="setup-choice">
+                <input type="radio" name="setup-locale" value="{{ code }}"
+                       {% if config.locale == code %}checked{% endif %}>
+                <span class="setup-choice-text">
+                  <span class="setup-choice-name" lang="{{ code }}">{{ endonym_label }}</span>
+                  <span class="setup-choice-note">{{ english_name }}</span>
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+            <p class="field-help">{{ t('setup.language_help', t('nav.settings')) }}</p>
+          </fieldset>
+        </section>
+
+        <!-- ---------- Step 2: reading font ---------- -->
+        <section id="setup-panel-font" class="setup-panel"
+                 {% if setup_step != 2 %}hidden{% endif %}>
+          <fieldset class="settings-group">
+            <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.font_legend') }}</legend>
+            <p class="field-help" id="setup-font-help">{{ t('setup.font_help') }}</p>
+            <div class="setup-choices" aria-describedby="setup-font-help">
+              {% for key, font in fonts.items() %}
+              <label class="setup-choice setup-choice-font">
+                <input type="radio" name="setup-font" value="{{ key }}"
+                       data-family="{{ font.family }}"
+                       {% if config.font == key %}checked{% endif %}>
+                <span class="setup-choice-text">
+                  <span class="setup-choice-name">{{ font.name }}</span>
+                  <!-- The sample is written in the font it is demonstrating,
+                       server-side, so a reader without JavaScript still sees
+                       a true preview rather than eight identical lines. -->
+                  <code class="setup-sample"
+                        style="font-family: {{ font.family }}">{{ t('setup.font_sample') }}</code>
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- ---------- Step 3: what this app does ---------- -->
+        <section id="setup-panel-tour" class="setup-panel"
+                 {% if setup_step != 3 %}hidden{% endif %}>
+          <h3 class="settings-legend setup-legend" tabindex="-1">{{ t('setup.tour_title') }}</h3>
+          <ul class="setup-tour">
+            <li>
+              <p class="setup-tour-name">{{ t('setup.tour_editor_title') }}</p>
+              <p class="setup-tour-text">{{ t('setup.tour_editor_text') }}</p>
+            </li>
+            <li>
+              <p class="setup-tour-name">{{ t('setup.tour_run_title') }}</p>
+              <!-- The button name is interpolated rather than written out,
+                   so this line cannot drift from the button it points at. -->
+              <p class="setup-tour-text">{{ t('setup.tour_run_text', t('nav.run')) }}</p>
+            </li>
+            <li>
+              <p class="setup-tour-name">{{ t('setup.tour_speak_title') }}</p>
+              <p class="setup-tour-text">{{ t('setup.tour_speak_text', t('nav.read_line')) }}</p>
+            </li>
+            <li>
+              <p class="setup-tour-name">{{ t('setup.tour_settings_title') }}</p>
+              <p class="setup-tour-text">{{ t('setup.tour_settings_text', t('nav.settings')) }}</p>
+            </li>
+          </ul>
+        </section>
+      </div>
+
+      <!-- Escape does not close this dialog: the setup screen exists to be
+           answered. Skipping is still always available on this bar, so there
+           is a real way out rather than a trap. -->
+      <div class="setup-footer">
+        <button id="setup-skip" class="btn btn-small" type="button">{{ t('setup.skip') }}</button>
+        <div class="setup-nav">
+          <button id="setup-back" class="btn btn-small" type="button"
+                  {% if setup_step == 1 %}hidden{% endif %}>{{ t('setup.back') }}</button>
+          <button id="setup-next" class="btn btn-primary" type="button">
+            {% if setup_step == setup_total %}{{ t('setup.start') }}{% else %}{{ t('setup.next') }}{% endif %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+  {% endif %}
 
   <!-- The active catalogue is embedded rather than fetched. The page is
        already in the reader's language before this script runs, and a

@@ -33,10 +33,18 @@ const KNOWN_IDS = new Set([
   'btn-test-voice',
   'auto-update-toggle', 'auto-update-state', 'btn-check-update',
   'update-status', 'update-version',
+  'update-install-row', 'update-install-label', 'update-install-help',
+  'btn-install-update',
   'font-bundled-note', 'sample-text', 'font-preview', 'font-preview-text',
   'preview-status', 'swatches', 'code-color-hex', 'code-color-picker',
   'colour-error', 'btn-reset-colour',
   'language-select',
+  // The first-run setup screen. The server stops rendering it once the
+  // reader has finished it, so app.js has to treat every one of these as
+  // optional - the harness declares them so that path is exercised rather
+  // than skipped.
+  'setup-dialog', 'setup-progress', 'setup-status', 'setup-back',
+  'setup-next', 'setup-skip', 'btn-setup-again',
   // The two JSON script blocks the server embeds. They are not elements
   // app.js draws with, but without them every t() call falls back to
   // returning the key, and this harness would stop testing translations
@@ -297,6 +305,78 @@ const FONT_OPTIONS = [
 // updateFontNote() to work against.
 const FONT_SELECT = makeElement('font-select', {}, { options: FONT_OPTIONS });
 
+// ---------------------------------------------------------------------------
+// The first-run setup screen.
+//
+// Built once and shared, because the real thing is one dialog that is
+// created and then navigated in place: a check that moves to step 2 leaves
+// the panels shown and hidden, and the next check has to see that.
+//
+// Each panel carries the heading app.js moves focus to, and focus is
+// recorded rather than discarded - "focus stayed on the Next button" is the
+// failure this whole arrangement exists to catch, and a noop focus would
+// make it invisible.
+// ---------------------------------------------------------------------------
+const setupFocusLog = [];
+
+function makeSetupPanel(name, visible) {
+  const legend = makeElement(`setup-legend-${name}`);
+  legend.focus = () => { setupFocusLog.push(name); };
+  const panel = makeElement(`setup-panel-${name}`, {}, { hidden: !visible });
+  panel.__legend = legend;
+  panel.querySelectorAll = () => [];
+  panel.querySelector = (selector) =>
+    selector === '.setup-legend' ? legend : null;
+  return panel;
+}
+
+const SETUP_PANELS = [
+  makeSetupPanel('language', true),
+  makeSetupPanel('font', false),
+  makeSetupPanel('tour', false),
+];
+
+// The radios, carrying the same data-family stacks the template renders, so
+// the live preview is held to the font the code would really apply.
+const SETUP_FONT_RADIOS = FONT_OPTIONS.map((option) => {
+  const value = option.value;
+  return makeElement(`setup-font-${value}`, {
+    name: 'setup-font',
+    'data-family': option.__attributes['data-family'],
+  }, { value, checked: value === 'Atkinson Hyperlegible' });
+});
+
+const SETUP_LOCALE_RADIOS = ['en', 'hi', 'fr', 'es', 'ar'].map((code) =>
+  makeElement(`setup-locale-${code}`, { name: 'setup-locale' },
+    { value: code, checked: code === 'en' })
+);
+
+const SETUP_DIALOG = makeElement('setup-dialog', {}, {
+  // Recorded rather than discarded: "the wizard was in the markup but never
+  // opened" is a real failure that a noop would hide completely.
+  showModal() { SETUP_DIALOG.__modalOpens += 1; },
+  querySelectorAll: (selector) => {
+    if (selector === '.setup-panel') return SETUP_PANELS;
+    if (selector === 'input[name="setup-locale"]') return SETUP_LOCALE_RADIOS;
+    if (selector === 'input[name="setup-font"]') return SETUP_FONT_RADIOS;
+    return [];
+  },
+  querySelector: (selector) => {
+    if (selector !== '.setup-panel:not([hidden]) .setup-legend') return null;
+    const current = SETUP_PANELS.find((panel) => !panel.hidden);
+    return current ? current.__legend : null;
+  },
+});
+
+// Puts the wizard back to the beginning, so a check cannot pass or fail
+// because of where an earlier one left it.
+function resetSetup() {
+  SETUP_PANELS.forEach((panel, index) => { panel.hidden = index !== 0; });
+  setupFocusLog.length = 0;
+}
+
+SETUP_DIALOG.__modalOpens = 0;
+
 const editorInstance = {
   getValue: () => 'print("hi")',
   setValue: noop,
@@ -433,6 +513,12 @@ function makePage(locale, shared, bodyAttrs) {
         }
         return found.get(id);
       }
+      if (id === 'setup-dialog') {
+        // One dialog with three steps and two sets of radios inside it,
+        // rather than a flat element the generic path could invent.
+        if (!found.has(id)) found.set(id, SETUP_DIALOG);
+        return found.get(id);
+      }
       if (!KNOWN_IDS.has(id)) return null;
       if (!found.has(id)) {
         // Settings the template renders as a dropdown carry its real values,
@@ -443,6 +529,10 @@ function makePage(locale, shared, bodyAttrs) {
             ? { value: SELECT_OPTIONS[id][0], options: optionsFor(SELECT_OPTIONS[id]) }
             : {},
           RANGE_INPUTS[id] ? { value: RANGE_INPUTS[id].value } : {},
+          // The template draws Back hidden on the first step. Without this
+          // the stub would start with it showing, and a check about it
+          // hiding would pass for the wrong reason.
+          id === 'setup-back' ? { hidden: true } : {},
         );
         found.set(id, makeElement(id, attributesFor(id), props));
       }
@@ -483,6 +573,10 @@ function makePage(locale, shared, bodyAttrs) {
       },
       addEventListener: noop,
       removeEventListener: noop,
+      // Counted rather than left undefined. The Quit button closes the
+      // window for real, and so - wrongly - might an update. The counter is
+      // how the update checks tell the two apart.
+      close: () => { closeAttempts += 1; },
     },
   };
   context.window.document = doc;
@@ -507,7 +601,19 @@ function fakeEventFor(page) {
 }
 
 const fetchCalls = [];
+// How many times anything asked to close the window. The Quit button does
+// this legitimately; the update flow must never do it at all, because the
+// app has no way of knowing whether the reader's work is saved.
+let closeAttempts = 0;
+// Replaced by the end of the update chain, so the process exits when the last
+// promise has settled rather than at a guessed moment.
+let finish = () => process.exit(failed ? 1 : 0);
 const configPosts = [];
+// Whether a settings write is accepted. Held in a variable so the refused
+// path can be walked: a stub that only ever saves would never show what the
+// app does when the answer comes back "no", which is the case where the
+// reader's answers are at risk.
+let updateConfigOk = true;
 // The bodies sent to the update check, so a check can be told apart from a
 // forced one.
 const updateCheckBodies = [];
@@ -519,6 +625,12 @@ let updateCheckReply = {
   update_available: false, error: '', error_code: '', error_text: '',
   automatic: true,
 };
+// The same idea for the download: held in a variable so the failure path can
+// be walked too. A stub that only ever succeeds proves nothing about the case
+// that actually matters, where the download does not arrive.
+let updateInstallReply = { success: true, version: '99.0.0', size: 10 };
+let updateInstallOk = true;
+const updateInstallBodies = [];
 // Every utterance the app asked for, in order. Without this the harness
 // can only prove the app ran, not that it said anything.
 const spokenUtterances = [];
@@ -539,6 +651,16 @@ function fetchStub(url, options) {
     } catch (error) {
       configPosts.push({ __unparseable: String(options.body) });
     }
+    if (!updateConfigOk) {
+      return Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({ success: false, error: 'refused' }),
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ success: true }),
+    });
   }
   // The update endpoints get real answers, or the panel would take the
   // "this is the website, it cannot update itself" branch on every run and
@@ -560,6 +682,19 @@ function fetchStub(url, options) {
     return Promise.resolve({
       ok: true,
       json: () => Promise.resolve(Object.assign({}, updateCheckReply)),
+    });
+  }
+  if (String(url).includes('/api/update/install')) {
+    if (options && options.body) {
+      try {
+        updateInstallBodies.push(JSON.parse(options.body));
+      } catch (error) {
+        updateInstallBodies.push({ __unparseable: String(options.body) });
+      }
+    }
+    return Promise.resolve({
+      ok: updateInstallOk,
+      json: () => Promise.resolve(Object.assign({}, updateInstallReply)),
     });
   }
   return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) });
@@ -1235,9 +1370,9 @@ function runSpeechChecks() {
 
   runUpdateChecks();
 
-  // The last update check settles a promise of its own, so the exit waits for
-  // it rather than cutting it off.
-  setTimeout(() => process.exit(failed ? 1 : 0), 40);
+  // The update promises settle in a chain, so the exit waits for the end of
+  // that chain rather than cutting it off at a guessed time.
+  finish = () => process.exit(failed ? 1 : 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1351,6 +1486,380 @@ function runUpdateChecks() {
       console.log('     a failed check is marked as a problem, not just worded');
     }
   }, 10);
+
+  // Whatever the check did, the download path needs a check that found
+  // something. Run after the failure case above so its status text cannot
+  // make the two look like one.
+  setTimeout(() => runUpdateInstallChecks(), 30);
+}
+
+// ---------------------------------------------------------------------------
+// The download. Checked here because it is the only part of the update that
+// changes something on the reader's disk, and the only part that must not.
+// ---------------------------------------------------------------------------
+function runUpdateInstallChecks() {
+  const status = elements.get('update-status');
+  const row = elements.get('update-install-row');
+  const installButton = elements.get('btn-install-update');
+  // Whatever the Quit button has already done is not the update's doing.
+  const closesBefore = closeAttempts;
+
+  // Start from a check that found a new version.
+  updateCheckReply = {
+    success: true, applicable: true, current: '0.2.2-beta',
+    update_available: true, latest: '99.0.0', error: '', error_code: '',
+    error_text: '', automatic: false,
+  };
+  updateInstallOk = true;
+  updateInstallReply = { success: true, version: '99.0.0', size: 10 };
+  updateInstallBodies.length = 0;
+
+  // A check that finds nothing new must not be leaving an offer behind.
+  updateCheckReply.update_available = false;
+  fire('btn-check-update', 'click');
+
+  setTimeout(() => {
+    if (!row.hidden) {
+      failed = true;
+      console.log('FAIL the download button is still offered with nothing to download');
+    } else {
+      console.log('     no download is offered until a check finds something');
+    }
+
+    updateCheckReply.update_available = true;
+    fire('btn-check-update', 'click');
+
+    setTimeout(() => {
+      if (row.hidden) {
+        failed = true;
+        console.log('FAIL a check that found a new version did not offer the download');
+      } else {
+        console.log('     a new version is offered for download, not installed by itself');
+      }
+
+      const saidAvailable = status.textContent || '';
+      if (saidAvailable.indexOf('99.0.0') === -1) {
+        failed = true;
+        console.log('FAIL the offer does not name the version: ' + saidAvailable);
+      }
+
+      fire('btn-install-update', 'click');
+
+      setTimeout(() => {
+        if (!updateInstallBodies.length) {
+          failed = true;
+          console.log('FAIL the download button never reached the server');
+        } else {
+          console.log('     the download is asked for only when the reader asks');
+        }
+
+        const saidReady = status.textContent || '';
+        if (saidReady.indexOf('99.0.0') === -1) {
+          failed = true;
+          console.log('FAIL a finished download did not name the version: ' + saidReady);
+        } else if (saidReady === CATALOGUE['update.status_ready'].replace('{0}', '')) {
+          failed = true;
+          console.log('FAIL the version was left out of the sentence');
+        } else {
+          console.log('     a checked build says which version is waiting');
+        }
+
+        if (!row.hidden) {
+          failed = true;
+          console.log('FAIL the download is offered again after it already arrived');
+        }
+
+        if (installButton.disabled) {
+          failed = true;
+          console.log('FAIL the buttons are left disabled after a finished download');
+        } else {
+          console.log('     the controls come back afterwards');
+        }
+
+        checkFailedDownload(status, row, closesBefore);
+      }, 10);
+    }, 10);
+  }, 10);
+}
+
+// A download that does not arrive must be explained in the reader's language
+// and must leave the offer up, so trying again is one click and not a
+// restart of the app.
+function checkFailedDownload(status, row, closesBefore) {
+  updateInstallOk = false;
+  updateInstallReply = {
+    success: false, error_code: 'checksum_failed',
+    error_text: CATALOGUE['update.error_checksum'],
+  };
+  fire('btn-check-update', 'click');
+
+  setTimeout(() => {
+    fire('btn-install-update', 'click');
+
+    setTimeout(() => {
+      const said = status.textContent || '';
+      if (said !== CATALOGUE['update.error_checksum']) {
+        failed = true;
+        console.log('FAIL a failed download did not show the sentence the server sent: ' +
+          JSON.stringify(said));
+      } else if (said === updateInstallReply.error_code) {
+        failed = true;
+        console.log('FAIL the reader is shown the short code instead of a sentence');
+      } else {
+        console.log('     a download that fails is explained, not just refused');
+      }
+
+      if (!status.classList.contains('is-error')) {
+        failed = true;
+        console.log('FAIL a failed download is not marked as a problem');
+      }
+
+      if (row.hidden) {
+        failed = true;
+        console.log('FAIL a failed download left no way to try again');
+      } else {
+        console.log('     a failed download can be tried again without restarting');
+      }
+
+      // The window must never be closed for the reader. The app has no way
+      // of knowing whether their work is saved, so it may not guess.
+      const closedByUpdate = closeAttempts - closesBefore;
+      if (closedByUpdate) {
+        failed = true;
+        console.log('FAIL the update flow closed the window: ' + closedByUpdate + ' time(s)');
+      } else {
+        console.log('     nothing is closed for the reader');
+      }
+
+      runSetupChecks();
+      setTimeout(finish, 10);
+    }, 10);
+  }, 10);
+}
+
+// ---------------------------------------------------------------------------
+// The first-run setup screen.
+//
+// The fiddly parts are all invisible from the markup: whether the wizard
+// opens as a modal, whether focus lands on the question rather than staying
+// on a button whose label just changed, and whether the step count comes
+// from the page or from a list written out in app.js.
+// ---------------------------------------------------------------------------
+function runSetupChecks() {
+  const next = elements.get('setup-next');
+  const back = elements.get('setup-back');
+  const skip = elements.get('setup-skip');
+  const progress = elements.get('setup-progress');
+  const status = elements.get('setup-status');
+  const bodyStyle = documentStub.body.style;
+
+  // It has to be a modal, not a panel slid over the page: only showModal
+  // makes the rest of the app inert and traps the keyboard.
+  if (!SETUP_DIALOG.__modalOpens) {
+    failed = true;
+    console.log('FAIL the setup screen was in the page but never opened as a dialog');
+  } else {
+    console.log('     the setup screen opens as a real modal');
+  }
+
+  // Escape must not dismiss it, because the screen exists to be answered.
+  // Skipping is the way out, and it is a visible button.
+  let escaped = false;
+  const escapeEvent = {
+    preventDefault() { escaped = true; },
+    stopPropagation: noop,
+  };
+  fire('setup-dialog', 'cancel', escapeEvent);
+  if (!escaped) {
+    failed = true;
+    console.log('FAIL Escape closed the setup screen');
+  } else if (skip.hidden) {
+    failed = true;
+    console.log('FAIL Escape was blocked and no way out of the setup screen is offered');
+  } else {
+    console.log('     Escape cannot dismiss it, and skipping is on the button bar');
+  }
+
+  // Step one, and only step one.
+  resetSetup();
+  if (SETUP_PANELS.filter((panel) => !panel.hidden).length !== 1 || back.hidden !== true) {
+    failed = true;
+    console.log('FAIL the setup screen did not open on its first step alone');
+  }
+
+  const shownStep = () => SETUP_PANELS.findIndex((panel) => !panel.hidden) + 1;
+  const focusLog = () => setupFocusLog[setupFocusLog.length - 1];
+
+  // Forward through all of it, one press at a time.
+  for (let step = 2; step <= SETUP_PANELS.length; step += 1) {
+    fire('setup-next', 'click');
+    if (shownStep() !== step) {
+      failed = true;
+      console.log(`FAIL pressing Next on step ${step - 1} showed step ` +
+                  `${shownStep()} instead of ${step}`);
+      break;
+    }
+    // Exactly one panel visible. Two at once means the reader is answering
+    // a question they were not asked.
+    if (SETUP_PANELS.filter((panel) => !panel.hidden).length !== 1) break;
+    // Focus has to follow the question. Left on Next, a screen reader
+    // announces "Next" again and the reader never learns the step changed.
+    if (focusLog() !== SETUP_PANELS[step - 1].id.replace('setup-panel-', '')) {
+      failed = true;
+      console.log(`FAIL focus did not move to the step ${step} heading`);
+    }
+  }
+
+  if (progress.textContent && progress.textContent.indexOf('setup.') === 0) {
+    failed = true;
+    console.log('FAIL the progress line still shows a raw key: ' + progress.textContent);
+  } else if (!/\d/.test(progress.textContent || '')) {
+    failed = true;
+    console.log('FAIL the progress line says no numbers: ' + progress.textContent);
+  } else {
+    console.log('     the progress line counts the steps in words');
+  }
+
+  // The last step finishes rather than advancing, and says so.
+  if (next.textContent !== CATALOGUE['setup.start']) {
+    failed = true;
+    console.log(`FAIL the last step offers "${next.textContent}" rather than the finish button`);
+  } else {
+    console.log('     the last step offers to start rather than to go on');
+  }
+
+  // And back again, which also puts the Back button away on the first step.
+  fire('setup-back', 'click');
+  fire('setup-back', 'click');
+  if (shownStep() !== 1 || !back.hidden) {
+    failed = true;
+    console.log(`FAIL stepping back from step ${SETUP_PANELS.length} left the screen on ` +
+                `step ${shownStep()} with Back ${back.hidden ? 'hidden' : 'shown'}`);
+  } else {
+    console.log('     stepping back works, and Back hides itself on the first step');
+  }
+
+  // A font is shown on the page, not just ticked in a list. The point of the
+  // step is to see the font before agreeing to it.
+  const opendyslexic = SETUP_FONT_RADIOS.find((radio) => radio.value === 'OpenDyslexic');
+  const fontBefore = configPosts.length;
+  opendyslexic.__listeners.change.forEach((handler) =>
+    handler({ target: opendyslexic, preventDefault: noop, stopPropagation: noop }));
+  const wantedFamily = opendyslexic.getAttribute('data-family');
+  if (bodyStyle.fontFamily !== wantedFamily) {
+    failed = true;
+    console.log(`FAIL choosing OpenDyslexic left the page in "${bodyStyle.fontFamily}" ` +
+                `rather than "${wantedFamily}"`);
+  } else {
+    console.log('     a chosen font is applied to the page straight away');
+  }
+  if (!configPosts.slice(fontBefore).some((p) => p.font === 'OpenDyslexic')) {
+    failed = true;
+    console.log('FAIL a font chosen in the setup screen was not saved: ' +
+                JSON.stringify(configPosts.slice(fontBefore)));
+  } else {
+    console.log('     a font chosen in the setup screen is saved, not just drawn');
+  }
+
+  // The last one to finish: send the flag, then reload so the page is drawn
+  // by the server in the language and font just chosen.
+  // finishes rather than the one that moves on.
+  const finishBefore = configPosts.length;
+  for (let press = 0; press < SETUP_PANELS.length; press += 1) fire('setup-next', 'click');
+  const finished = configPosts.slice(finishBefore).filter((p) => 'setup_complete' in p);
+  if (finished.length !== 1 || finished[0].setup_complete !== true) {
+    failed = true;
+    console.log('FAIL finishing the setup screen did not mark it done: ' +
+                JSON.stringify(configPosts.slice(finishBefore)));
+  } else {
+    console.log('     finishing marks the setup done');
+  }
+
+  // Skipping is the same flag and nothing else. A reader who picked a font
+  // and then bailed out has to keep the font. `locale` and `access_code`
+  // ride along on every settings save, so they are not an overwrite.
+  const skipBefore = configPosts.length;
+  fire('setup-skip', 'click');
+  const skipped = configPosts.slice(skipBefore).filter((p) => 'setup_complete' in p);
+  if (skipped.length !== 1 || skipped[0].setup_complete !== true) {
+    failed = true;
+    console.log('FAIL skipping did not mark the setup done: ' +
+                JSON.stringify(configPosts.slice(skipBefore)));
+  } else if ('font' in skipped[0] || 'setup_step' in skipped[0]) {
+    failed = true;
+    console.log('FAIL skipping overwrote a choice: ' + JSON.stringify(skipped[0]));
+  } else {
+    console.log('     skipping marks it done and leaves the choices alone');
+  }
+
+  // Someone who skipped and wants it after all.
+  const againBefore = configPosts.length;
+  fire('btn-setup-again', 'click');
+  const again = configPosts.slice(againBefore).filter((p) => 'setup_complete' in p);
+  if (again.length !== 1 || again[0].setup_complete !== false || again[0].setup_step !== 1) {
+    failed = true;
+    console.log('FAIL "run the setup screen again" did not reopen it from the start: ' +
+                JSON.stringify(configPosts.slice(againBefore)));
+  } else {
+    console.log('     Settings can put the setup screen back');
+  }
+
+  // Two things can only be seen once the saves above have settled: what the
+  // app says when a save is refused, and how many times the page was
+  // redrawn. Both are promises, so both wait a tick. The language change
+  // goes last and counts its own reloads, so the redraws belonging to the
+  // presses above cannot be counted as if they were its own.
+  setTimeout(() => {
+    // A rejected save must say so, or the reader's answers are thrown away
+    // and replaced by a blank first step.
+    status.hidden = true;
+    updateConfigOk = false;
+    fire('setup-skip', 'click');
+    setTimeout(() => {
+      if (status.hidden) {
+        failed = true;
+        console.log('FAIL a setup save that was refused is not explained');
+      } else if (status.textContent !== CATALOGUE['setup.error_saved']) {
+        failed = true;
+        console.log('FAIL the refusal says "' + status.textContent + '"');
+      } else {
+        console.log('     a save that is refused is explained in words');
+      }
+      updateConfigOk = true;
+      status.hidden = true;
+
+      let redrawn = 0;
+      const realReload = sandbox.window.location.reload;
+      sandbox.window.location.reload = () => { redrawn += 1; };
+      const localeRadio = SETUP_LOCALE_RADIOS.find((radio) => radio.value === 'ar');
+      const localeBefore = configPosts.length;
+      localeRadio.__listeners.change.forEach((handler) =>
+        handler({ target: localeRadio, preventDefault: noop, stopPropagation: noop }));
+      const localePost = configPosts.slice(localeBefore).find((p) => p.locale === 'ar');
+      if (!localePost) {
+        failed = true;
+        console.log('FAIL choosing a language in the setup screen did not save it');
+      } else if (localePost.setup_step !== shownStep()) {
+        // The redraw is what puts the wizard in the new language, and the
+        // step is what stops it landing the reader back at question one.
+        failed = true;
+        console.log('FAIL the language was saved with setup_step ' + localePost.setup_step +
+                    ' rather than the step being read, ' + shownStep());
+      } else {
+        console.log('     a language change saves the step, so it survives the redraw');
+      }
+      setTimeout(() => {
+        sandbox.window.location.reload = realReload;
+        if (redrawn !== 1) {
+          failed = true;
+          console.log('FAIL choosing a language in the setup screen redrew the page ' +
+                      redrawn + ' time(s) rather than once');
+        } else {
+          console.log('     the page is redrawn so the wizard appears in that language');
+        }
+      }, 0);
+    }, 0);
+  }, 0);
 }
 
 // Change the preferred gender on a page of its own, as a reader would.

@@ -14,6 +14,7 @@ Run with:  PYTHONPATH=src python -m unittest discover -s tests -t .
 
 import html
 import pathlib
+import re
 import sys
 import tempfile
 import unittest
@@ -23,7 +24,7 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import create_app, routes  # noqa: E402
+from accessible_ide import create_app, i18n, routes  # noqa: E402
 
 
 class ConfigApiTestCase(unittest.TestCase):
@@ -117,6 +118,163 @@ class NewSettingsTests(ConfigApiTestCase):
         self.assertEqual(stored["line_height"], 2.0)
         self.assertEqual(stored["letter_spacing"], 1.5)
         self.assertEqual(stored["blur_intensity"], 0.75)
+
+
+class SetupWizardSettingsTests(ConfigApiTestCase):
+    """The two values the setup screen stores.
+
+    The wizard asks once, and both answers are all that is remembered: that
+    it has been answered, and which question was being answered when the
+    page was last drawn. The second one is the easy one to get wrong - a
+    language change reloads the page, and a step that is not stored with it
+    drops the reader back at question one, in a language they just picked,
+    with no sign that anything has been lost.
+    """
+
+    def test_the_wizard_asks_unless_it_has_been_answered(self):
+        # A brand new install has to be asked, and has to be asked in a
+        # shape the page can act on.
+        stored = self.get_settings()
+        self.assertIs(stored["setup_complete"], False)
+        self.assertEqual(stored["setup_step"], 1)
+        page = self.client.get("/").get_data(as_text=True)
+        self.assertIn('id="setup-dialog"', page)
+
+    def test_answering_the_wizard_is_remembered(self):
+        response = self.post_settings(setup_complete=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(self.get_settings()["setup_complete"], True)
+        # And then it stays out of the way.
+        page = self.client.get("/").get_data(as_text=True)
+        self.assertNotIn('id="setup-dialog"', page)
+
+    def test_asking_for_the_setup_screen_again_works(self):
+        # A reader who skipped it, or who wants to change their mind, has to
+        # be able to get it back without editing a file.
+        self.post_settings(setup_complete=True, setup_step=3)
+        response = self.post_settings(setup_complete=False, setup_step=1)
+        self.assertEqual(response.status_code, 200)
+        stored = self.get_settings()
+        self.assertIs(stored["setup_complete"], False)
+        self.assertEqual(stored["setup_step"], 1)
+        self.assertIn('id="setup-dialog"', self.client.get("/").get_data(as_text=True))
+
+    def test_every_step_round_trips(self):
+        for step in range(1, routes.SETUP_TOTAL_STEPS + 1):
+            with self.subTest(step=step):
+                response = self.post_settings(setup_step=step)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.get_settings()["setup_step"], step)
+
+    def test_a_step_outside_the_wizard_is_rejected(self):
+        # Step 99 would ask the page to show a step that is not in it, and
+        # the reader would be shown a blank question with no way to move.
+        for step in (0, -1, routes.SETUP_TOTAL_STEPS + 1, 99):
+            with self.subTest(step=step):
+                response = self.post_settings(setup_step=step)
+                self.assertEqual(response.status_code, 400)
+        # The good answer is still there: a refused save must not take the
+        # reader's place in the wizard with it.
+        self.assertEqual(self.get_settings()["setup_step"], 1)
+
+    def test_setup_complete_wants_a_yes_or_a_no(self):
+        # Anything else - "true" as text, 1, null - would be stored as-is
+        # and then read as "not finished", so the wizard would come back
+        # after every restart with no explanation.
+        for value in ("true", 1, None, "yes", []):
+            with self.subTest(value=value):
+                response = self.post_settings(setup_complete=value)
+                self.assertEqual(response.status_code, 400)
+        self.assertIs(self.get_settings()["setup_complete"], False)
+
+    def test_setup_step_wants_a_whole_number(self):
+        # "2" would compare as greater than 1 and behave like 1 in some
+        # places and like 2 in others.
+        for value in ("2", 1.5, True, None):
+            with self.subTest(value=value):
+                response = self.post_settings(setup_step=value)
+                self.assertEqual(response.status_code, 400)
+
+    def test_the_refusal_is_in_plain_english(self):
+        response = self.post_settings(setup_step=99)
+        self.assertEqual(response.status_code, 400)
+        answer = response.get_json()
+        self.assertFalse(answer["success"])
+        # A sentence a reader can act on. The step is named by its visible
+        # label, and no Python type or config key is shown to anyone.
+        self.assertNotIn("ValueError", answer["error"])
+        self.assertNotIn("setup_step", answer["error"])
+        self.assertNotIn("Traceback", answer["error"])
+        self.assertIn(
+            i18n.make_translator("en")("config.error_prefix"), answer["error"]
+        )
+
+    def test_the_step_is_named_in_the_chosen_language(self):
+        # The wizard is, by definition, on screen in the language being
+        # chosen - so a refusal has to come back in that language too.
+        spanish = self.client.post(
+            "/api/config", json={"setup_step": 99, "locale": "es"}
+        )
+        self.assertEqual(spanish.status_code, 400)
+        english = self.post_settings(setup_step=99, locale="en")
+        self.assertEqual(english.status_code, 400)
+        self.assertNotEqual(
+            spanish.get_json()["error"],
+            english.get_json()["error"],
+            "the refusal came back in the wrong language",
+        )
+
+    def test_a_corrupt_step_in_the_file_does_not_break_the_page(self):
+        # Someone editing config.json by hand should get the first question
+        # rather than a server error, and a step they can answer.
+        routes.CONFIG_FILE.write_text(
+            '{"setup_complete": false, "setup_step": "second"}', encoding="utf-8"
+        )
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        page = response.get_data(as_text=True)
+        self.assertIn('id="setup-panel-language"', page)
+        self.assertIn("Step 1 of", page)
+        # The unreadable value is not carried on screen, and a fresh answer
+        # is still accepted, so the wizard is not stuck.
+        self.assertEqual(self.post_settings(setup_step=2).status_code, 200)
+        self.assertEqual(self.get_settings()["setup_step"], 2)
+
+    def test_a_step_past_the_end_is_pulled_back_into_range(self):
+        # Same reasoning for a number that is too big rather than not a
+        # number: the wizard would render a question that is not there.
+        routes.CONFIG_FILE.write_text(
+            '{"setup_complete": false, "setup_step": 99}', encoding="utf-8"
+        )
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            f"Step {routes.SETUP_TOTAL_STEPS} of {routes.SETUP_TOTAL_STEPS}",
+            response.get_data(as_text=True),
+        )
+        # Only the last real question is on show, not a blank one after it.
+        page = response.get_data(as_text=True)
+        for name, shown in (
+            ("language", False),
+            ("font", False),
+            ("tour", True),
+        ):
+            with self.subTest(step=name):
+                tag = re.search(
+                    r'<section id="setup-panel-%s"(.*?)>' % name, page, re.S
+                )
+                self.assertIsNotNone(tag, "the panel is missing from the page")
+                self.assertEqual("hidden" not in tag.group(1), shown)
+
+    def test_answering_the_wizard_asks_nothing(self):
+        # Only the wizard posts these, and it posts them one at a time. A
+        # rejection would mean a reader who answered a question is told
+        # nothing, or told the wrong thing.
+        response = self.post_settings(
+            setup_complete=True, setup_step=routes.SETUP_TOTAL_STEPS
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["success"])
 
 
 class AccessCodeIsNotASettingTests(ConfigApiTestCase):

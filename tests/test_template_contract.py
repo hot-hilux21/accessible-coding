@@ -12,6 +12,7 @@ and the settings panel has to be complete.
 Run with:  PYTHONPATH=src python -m unittest discover -s tests -t .
 """
 
+import json
 import pathlib
 import re
 import sys
@@ -100,6 +101,32 @@ def render_index():
         tmp.cleanup()
 
 
+def render_with(saved):
+    """The page as a reader sees it, with `saved` already in the config file.
+
+    Used for the screens that depend on what was answered last time - the
+    setup wizard, mainly. Without it those pages can only be tested in the
+    state a brand new install is in.
+    """
+    tmp = tempfile.TemporaryDirectory()
+    was = (routes.CONFIG_DIR, routes.CONFIG_FILE, routes.ACCESS_CODE)
+    try:
+        routes.CONFIG_DIR = pathlib.Path(tmp.name)
+        routes.CONFIG_FILE = routes.CONFIG_DIR / "config.json"
+        routes.CONFIG_FILE.write_text(json.dumps(saved), encoding="utf-8")
+        routes.ACCESS_CODE = ""
+
+        app = create_app()
+        app.config["TESTING"] = True
+        client = app.test_client()
+        response = client.get("/")
+        assert response.status_code == 200, response.status_code
+        return response.get_data(as_text=True)
+    finally:
+        routes.CONFIG_DIR, routes.CONFIG_FILE, routes.ACCESS_CODE = was
+        tmp.cleanup()
+
+
 class RenderedPageFixture(unittest.TestCase):
     """Shared setup only. Holding no tests keeps subclasses from
     re-running this whole file's suite."""
@@ -109,6 +136,7 @@ class RenderedPageFixture(unittest.TestCase):
         cls.html = render_index()
         cls.js = APP_JS.read_text(encoding="utf-8")
         cls.css = STYLESHEET.read_text(encoding="utf-8")
+        cls.template = INDEX_TEMPLATE.read_text(encoding="utf-8")
         cls.html_ids = set(re.findall(r'id="([^"]+)"', cls.html))
 
 
@@ -467,6 +495,19 @@ class UpdatePanelTests(RenderedPageFixture):
         close_tag = text.find("</fieldset>", start)
         return text[open_tag:close_tag] if close_tag != -1 else ""
 
+    def update_js(self):
+        """The Updates section of app.js, on its own.
+
+        Bounded by the Quit button's own section, which legitimately closes
+        the window. Without that bound the assertion below would be testing
+        the Quit button and passing for the wrong reason.
+        """
+        start = self.js.find("// ---------- Updates ----------")
+        end = self.js.find("// ---------- Quit")
+        if start == -1 or end == -1 or end < start:
+            return ""
+        return self.js[start:end]
+
     def test_the_group_is_present(self):
         self.assertNotEqual(
             self.group_markup(), "", "no auto-update switch in the settings panel")
@@ -516,6 +557,29 @@ class UpdatePanelTests(RenderedPageFixture):
         self.assertIn('id="update-status"', markup)
         self.assertIn('aria-live="polite"', markup)
         self.assertIn('role="status"', markup)
+
+    def test_the_download_button_is_offered_only_when_there_is_something_to_download(self):
+        markup = self.group_markup()
+        self.assertIn('id="update-install-row"', markup)
+        # Hidden in the page, because an empty download button that quietly
+        # does nothing is worse than no button at all.
+        self.assertIn('id="update-install-row" hidden', markup)
+        self.assertIn("showInstallRow(false)", self.js)
+
+    def test_the_download_button_is_labelled_and_described(self):
+        markup = self.group_markup()
+        self.assertIn('id="btn-install-update"', markup)
+        self.assertIn("Download the new version", markup)
+        self.assertIn('aria-describedby="update-install-label"', markup)
+        self.assertIn('id="update-install-label"', markup)
+
+    def test_the_download_says_what_happens_to_the_work_in_hand(self):
+        # The reader has to be able to decide without guessing: closing is
+        # what installs it, and nothing is closed for them.
+        markup = self.group_markup()
+        self.assertIn('id="update-install-help"', markup)
+        self.assertIn("when you close the app", markup)
+        self.assertNotIn("window.close()", self.update_js())
 
     def test_the_running_version_is_shown(self):
         # The element is empty in the page because the version is not known
@@ -629,6 +693,292 @@ class TryItOutPanelTests(RenderedPageFixture):
         self.assertIn("data-code-color", self.js)
         self.assertIn("customCodeColor = body.getAttribute('data-code-color')", self.js)
         self.assertIn("data-family", self.js)
+
+
+class SetupWizardTests(RenderedPageFixture):
+    """The screen shown once, to a reader who has just installed the app.
+
+    These are contracts the markup has to keep, not tests of the wording.
+    Most of them exist because the failure is silent: a wizard that never
+    opens, a step that does not announce itself, or a progress line written
+    as "1/3" all look fine on screen and are unusable with a screen reader.
+    """
+
+    # The setup screen is the one piece of the app that is not in the
+    # settings list, because it is a dialog in its own right.
+    REQUIRED_SETUP_IDS = (
+        "setup-dialog",
+        "setup-title",
+        "setup-progress",
+        "setup-status",
+        "setup-panel-language",
+        "setup-panel-font",
+        "setup-panel-tour",
+        "setup-skip",
+        "setup-back",
+        "setup-next",
+    )
+
+    def dialog_markup(self):
+        """The wizard as the template writes it, translations unexpanded.
+
+        Read from the template rather than the rendered page, so that the
+        "no bare English" check is not arguing with a page that is English
+        on purpose, and so that the checks about which key a piece of
+        wording is asked for by can see the key at all.
+        """
+        body = self.template.split("{% if setup_open %}", 1)[1]
+        return body.split("{% endif %}", 1)[0]
+
+    def wizard_css(self):
+        """The stylesheet from the wizard's banner to the end of the file."""
+        self.assertIn(
+            "First-run setup", self.css, "the setup wizard has no block in the stylesheet"
+        )
+        return self.css.split("First-run setup", 1)[1]
+
+    def test_the_wizard_is_offered_once_and_then_left_alone(self):
+        # Default settings mean the reader has never answered it, so it has
+        # to be in the page.
+        self.assertIn('id="setup-dialog"', self.html)
+        # Once answered, it has to stay out of the page entirely. Markup
+        # that is merely hidden would still be tabbable and still be read
+        # aloud, which is worse than not drawing it.
+        answered = render_with({"setup_complete": True})
+        self.assertNotIn('id="setup-dialog"', answered)
+        self.assertNotIn("setup-panel-", answered)
+
+    def test_the_wizard_is_a_real_modal(self):
+        # A native <dialog> opened with showModal traps focus, makes the
+        # page behind it inert, and cannot be half-open.
+        self.assertIn('<dialog id="setup-dialog"', self.html)
+        self.assertIn('aria-labelledby="setup-title"', self.html)
+        self.assertIn("showModal", self.js)
+
+    def test_everything_the_wizard_needs_is_present(self):
+        missing = [i for i in self.REQUIRED_SETUP_IDS if f'id="{i}"' not in self.html]
+        self.assertEqual(
+            missing, [], "the setup screen is missing: " + ", ".join(missing)
+        )
+
+    def test_there_is_a_step_for_each_thing_the_reader_is_asked(self):
+        # Three questions, three panels, and the panels are named after the
+        # steps rather than numbered in the markup, so inserting a step
+        # cannot leave two panels claiming to be number two.
+        panels = re.findall(r'id="setup-panel-([a-z]+)"', self.html)
+        self.assertEqual(panels, list(routes.SETUP_STEPS))
+        self.assertEqual(len(panels), routes.SETUP_TOTAL_STEPS)
+
+    def test_the_step_count_is_computed_not_written_out(self):
+        # "Step 1 of 3" typed into the template is wrong the moment a step
+        # is added. The count has to come from the same list that names the
+        # steps, and has to be spoken rather than drawn as a fraction.
+        self.assertIn("t('setup.step_of', setup_step, setup_total)", self.template)
+        # app.js counts the panels it actually found rather than keeping its
+        # own list, so a step added to the template cannot leave the buttons
+        # offering to go on past the end.
+        self.assertIn("setupPanels", self.js)
+        self.assertIn("panels.length", self.js)
+        progress = re.search(
+            r'id="setup-progress"[^>]*>(.*?)</p>', self.html, re.S
+        )
+        self.assertIsNotNone(progress)
+        assert progress is not None  # narrow the type for checkers
+        self.assertIn("3", progress.group(1))
+        self.assertNotIn("/", progress.group(1))
+        self.assertRegex(self.html, r'id="setup-progress"[^>]*role="status"')
+
+    def test_only_the_step_being_answered_is_shown(self):
+        # Asked on the second step, a reader must not be shown the first
+        # question above it, answered or not.
+        resumed = render_with({"setup_step": 2})
+        shown = [
+            (name, "hidden" not in tag)
+            for name, tag in re.findall(
+                r'<section id="(setup-panel-[a-z]+)"(.*?)>', resumed, re.S
+            )
+        ]
+        self.assertEqual(
+            shown,
+            [("setup-panel-language", False), ("setup-panel-font", True),
+             ("setup-panel-tour", False)],
+            "resuming on step 2 should show the font question and hide the rest",
+        )
+        self.assertIn("Step 2 of 3", resumed)
+        # Back is hidden on the first step, because there is nowhere before
+        # it to go, and offered from the second onwards.
+        self.assertRegex(self.html, r'id="setup-back"[^>]*hidden')
+        self.assertNotRegex(resumed, r'id="setup-back"[^>]*hidden')
+        finished = render_with({"setup_step": routes.SETUP_TOTAL_STEPS})
+        self.assertNotRegex(finished, r'id="setup-back"[^>]*hidden')
+        self.assertIn(i18n.make_translator("en")("setup.start"), finished)
+
+    def test_each_step_has_a_heading_that_can_take_focus(self):
+        # Focus is moved to the question when the step changes. A heading
+        # that is not focusable is the one place the browser will not do
+        # this for us, and without it a screen reader announces "Next
+        # button" again and the reader never learns the page changed.
+        for step in routes.SETUP_STEPS:
+            with self.subTest(step=step):
+                self.assertIn(
+                    f'id="setup-panel-{step}"', self.html
+                )
+        headings = re.findall(r'class="settings-legend setup-legend"[^>]*>', self.html)
+        headings += re.findall(r'class="settings-legend setup-legend" tabindex="-1"', self.html)
+        self.assertTrue(headings, "the steps have no focusable headings")
+        for heading in headings:
+            self.assertIn('tabindex="-1"', heading)
+        self.assertIn("focus()", self.js)
+
+    def test_the_language_choices_are_named_in_their_own_language(self):
+        # A reader who cannot read the current language still has to be
+        # able to find their own. The endonym is what the radio is named
+        # by, and the English name is only there as a second line.
+        radios = re.findall(r'<input type="radio" name="setup-locale"[^>]*>', self.html)
+        self.assertEqual(len(radios), len(i18n.LANGUAGES))
+        for radio in radios:
+            with self.subTest(radio=radio):
+                self.assertRegex(radio, r'value="[a-z]{2}"')
+        endonyms = re.findall(r'class="setup-choice-name" lang="([a-z]{2})"', self.html)
+        self.assertEqual(sorted(endonyms), sorted(i18n.LANGUAGES))
+        # The choice already saved is the one that comes up ticked.
+        self.assertRegex(self.html, r'name="setup-locale"[^>]*checked')
+
+    def test_the_choices_are_real_radios_in_labelled_groups(self):
+        # Arrow keys, Tab and the checked announcement all come from the
+        # browser this way. A div with role="radiogroup" needs all three
+        # reimplemented before it is as usable.
+        self.assertIn('name="setup-locale"', self.html)
+        self.assertIn('name="setup-font"', self.html)
+        self.assertEqual(
+            self.html.count("<fieldset"), self.html.count("</fieldset>"),
+            "unbalanced fieldsets in the setup screen",
+        )
+        # Each group is named by a legend, so the question is read out with
+        # the first option rather than the reader having to guess.
+        for legend in ("setup.language_legend", "setup.font_legend"):
+            with self.subTest(legend=legend):
+                self.assertIn(f"t('{legend}')", self.template)
+
+    def test_every_font_is_shown_in_its_own_font_before_it_is_chosen(self):
+        # This is the whole point of the step. A list of names, all set in
+        # the same typeface, asks the reader to trust a label.
+        radios = re.findall(r'<input type="radio" name="setup-font"[^>]*>', self.html)
+        self.assertEqual(len(radios), len(routes.FONTS))
+        samples = re.findall(
+            r'class="setup-sample"\s+style="font-family: ([^"]+)"', self.html
+        )
+        self.assertEqual(len(samples), len(routes.FONTS))
+        for family, radio in zip(samples, radios):
+            with self.subTest(font=family):
+                self.assertIn(f'data-family="{family}"', radio)
+        # And the choice carries the stack, so app.js does not keep a
+        # second copy that can drift from this list.
+        self.assertIn("data-family", self.js)
+
+    def test_there_is_a_way_out_that_does_not_depend_on_escape(self):
+        # Escape is blocked on purpose, because the screen exists to be
+        # answered - so there has to be a visible way out instead. A reader
+        # who cannot find the keyboard button must not be trapped.
+        self.assertIn('id="setup-skip"', self.html)
+        self.assertIn('type="button"', self.html.split('id="setup-skip"', 1)[1][:120])
+        self.assertIn("setup-skip", self.js)
+        self.assertIn("cancel", self.js)
+        self.assertIn("preventDefault", self.js.split("cancel", 1)[1][:200])
+
+    def test_a_problem_is_announced_rather_than_only_shown(self):
+        # role="alert" makes a screen reader say a refused save out loud.
+        # Left as plain text it would sit there, which for a screen reader
+        # is the same as not having happened.
+        self.assertRegex(self.html, r'id="setup-status"[^>]*role="alert"')
+        self.assertRegex(self.html, r'id="setup-status"[^>]*hidden')
+        self.assertIn("setup.error_saved", self.js)
+
+    def test_the_wizard_can_be_run_again_from_settings(self):
+        # A reader who skipped it, or who wants to change their mind, has
+        # to be able to come back to it without a settings file edit.
+        self.assertIn('id="btn-setup-again"', self.html)
+        self.assertIn("settings.setup_again", self.html)
+        self.assertIn("btn-setup-again", self.js)
+        self.assertIn("setup_complete: false", self.js)
+
+    def test_the_tour_points_at_buttons_by_their_translated_names(self):
+        # The names are interpolated rather than typed in, so a line
+        # cannot quietly point at a button that has been renamed.
+        for key in ("setup.tour_run_text", "setup.tour_speak_text",
+                    "setup.tour_settings_text"):
+            with self.subTest(key=key):
+                self.assertIn(f"t('{key}', t(", self.template)
+        # And the four things it describes are the four the app has.
+        self.assertEqual(self.html.count("setup-tour-name"), 4)
+
+    def test_nothing_in_the_wizard_is_bare_english(self):
+        # Every visible word is asked for by name so it can be given a
+        # translation. The rendered page is English by definition, so this
+        # is checked against the template.
+        markup = self.dialog_markup()
+        self.assertNotEqual(markup, "", "no setup screen in the template")
+        for text in re.findall(r">([^<>{}]+)<", markup):
+            cleaned = text.strip()
+            if not cleaned:
+                continue
+            with self.subTest(text=cleaned):
+                self.fail(f"literal text in the setup screen: {cleaned!r}")
+
+    def test_the_setup_keys_exist_in_every_language(self):
+        # The screen is asked for by key, so a key missing from one
+        # catalogue shows the reader that language in English and nothing
+        # else. The default English catalogue is the list of what exists.
+        wanted = [
+            key for key in i18n.load_catalogue("en") if key.startswith("setup.")
+        ]
+        self.assertGreaterEqual(len(wanted), 20)
+        for code in i18n.LANGUAGES:
+            with self.subTest(language=code):
+                absent = [k for k in wanted if k not in i18n.load_catalogue(code)]
+                self.assertEqual(
+                    absent, [], f"{code} is missing setup wording"
+                )
+
+    def test_the_targets_are_big_enough_to_hit(self):
+        # 44px is the smallest comfortable target. On the setup screen the
+        # reader is often reaching for it without looking, because the
+        # wizard covers the app they came to use - and the buttons that
+        # carry them between questions are the ones most likely to be hit
+        # by feel, at the bottom of the screen, in a hurry.
+        rules = self.wizard_css()
+        for selector in (".setup-footer .btn", ".setup-choice"):
+            with self.subTest(selector=selector):
+                self.assertIn(selector, rules)
+        self.assertIn("min-height: 44px", rules)
+        # Checked where it matters: on the rules themselves, not merely
+        # somewhere in the block. A 44px answer row and a 32px button in
+        # the same dialog is still a 32px button.
+        for selector in (".setup-footer .btn", ".setup-choice"):
+            with self.subTest(rule=selector):
+                rule = re.search(
+                    re.escape(selector) + r"\s*\{([^}]*)\}", rules
+                )
+                self.assertIsNotNone(rule, f"{selector} has no rule of its own")
+                assert rule is not None  # narrow the type for checkers
+                self.assertIn("min-height: 44px", rule.group(1))
+
+    def test_the_wizard_does_not_move_by_itself(self):
+        # Nothing in a three-question screen needs to animate. A reader
+        # with a visual processing difference is asked to read and click
+        # at the same time, and movement makes that harder rather than
+        # easier. The buttons do inherit a hover transition from .btn, so
+        # this is about the wizard's own rules adding none.
+        rules = self.wizard_css()
+        self.assertNotIn("animation", rules)
+        self.assertNotIn("transition", rules)
+
+    def test_hidden_panels_cannot_be_revealed_by_the_page_css(self):
+        # The panels are shown and hidden by attribute from app.js. The
+        # stylesheet has to honour that attribute, or a hidden step stays
+        # on screen and the reader answers the wrong question.
+        self.assertIn("[hidden]", self.css)
+        self.assertRegex(self.css, r"\[hidden\]\s*\{[^}]*display:\s*none\s*!important")
 
 
 class StaticAssetsTests(unittest.TestCase):

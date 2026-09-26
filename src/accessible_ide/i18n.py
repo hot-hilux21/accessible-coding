@@ -76,6 +76,12 @@ CONFIG_LABELS = {
     "tts_hover_delay": "speak.hover_delay",
     "tts_click_to_speak": "speak.click",
     "tts_voice_gender": "speak.voice_gender",
+    # Not shown in Settings, so there is no control label to borrow. These
+    # two are written by the first-run screen, and a rejection here means
+    # the screen sent something it should not have - so the message names
+    # the screen rather than leaking a key nobody can find on the page.
+    "setup_complete": "setup.label",
+    "setup_step": "setup.label",
 }
 
 

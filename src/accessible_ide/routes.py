@@ -60,10 +60,28 @@ IMPORT_RE = re.compile(r'^\s*(?:import|from)\s+([a-zA-Z_][a-zA-Z0-9_]*)', re.MUL
 CONFIG_DIR = Path.home() / '.accessible-ide'
 CONFIG_FILE = CONFIG_DIR / 'config.json'
 
+# The first-run setup screen, one step at a time. Defined here rather than in
+# the template so the validation below, the rendered progress text and the
+# step each panel is tagged with all read the same number.
+SETUP_STEPS = ('language', 'font', 'tour')
+SETUP_TOTAL_STEPS = len(SETUP_STEPS)
+
 DEFAULT_CONFIG = {
     'font': 'Atkinson Hyperlegible',
     'font_size': 16,
     'locale': i18n.DEFAULT_LOCALE,
+    # The first-run setup screen shows until this is true. It is a flag
+    # rather than "does the config file exist" because the config file is
+    # written the first time any setting changes - including changes made
+    # by somebody else sharing this machine, or by a version of the app
+    # that predates the setup screen. Only the reader's own completion of
+    # the screen should hide it.
+    'setup_complete': False,
+    # Which step of the setup screen to reopen at. Changing the language
+    # inside the wizard reloads the page so every word on screen is in the
+    # new language, and this is what stops that reload from throwing the
+    # reader back to the first step.
+    'setup_step': 1,
     # Empty means "use whatever the chosen theme says". Setting it to a
     # hex colour overrides the theme's foreground for code text only.
     'code_color': '',
@@ -471,6 +489,14 @@ def check_sandbox(code, t=None):
 def index():
     config = load_config()
     locale = i18n.normalise(config.get('locale')) or i18n.DEFAULT_LOCALE
+    # The setup step is clamped here, not in the template. A config file
+    # written by a future version (or edited by hand) can hold a step this
+    # version has no panel for, and the reader would open on a dialog with
+    # nothing in it.
+    step = config.get('setup_step', 1)
+    if not isinstance(step, int) or isinstance(step, bool):
+        step = 1
+    step = max(1, min(step, SETUP_TOTAL_STEPS))
     return render_template('index.html',
                          config=config,
                          themes=THEMES,
@@ -479,6 +505,9 @@ def index():
                          direction=i18n.direction(locale),
                          languages=i18n.available(),
                          catalogue=i18n.load_catalogue(locale),
+                         setup_open=not config.get('setup_complete', False),
+                         setup_step=step,
+                         setup_total=SETUP_TOTAL_STEPS,
                          t=i18n.make_translator(locale))
 
 
@@ -562,6 +591,8 @@ CONFIG_TYPES = {
     'font_size': int,
     'code_color': str,
     'locale': str,
+    'setup_complete': bool,
+    'setup_step': int,
     'line_height': (int, float),
     'letter_spacing': (int, float),
     'theme': str,
@@ -586,6 +617,10 @@ CONFIG_VALUES = {
     'focus_mode': {'off', 'gutter', 'lines'},
     'contrast': {'normal', 'high'},
     'locale': set(i18n.LANGUAGES),
+    # The wizard has three steps. The bound is not decoration: a corrupt or
+    # hand-edited value would otherwise render a screen with no step shown
+    # at all, which reads as a blank dialog with no way out.
+    'setup_step': set(range(1, SETUP_TOTAL_STEPS + 1)),
     'tts_hover_scope': {'off', 'controls', 'all'},
     'tts_voice_gender': {'any', 'male', 'female'},
 }
@@ -641,7 +676,13 @@ def _describe(key, value, t):
     if key in CONFIG_MAX_LENGTHS:
         return t('config.error_too_long', label)
     if key in CONFIG_VALUES:
-        allowed = ', '.join(sorted(CONFIG_VALUES[key]))
+        # Sorted by text, and joined as text. The allowed values are not
+        # all words: setup_step is a set of numbers, and building the
+        # sentence out of them directly raised a TypeError - which turned
+        # a plain 400 refusal into a server error page for every rejected
+        # step. The one thing a reader gets when something is wrong must
+        # not itself go wrong.
+        allowed = ', '.join(sorted((str(v) for v in CONFIG_VALUES[key]), key=str))
         return t('config.error_one_of', label, allowed)
     # A setting we know, sent the wrong sort of value. Saying "not a setting
     # we recognise" here would send the reader looking for a missing control
@@ -775,6 +816,65 @@ def update_check_api():
         key = UPDATE_ERROR_KEYS.get(code, 'update.error_unknown')
         result['error_text'] = t(key)
     return jsonify(result)
+
+
+@main_bp.route('/api/update/install', methods=['POST'])
+def update_install_api():
+    """Download the new build and check it, ready to be swapped in on close.
+
+    This deliberately does not touch the running program. Windows will not
+    allow a running exe to replace itself, and doing it any other way risks
+    ending the reader's session mid-sentence. The download happens now; the
+    swap happens when they close the app, which is a moment they chose.
+    """
+    from . import updater
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_required'),
+            'code_required': True,
+        }), 403
+
+    if not updater.is_frozen():
+        return jsonify({
+            'success': False,
+            'error_code': 'not_applicable',
+            'error_text': t(UPDATE_ERROR_KEYS['not_applicable']),
+        }), 400
+
+    result = updater.check(force=True)
+    if not result.get('update_available'):
+        # Nothing to install. Saying so plainly beats downloading whatever
+        # the manifest happened to name.
+        return jsonify({
+            'success': False,
+            'error_code': 'no_update',
+            'error_text': t('update.error_no_update'),
+        }), 400
+
+    try:
+        staged = updater.stage({
+            'url': result['url'],
+            'sha256': result['sha256'],
+            'size': result['size'],
+        })
+    except updater.UpdateError as error:
+        return jsonify({
+            'success': False,
+            'error_code': error.code,
+            'error_text': t(UPDATE_ERROR_KEYS.get(error.code, 'update.error_unknown')),
+        }), 400
+
+    # Only recorded once the bytes have been checked, so nothing downstream
+    # can act on a download that was never verified.
+    updater.remember_staged(staged, result['latest'])
+    return jsonify({
+        'success': True,
+        'version': result['latest'],
+        'size': result['size'],
+    })
 
 
 @main_bp.route('/api/themes')
