@@ -17,12 +17,42 @@ from . import i18n
 
 main_bp = Blueprint('main', __name__)
 
+
+def on_public_web():
+    """True when this process is serving the public web, not one reader.
+
+    This is asked in three places, and being wrong is either a security
+    problem or a broken site, so the answer lives here alone rather than
+    being worked out again at each call site. Two things go wrong when it
+    is spread out: a check is missed and the hosted copy grows a quit
+    button, or a company is named and the next host quietly inherits the
+    desktop behaviour - which is how a hosted copy ended up refusing every
+    request because it was not on the one hostname someone had in mind.
+
+    So it trusts anything that says it is the web, and falls back to asking
+    whether a real web server is in front of us rather than the desktop
+    app's own.
+    """
+    if os.environ.get('WEB') == '1' or os.environ.get('SANDBOX') == '1':
+        return True
+
+    # Every platform-as-a-service sets a variable of its own name.
+    if os.environ.get('RENDER') or os.environ.get('RAILWAY'):
+        return True
+
+    # gunicorn, uWSGI, waitress and uvicorn are web servers. Werkzeug, which
+    # the desktop app runs on, is not - and that difference is the whole
+    # reason this fallback is safe.
+    server = (os.environ.get('SERVER_SOFTWARE') or '').lower()
+    return any(name in server for name in ('gunicorn', 'uwsgi', 'waitress', 'uvicorn'))
+
+
 # Access code for the web version. If set, /api/run and /api/config POST
 # require it. If NOT set, the code runner is disabled (maintenance mode).
 ACCESS_CODE = os.environ.get('ACCESS_CODE', '')
 
 # Sandbox the code runner on the web. The desktop exe runs full Python.
-SANDBOX = os.environ.get('SANDBOX', '0') == '1' or bool(os.environ.get('RENDER'))
+SANDBOX = on_public_web()
 
 # Simple in-memory rate limiting (per IP)
 RATE_LIMIT = {}
@@ -966,7 +996,7 @@ def health():
 @main_bp.route('/api/shutdown', methods=['POST'])
 def shutdown():
     """Stop the desktop app server. Local-only: never exposed on the web."""
-    if os.environ.get('RENDER'):
+    if on_public_web():
         t = translator_for(request_locale(request.get_json(silent=True) or {}))
         return jsonify({'success': False, 'error': t('error.not_on_web')}), 403
 
