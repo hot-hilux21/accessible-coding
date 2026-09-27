@@ -16,7 +16,9 @@ steps live next to each other in one file that both workflows call.
 
 The version is written into ``src/accessible_ide/__init__.py`` rather than
 kept in a separate data file because that is where the app already looks for
-it, and a second copy is a second thing to forget.
+it, and a second copy is a second thing to forget. ``installer.iss`` is
+stamped in the same step for a different reason: Inno Setup uses that number
+to decide whether an installed copy is older than the one being installed.
 """
 
 from __future__ import annotations
@@ -31,8 +33,11 @@ from datetime import datetime, timezone
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 INIT_FILE = REPO_ROOT / "src" / "accessible_ide" / "__init__.py"
+INSTALLER_FILE = REPO_ROOT / "installer.iss"
 
 VERSION_LINE = re.compile(r'^__version__\s*=\s*["\'][^"\']*["\']\s*$', re.MULTILINE)
+INSTALLER_VERSION_LINE = re.compile(
+    r'^(#define\s+MyAppVersion\s+")[^"]*(")', re.MULTILINE)
 
 
 class StampError(Exception):
@@ -57,6 +62,35 @@ def stamp_version(path: pathlib.Path, version: str) -> None:
         )
     updated = VERSION_LINE.sub(f'__version__ = "{version}"', source, count=1)
     path.write_text(updated, encoding='utf-8')
+
+
+def stamp_installer(version: str, path: pathlib.Path | None = None) -> None:
+    """Write the version into the Inno Setup script, same rules as above.
+
+    This is not cosmetic. Inno Setup compares AppVersion to decide whether
+    an installed copy is older than the one being run, so a script left at
+    the last hand-edited number reports every release as the same version:
+    Windows lists it under one name in Apps & features, and a reader who
+    installs a new build over an old one can be told they already have it.
+    """
+    path = INSTALLER_FILE if path is None else path
+    if not path.is_file():
+        raise StampError(
+            f'{path} does not exist, so the installer cannot be stamped. '
+            'Builds that do not produce an installer can ignore this.'
+        )
+    source = path.read_text(encoding='utf-8')
+    if INSTALLER_VERSION_LINE.search(source) is None:
+        raise StampError(
+            f'no #define MyAppVersion line to replace in {path}. '
+            'The stamp would be silently skipped and the installer would '
+            'keep the old version, so this stops instead.'
+        )
+    clean = version.lstrip('v')
+    path.write_text(
+        INSTALLER_VERSION_LINE.sub(rf'\g<1>{clean}\g<2>', source, count=1),
+        encoding='utf-8',
+    )
 
 
 def sha256_of(path: pathlib.Path) -> str:
@@ -97,6 +131,8 @@ def main(argv=None) -> int:
     stamp = commands.add_parser('stamp', help='write the version into the package')
     stamp.add_argument('--version', required=True)
     stamp.add_argument('--file', default=str(INIT_FILE))
+    stamp.add_argument('--no-installer', action='store_true',
+                       help='stamp only the package, leaving installer.iss alone')
 
     manifest = commands.add_parser('manifest', help='describe a built exe')
     manifest.add_argument('--version', required=True)
@@ -112,6 +148,12 @@ def main(argv=None) -> int:
         if args.command == 'stamp':
             stamp_version(pathlib.Path(args.file), args.version)
             print(f'stamped {args.file} with {args.version}')
+            # Stamped here rather than in the installer job alone, so the
+            # portable build and the installer can never be cut from
+            # different numbers.
+            if not args.no_installer:
+                stamp_installer(args.version)
+                print(f'stamped {INSTALLER_FILE} with {args.version.lstrip("v")}')
         else:
             exe = pathlib.Path(args.file)
             if not exe.is_file():

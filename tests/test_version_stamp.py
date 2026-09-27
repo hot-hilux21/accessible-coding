@@ -72,6 +72,69 @@ class StampTests(unittest.TestCase):
             stamp_version.stamp_version(self.init, "1.0.0")
 
 
+class InstallerStampTests(unittest.TestCase):
+    """The installer has to be stamped too, and for a different reason.
+
+    Inno Setup reads AppVersion to decide whether what is installed is
+    older than what is being installed. Left alone it keeps the number
+    somebody last typed, so every future release is announced as the same
+    version - and a reader can be told they already have the build they
+    are trying to install.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.iss = pathlib.Path(self.tmp.name) / "installer.iss"
+        self.iss.write_text(
+            '#define MyAppName "AccessibleIDE"\n'
+            '#define MyAppVersion "0.2.2"\n'
+            '\n'
+            'AppName={#MyAppName}\n'
+            'AppVersion={#MyAppVersion}\n',
+            encoding="utf-8",
+        )
+
+    def test_the_installer_version_is_written_in(self):
+        stamp_version.stamp_installer("0.3.0-beta", self.iss)
+        self.assertIn('#define MyAppVersion "0.3.0-beta"',
+                      self.iss.read_text(encoding="utf-8"))
+
+    def test_a_leading_v_is_dropped(self):
+        stamp_version.stamp_installer("v1.2.3", self.iss)
+        self.assertIn('#define MyAppVersion "1.2.3"',
+                      self.iss.read_text(encoding="utf-8"))
+
+    def test_nothing_else_in_the_script_is_touched(self):
+        before = self.iss.read_text(encoding="utf-8")
+        stamp_version.stamp_installer("1.2.3", self.iss)
+        after = self.iss.read_text(encoding="utf-8")
+        self.assertEqual(before.replace('"0.2.2"', '"1.2.3"'), after)
+
+    def test_stamping_twice_replaces_rather_than_appends(self):
+        stamp_version.stamp_installer("1.0.0", self.iss)
+        stamp_version.stamp_installer("1.0.1", self.iss)
+        text = self.iss.read_text(encoding="utf-8")
+        self.assertEqual(text.count("#define MyAppVersion"), 1)
+        self.assertIn('"1.0.1"', text)
+
+    def test_a_script_with_no_version_line_is_refused(self):
+        self.iss.write_text('#define MyAppName "X"\n', encoding="utf-8")
+        with self.assertRaises(stamp_version.StampError):
+            stamp_version.stamp_installer("1.0.0", self.iss)
+
+    def test_a_missing_script_is_refused(self):
+        with self.assertRaises(stamp_version.StampError):
+            stamp_version.stamp_installer(
+                "1.0.0", pathlib.Path(self.tmp.name) / "not-here.iss")
+
+    def test_the_repository_ships_an_installer_this_can_stamp(self):
+        # The path is written down once, in the tool. If installer.iss ever
+        # moves, this is the test that notices.
+        self.assertTrue(stamp_version.INSTALLER_FILE.is_file(),
+                        f"no installer script at {stamp_version.INSTALLER_FILE}")
+
+
 class ManifestTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
