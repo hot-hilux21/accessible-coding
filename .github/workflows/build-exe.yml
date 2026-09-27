@@ -25,7 +25,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install dependencies
-        run: pip install flask pywebview
+        # pyyaml is here for the tests, not the app: one of them reads these
+        # workflow files to check every build job stamps its own version.
+        run: pip install flask pywebview pyyaml
       - name: Run smoke tests
         run: python smoke_test.py
       - name: Run unit tests

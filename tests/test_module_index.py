@@ -3,8 +3,9 @@
 Three things could be wrong with an index of 190 modules, and each has its
 own test below:
 
-* a name that is not a real module, or that does not exist on this
-  Python - the index would offer something that cannot be imported;
+* a name that is not a real module, or that does not exist in the Python
+  the index describes - the index would offer something that cannot be
+  imported;
 * a description or an example that is broken - the reader is told to trust
   these, so they are held to the same standard as the rest of the app;
 * a search that answers everything - a search which returns every module
@@ -26,6 +27,20 @@ from accessible_ide.modules_data import (  # noqa: E402
 )
 
 PUBLIC = {n for n in sys.stdlib_module_names if not n.startswith('_')}
+
+# The index describes the standard library of Python 3.13. These twenty
+# modules were still in the library in 3.12 and were removed in 3.13 (PEP
+# 594, "dead batteries"). They are not listed, and that is the right
+# answer rather than a gap: telling a reader to import telnetlib when
+# their Python no longer has it would be the opposite of help. They are
+# named here so the tests below can tell "left out on purpose" apart from
+# "missed", on 3.12 as well as on 3.13.
+RETIRED_IN_3_13 = frozenset({
+    'aifc', 'audioop', 'cgi', 'cgitb', 'chunk', 'crypt', 'imghdr',
+    'lib2to3', 'mailcap', 'msilib', 'nis', 'nntplib', 'ossaudiodev',
+    'pipes', 'sndhdr', 'spwd', 'sunau', 'telnetlib', 'uu', 'xdrlib',
+})
+
 # Three names in the documentation's index that are a demonstration
 # package, a joke, and a whole application rather than something a reader
 # would go and import. Listing them would be padding: a reader looking for
@@ -35,6 +50,12 @@ DELIBERATELY_ABSENT = {'idlelib', 'turtledemo', 'antigravity'}
 # os.path is in the documentation's index but is an attribute of os rather
 # than a module of its own, so it is not in sys.stdlib_module_names.
 EXPECTED_EXTRA = {'os.path'}
+
+# A name the index mentions has to be a real module of this Python, or one
+# of the two deliberate exceptions above, or a module that has since been
+# removed - so that running these tests on a future Python, which will have
+# retired more names, does not report the index as inventing modules.
+KNOWN_NAMES = PUBLIC | EXPECTED_EXTRA | RETIRED_IN_3_13
 
 
 class CatalogueShapeTests(unittest.TestCase):
@@ -78,18 +99,20 @@ class CatalogueCoverageTests(unittest.TestCase):
     """The index covers the standard library, and nothing invented."""
 
     def test_no_invented_names(self):
-        known = PUBLIC | EXPECTED_EXTRA
-        unknown = sorted(set(ENTRIES) - known)
+        unknown = sorted(set(ENTRIES) - KNOWN_NAMES)
         self.assertEqual(unknown, [], 'not modules in this Python')
 
     def test_public_modules_are_all_listed(self):
-        missing = sorted(PUBLIC - set(ENTRIES) - DELIBERATELY_ABSENT)
+        missing = sorted(PUBLIC - set(ENTRIES) - DELIBERATELY_ABSENT
+                         - RETIRED_IN_3_13)
         self.assertEqual(missing, [], 'standard library modules missing from the index')
 
     def test_only_deliberate_names_are_absent(self):
         absent = PUBLIC - set(ENTRIES)
-        self.assertTrue(absent <= DELIBERATELY_ABSENT,
-                        f'absent but not deliberately so: {sorted(absent - DELIBERATELY_ABSENT)}')
+        self.assertTrue(
+            absent <= DELIBERATELY_ABSENT | RETIRED_IN_3_13,
+            f'absent but not deliberately so: '
+            f'{sorted(absent - DELIBERATELY_ABSENT - RETIRED_IN_3_13)}')
 
 
 class AvailabilityTests(unittest.TestCase):
