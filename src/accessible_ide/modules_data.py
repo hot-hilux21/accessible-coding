@@ -1130,8 +1130,11 @@ ENTRIES = {
         "Opening a web address in the reader's own browser - but only when "
         "they ask for it, never on its own.",
         "import webbrowser\n"
-        "print('would open with:', webbrowser.get())\n"
-        "print('nothing is opened here')",
+        "# webbrowser.open(...) is the call you would make to send a reader\n"
+        "# to a page. It is not made here: a reference example should not open\n"
+        "# a browser behind the reader's back.\n"
+        "print('a page is opened with: webbrowser.open(\"https://example.org\")')\n"
+        "print('nothing was opened')",
     ),
     # -- drawing, sound and the terminal -----------------------------
     "turtle": (
@@ -1322,23 +1325,35 @@ ENTRIES = {
         ADVANCED, PLATFORM,
         "Reading and writing Windows settings stored in the registry - the "
         "list of programs a machine remembers.",
-        "import winreg\n"
-        "key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Software')\n"
-        "print('the Windows registry is readable')\n"
-        "winreg.CloseKey(key)",
+        "import importlib.util\n"
+        "if importlib.util.find_spec('winreg'):\n"
+        "    import winreg\n"
+        "    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Software')\n"
+        "    print('the Windows registry is readable')\n"
+        "    winreg.CloseKey(key)\n"
+        "else:\n"
+        "    print('winreg is only on Windows, so there is no registry to read here')",
     ),
     "msvcrt": (
         ADVANCED, PLATFORM,
         "Talking to the Windows console directly: clearing it, and making a "
         "single keypress arrive without Enter.",
-        "import msvcrt\n"
-        "print('a keypress is waiting:', msvcrt.kbhit())",
+        "import importlib.util\n"
+        "if importlib.util.find_spec('msvcrt'):\n"
+        "    import msvcrt\n"
+        "    print('on Windows, is a keypress waiting?', msvcrt.kbhit())\n"
+        "else:\n"
+        "    print('msvcrt is only on Windows, so there is no key to ask about here')",
     ),
     "winsound": (
         ADVANCED, PLATFORM,
         "Playing system beeps and .wav files on Windows.",
-        "import winsound\n"
-        "print('can play a beep:', callable(winsound.Beep))",
+        "import importlib.util\n"
+        "if importlib.util.find_spec('winsound'):\n"
+        "    import winsound\n"
+        "    print('on Windows it can play a beep:', callable(winsound.Beep))\n"
+        "else:\n"
+        "    print('winsound is only on Windows, so there is no beep to play here')",
     ),
     "nturl2path": (
         ADVANCED, PLATFORM,
