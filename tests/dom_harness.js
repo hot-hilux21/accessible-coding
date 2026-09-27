@@ -39,6 +39,12 @@ const KNOWN_IDS = new Set([
   'preview-status', 'swatches', 'code-color-hex', 'code-color-picker',
   'colour-error', 'btn-reset-colour',
   'language-select',
+  // The module index. Without these declared here, initModules() takes
+  // its early-return path and nothing about the index is exercised.
+  'modules-dialog', 'modules-title', 'btn-modules', 'modules-close',
+  'modules-search-input', 'modules-search-help', 'modules-filter-label',
+  'modules-results', 'modules-results-label', 'modules-empty',
+  'modules-status', 'modules-detail', 'modules-detail-label',
   // The first-run setup screen. The server stops rendering it once the
   // reader has finished it, so app.js has to treat every one of these as
   // optional - the harness declares them so that path is exercised rather
@@ -88,8 +94,11 @@ const noop = () => {};
 const reloads = [];
 let reloadsBefore = 0;
 
-function makeClassList() {
-  const set = new Set();
+// Which element has focus. Module scope, so makeElement can record it
+// while makePage - which owns the document stub - reads it back.
+let focusNow = null;
+
+function makeClassList() {  const set = new Set();
   return {
     add: (c) => set.add(c),
     remove: (c) => set.delete(c),
@@ -195,18 +204,34 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
     // permanently empty, and every check about what a reader can choose
     // from would pass for the wrong reason.
     options: [],
+    // Real children, not options. The module index appends <li> and
+    // <button> elements to a <ul> and to the detail pane, and options
+    // would collect them in the wrong bucket and hide the very thing a
+    // check needs to look at.
+    children: [],
     appendChild(child) {
+      el.children.push(child);
       el.options.push(child);
       return child;
     },
     removeChild(child) {
+      el.children = el.children.filter((c) => c !== child);
       el.options = el.options.filter((o) => o !== child);
     },
-    focus: noop,
+    // Focus is recorded, because the index is expected to put the reader
+    // in the search box and to hand focus back when it closes. It lives
+    // at module scope rather than in makePage, because makeElement is
+    // defined outside that function and could not see it there.
+    focus() { focusNow = el; },
     blur: noop,
+    // Selecting the text of a search box, so the reader can type over
+    // what is there. app.js does this when the index opens.
+    select: noop,
     click: noop,
-    close: noop,
-    showModal: noop,
+    // A modal's open state is recorded rather than ignored, so a check
+    // can tell "opened" from "was already open".
+    showModal() { el.__open = true; },
+    close() { el.__open = false; },
     getBoundingClientRect: () => ({ top: 0, left: 0, width: 100, height: 100 }),
     querySelector: () => makeElement('__query__'),
     querySelectorAll: () => [],
@@ -351,6 +376,18 @@ const SETUP_LOCALE_RADIOS = ['en', 'hi', 'fr', 'es', 'ar'].map((code) =>
     { value: code, checked: code === 'en' })
 );
 
+// The four level filters, in the order the template renders them. The
+// first one starts pressed, because the index opens showing everything.
+const MODULE_LEVELS = ['', 'start', 'everyday', 'advanced'];
+const MODULE_LEVEL_BUTTONS = MODULE_LEVELS.map((level) => {
+  const el = makeElement(`modules-level-${level || 'all'}`, {
+    'data-level': level,
+    'aria-pressed': level === '' ? 'true' : 'false',
+  });
+  el.className = 'btn btn-small modules-level' + (level === '' ? ' is-on' : '');
+  return el;
+});
+
 const SETUP_DIALOG = makeElement('setup-dialog', {}, {
   // Recorded rather than discarded: "the wizard was in the markup but never
   // opened" is a real failure that a noop would hide completely.
@@ -377,9 +414,16 @@ function resetSetup() {
 
 SETUP_DIALOG.__modalOpens = 0;
 
+// The editor keeps its value, so a check can tell an append from an
+// overwrite. A stub that discarded what was written could not tell the
+// difference, and losing a reader's work is the failure that matters most
+// here.
+let editorValue = 'print("hi")';
 const editorInstance = {
-  getValue: () => 'print("hi")',
-  setValue: noop,
+  getValue: () => editorValue,
+  setValue: (value) => { editorValue = value; },
+  lineCount: () => editorValue.split('\n').length,
+  setCursor: noop,
   setOption: noop,
   getOption: () => undefined,
   refresh: noop,
@@ -487,7 +531,8 @@ function makePage(locale, shared, bodyAttrs) {
     documentElement: makeElement('html'),
     // The Settings button has focus when it is pressed, which is the case
     // openSettings/closeSettings are written to handle.
-    activeElement: null,
+    get activeElement() { return focusNow; },
+    set activeElement(value) { focusNow = value; },
     getElementById: (id) => {
       seen.push(id);
       if (id === 'font-select') {
@@ -539,7 +584,12 @@ function makePage(locale, shared, bodyAttrs) {
       return found.get(id);
     },
     querySelector: () => makeElement('__query__'),
-    querySelectorAll: () => [],
+    // The module index asks for its level filters this way, and gets the
+    // same four elements every time, so the listeners it attaches are the
+    // ones a check can fire.
+    querySelectorAll: (selector) => (
+      selector === '.modules-level' ? MODULE_LEVEL_BUTTONS : []
+    ),
     createElement: (tag) => makeElement(tag),
     addEventListener: noop,
     removeEventListener: noop,
@@ -634,6 +684,40 @@ const updateInstallBodies = [];
 // Every utterance the app asked for, in order. Without this the harness
 // can only prove the app ran, not that it said anything.
 const spokenUtterances = [];
+
+// Stand-in module data. A handful is enough: the point is to check how
+// the app draws and orders what it is given, and the catalogue's contents
+// are covered by the Python tests.
+const MODULE_LIST = {
+  total: 3,
+  total_all: 3,
+  counts: { start: 1, everyday: 1, advanced: 1 },
+  modules: [
+    {
+      name: 'json', level: 'everyday', group: 'data',
+      summary: 'Reading and writing data as text a person can read.',
+      words: ['settings'], available: true, runs_in_web: true,
+    },
+    {
+      name: 'curses', level: 'advanced', group: 'system',
+      summary: 'Coloured menus in a terminal window.',
+      words: ['terminal'], available: false, runs_in_web: true,
+    },
+    {
+      name: 'tkinter', level: 'advanced', group: 'graphics',
+      summary: 'Windows, buttons and boxes on the screen.',
+      words: ['windows'], available: true, runs_in_web: false,
+    },
+  ],
+};
+
+const MODULE_DETAIL = {
+  name: 'json', level: 'everyday', group: 'data',
+  summary: 'Reading and writing data as text a person can read.',
+  words: ['settings'], available: true, runs_in_web: true,
+  example: 'import json\nprint(json.dumps({"ok": True}))',
+};
+
 function fetchStub(url, options) {
   fetchCalls.push(url);
   if (String(url).includes('/api/themes')) {
@@ -643,6 +727,21 @@ function fetchStub(url, options) {
         'high-contrast': { name: 'High Contrast', bg: '#0b0b0b', fg: '#ffffff' },
         dark: { name: 'Dark', bg: '#17181c', fg: '#e6e6e6' },
       }),
+    });
+  }
+  if (String(url).includes('/api/modules/')) {
+    const wanted = decodeURIComponent(String(url).split('/api/modules/')[1].split('?')[0]);
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(
+        wanted === MODULE_DETAIL.name ? MODULE_DETAIL : { error: 'unknown module' },
+      ),
+    });
+  }
+  if (String(url).includes('/api/modules')) {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(MODULE_LIST),
     });
   }
   if (String(url).includes('/api/config') && options && options.body) {
@@ -740,6 +839,17 @@ if (unknown.length) {
 // proves the top half of the file parsed; the wiring is in these handlers.
 // ---------------------------------------------------------------------------
 const fakeEvent = { preventDefault: noop, stopPropagation: noop };
+
+// A browser sets currentTarget to the element whose handler is running.
+// A handler that reads it - to find which filter was pressed, say - would
+// otherwise get nothing here and quietly do the wrong thing, so the event
+// has to carry it.
+function eventFor(el) {
+  return {
+    preventDefault: noop, stopPropagation: noop,
+    target: el, currentTarget: el,
+  };
+}
 const interactions = [
   ['font-select', 'change'], ['font-size', 'input'], ['font-size', 'change'],
   ['line-height', 'input'], ['line-height', 'change'],
@@ -1371,8 +1481,10 @@ function runSpeechChecks() {
   runUpdateChecks();
 
   // The update promises settle in a chain, so the exit waits for the end of
-  // that chain rather than cutting it off at a guessed time.
-  finish = () => process.exit(failed ? 1 : 0);
+  // that chain rather than cutting it off at a guessed time. The module
+  // index runs just before the exit, because it leaves the editor holding
+  // an example and nothing after it should expect the page as it started.
+  finish = () => runModuleIndexChecks(() => process.exit(failed ? 1 : 0));
 }
 
 // ---------------------------------------------------------------------------
@@ -2005,6 +2117,347 @@ function runStepperChecks() {
   }
 
   console.log('     the spacing steppers notch, clamp, save and disable at their limits');
+}
+
+// The module index. The interaction sweep above already fires the search
+// input and the close button, so this checks the things a sweep cannot:
+// that the results actually arrive, that the dialog behaves as a dialog,
+// and that an example reaches the editor without losing what was there.
+function runModuleIndexChecks() {
+  const dialog = elements.get('modules-dialog');
+  const opener = elements.get('btn-modules');
+  const search = elements.get('modules-search-input');
+  const results = elements.get('modules-results');
+  const status = elements.get('modules-status');
+  const empty = elements.get('modules-empty');
+  const detail = elements.get('modules-detail');
+
+  // Opened as a real modal, so the browser supplies the focus trap.
+  if (typeof dialog.showModal !== 'function' || dialog.__open !== true) {
+    failed = true;
+    console.log('FAIL the module index did not open as a modal');
+  } else {
+    console.log('     the module index opens as a real modal');
+  }
+
+  // The search box takes focus, because that is what the reader came for.
+  if (search !== document.activeElement) {
+    failed = true;
+    console.log('FAIL the module index did not put focus in the search box');
+  } else {
+    console.log('     it puts the reader straight in the search box');
+  }
+
+  const drawn = results.children || [];
+  if (drawn.length === 0) {
+    failed = true;
+    console.log('FAIL the module index drew no results');
+  } else {
+    console.log(`     it draws results as a list of ${drawn.length} buttons`);
+  }
+
+  // The count is announced, and it is a number rather than a key.
+  if (typeof status.textContent !== 'string' || !/\d/.test(status.textContent)) {
+    failed = true;
+    console.log(`FAIL the result count was not announced: "${status.textContent}"`);
+  } else {
+    console.log('     it announces how many modules matched');
+  }
+
+  // Availability is words, not a coloured dot. A screen reader says
+  // nothing about a tint, and a dot is invisible in a high-contrast theme.
+  const first = drawn[0];
+  const text = JSON.stringify(first && first.__text || '');
+  if (!/On this computer|Not on this computer/.test(text)) {
+    failed = true;
+    console.log(`FAIL availability was not given in words: ${text.slice(0, 120)}`);
+  } else {
+    console.log('     it says whether a module is on this computer, in words');
+  }
+
+  // 190 results is a lot to walk past, so only the first page is drawn
+  // and the rest is one button away.
+  if (drawn.length > 60) {
+    failed = true;
+    console.log(`FAIL the index drew all ${drawn.length} results at once`);
+  } else {
+    console.log('     it shows a page at a time rather than all 190 at once');
+  }
+
+  // Empty results are explained, not left as a blank panel.
+  if (empty && empty.hidden) {
+    failed = true;
+    console.log('FAIL the empty message was hidden while there were no results');
+  }
+  if (empty && !/built in/.test(empty.textContent || '')) {
+    failed = true;
+    console.log('FAIL the empty message did not mention that some things are built in');
+  } else {
+    console.log('     finding nothing says why, rather than showing a blank');
+  }
+
+  // Closing sends focus back, so the next Tab is not from the top of the
+  // page.
+  elements.get('modules-close').__listeners.click.forEach((h) => h(fakeEvent));
+  if (dialog.__open !== false) {
+    failed = true;
+    console.log('FAIL the module index did not close');
+  }
+  if (opener !== document.activeElement) {
+    failed = true;
+    console.log('FAIL closing the index did not return focus to its button');
+  } else {
+    console.log('     it closes and hands focus back to the button');
+  }
+
+  // Putting an example in the editor appends. A reference lookup must
+  // never cost somebody the work they had already done.
+  const before = editor.getValue();
+  search.value = 'json';
+  search.__listeners.input.forEach((h) => h(fakeEvent));
+  setTimeout(() => {
+    const found = (results.children || [])[0];
+    if (!found || !found.__click) {
+      failed = true;
+      console.log('FAIL no module result offered a click handler');
+      return finishModuleChecks(before);
+    }
+    found.__click(fakeEvent);
+    setTimeout(() => {
+      const insert = elements.get('modules-insert');
+      if (!insert) {
+        failed = true;
+        console.log('FAIL the detail did not offer an insert button');
+        return finishModuleChecks(before);
+      }
+      insert.__listeners.click.forEach((h) => h(fakeEvent));
+      const after = editor.getValue();
+      if (!after.startsWith(before)) {
+        failed = true;
+        console.log('FAIL inserting an example overwrote what was already there');
+      } else if (!/import json/.test(after)) {
+        failed = true;
+        console.log('FAIL the example was not put in the editor');
+      } else {
+        console.log('     an example is added to the editor without losing what was there');
+      }
+      finishModuleChecks(before);
+    }, 20);
+  }, 20);
+}
+
+function finishModuleChecks() {
+  setTimeout(() => {
+    console.log('module index: 6 checks');
+    done();
+  }, 10);
+}
+
+// The module index. The interaction sweep above already fired the search
+// input and the close button, so this checks what a sweep cannot: that
+// results arrive and are drawn, that the dialog behaves as a dialog, and
+// that an example reaches the editor without losing what was there.
+//
+// Text of a subtree, the way a screen reader would read it out.
+function readText(node) {
+  if (!node) return '';
+  if (typeof node.textContent === 'string' && node.textContent) {
+    return node.textContent;
+  }
+  return (node.children || []).map(readText).join(' ');
+}
+
+function runModuleIndexChecks(done) {
+  const dialog = elements.get('modules-dialog');
+  const opener = elements.get('btn-modules');
+  const search = elements.get('modules-search-input');
+  const results = elements.get('modules-results');
+  const status = elements.get('modules-status');
+  const empty = elements.get('modules-empty');
+
+  // Open it from its own button, rather than relying on the interaction
+  // sweep above: this check is then independent of where that sweep's
+  // list happens to sit, and it exercises the button a reader presses.
+  (opener.__listeners.click || []).forEach((h) => h(fakeEvent));
+
+  // Opened as a real modal, so the browser supplies the focus trap.
+  if (dialog.__open !== true) {
+    failed = true;
+    console.log('FAIL the module index did not open as a modal');
+  } else {
+    console.log('     the module index opens as a real modal');
+  }
+
+  // The search box takes focus, because that is what the reader came for.
+  if (documentStub.activeElement !== search) {
+    failed = true;
+    console.log('FAIL the module index did not put focus in the search box');
+  } else {
+    console.log('     it puts the reader straight in the search box');
+  }
+
+  // The catalogue is fetched, rather than embedded, and asked for by name.
+  if (!fetchCalls.some((u) => u.includes('/api/modules'))) {
+    failed = true;
+    console.log('FAIL the module index never asked the server for the catalogue');
+  } else {
+    console.log('     it asks the server for the catalogue');
+  }
+
+  setTimeout(() => {
+    const drawn = (results.children || []).filter((c) => c.tagName !== 'li-more');
+    if (drawn.length === 0) {
+      failed = true;
+      console.log('FAIL the module index drew no results');
+    } else {
+      console.log(`     it draws the ${drawn.length} results the server sent`);
+    }
+
+    // The count is announced, in a number rather than a raw key.
+    if (!/\d/.test(String(status.textContent))) {
+      failed = true;
+      console.log(`FAIL the result count was not announced: "${status.textContent}"`);
+    } else {
+      console.log('     it announces how many modules matched');
+    }
+
+    // Each result names the module, says what it is for, and says whether
+    // it is on this computer. Availability in words, not a coloured dot:
+    // a screen reader says nothing about a tint.
+    const said = readText(drawn[0]);
+    if (!said.includes('json')) {
+      failed = true;
+      console.log(`FAIL the first result did not name its module: ${said.slice(0, 90)}`);
+    } else if (!/On this computer|Not on this computer/.test(said)) {
+      failed = true;
+      console.log(`FAIL availability was not given in words: ${said.slice(0, 90)}`);
+    } else {
+      console.log('     a result names the module, says what it does, and says if it is here');
+    }
+
+    // A module that is not installed is still listed - it is part of
+    // Python - but it says so, rather than looking runnable.
+    const offText = readText(drawn[1]);
+    if (!/Not on this computer/.test(offText)) {
+      failed = true;
+      console.log(`FAIL a missing module was not marked: ${offText.slice(0, 90)}`);
+    } else {
+      console.log('     a module that is not installed says so in words');
+    }
+
+    // Choosing a result loads its example, and offers the two things a
+    // reader can do with it.
+    const button = (drawn[0].children || [])[0];
+    const handlers = (button && button.__listeners && button.__listeners.click) || [];
+    if (handlers.length === 0) {
+      failed = true;
+      console.log('FAIL a module result was not clickable');
+    } else {
+      handlers[0](fakeEvent);
+    }
+
+    setTimeout(() => {
+      const detail = elements.get('modules-detail');
+      const detailText = readText(detail);
+      if (!detailText.includes('import json')) {
+        failed = true;
+        console.log(`FAIL the example was not shown: ${detailText.slice(0, 120)}`);
+      } else {
+        console.log('     choosing a module shows its example');
+      }
+      // Web-blocked is a sentence, and only appears for a module that
+      // really cannot run there.
+      const detailAll = readText(detail);
+      if (/web version/.test(detailAll)) {
+        failed = true;
+        console.log('FAIL a runnable module was marked as web-blocked');
+      } else {
+        console.log('     a runnable example is not marked as blocked');
+      }
+
+      // Putting it in the editor appends. A reference lookup must never
+      // cost somebody the work they had already done.
+      const before = editorInstance.getValue();
+      const insert = (detail.children || []).map(readText).join(' ');
+      const insertBtn = findButtonByText(detail, 'Put the example in the editor');
+      if (!insertBtn) {
+        failed = true;
+        console.log(`FAIL the detail offered no insert button: ${insert.slice(0, 140)}`);
+      } else {
+        insertBtn.__listeners.click.forEach((h) => h(fakeEvent));
+        const after = editorInstance.getValue();
+        if (after === before) {
+          failed = true;
+          console.log('FAIL inserting an example changed nothing');
+        } else if (!after.startsWith(before)) {
+          failed = true;
+          console.log('FAIL inserting an example overwrote what was already there');
+        } else if (!after.includes('import json')) {
+          failed = true;
+          console.log('FAIL the example was not put in the editor');
+        } else {
+          console.log('     an example is added without losing what was already there');
+        }
+      }
+
+      // The level filters. Choosing one has to be reflected in the
+      // request and in aria-pressed, and the others have to stand down -
+      // two filters that look pressed at once is a lie about what is
+      // being shown.
+      const before2 = fetchCalls.length;
+      const everyday = MODULE_LEVEL_BUTTONS[2];
+      (everyday.__listeners.click || []).forEach((h) => h(eventFor(everyday)));
+      if (everyday.__attributes['aria-pressed'] !== 'true') {
+        failed = true;
+        console.log('FAIL the chosen level filter did not report itself as pressed');
+      } else {
+        console.log('     a level filter reports that it is the one in use');
+      }
+      const othersPressed = MODULE_LEVEL_BUTTONS.filter(
+        (b) => b !== everyday && b.__attributes['aria-pressed'] === 'true');
+      if (othersPressed.length) {
+        failed = true;
+        console.log(`FAIL ${othersPressed.length} other level filters stayed pressed`);
+      } else {
+        console.log('     the other filters stand down, so only one looks chosen');
+      }
+      const asked = fetchCalls.slice(before2).join(' ');
+      if (!/level=everyday/.test(asked)) {
+        failed = true;
+        console.log(`FAIL the level was not sent to the server: ${asked.slice(0, 120)}`);
+      } else {
+        console.log('     the chosen level is sent to the server');
+      }
+
+      // And the index gets out of the way, handing focus back.
+      if (dialog.__open !== false) {
+        failed = true;
+        console.log('FAIL inserting did not close the index');
+      }
+      if (documentStub.activeElement !== opener) {
+        failed = true;
+        console.log('FAIL focus was not returned to the button that opened the index');
+      } else {
+        console.log('     it closes and hands focus back to the button');
+      }
+
+      done();
+    }, 20);
+  }, 20);
+}
+
+// Depth-first search for a button whose text is exactly this, so the check
+// does not depend on the order the detail pane was built in.
+function findButtonByText(node, text) {
+  for (const child of (node && node.children) || []) {
+    if ((child.className || '').includes('btn')
+        && readText(child).trim() === text) {
+      return child;
+    }
+    const deeper = findButtonByText(child, text);
+    if (deeper) return deeper;
+  }
+  return null;
 }
 
 setTimeout(() => {

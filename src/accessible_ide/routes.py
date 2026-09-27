@@ -887,6 +887,59 @@ def fonts_api():
     return jsonify(FONTS)
 
 
+# The module index. One request returns the whole thing - names, levels
+# and one-sentence descriptions - because it is a few tens of kilobytes
+# and a reader is going to search it, so it is needed in full the moment
+# they touch the search box. Splitting it into pages would mean a request
+# on every keystroke, which is the opposite of what a search should do.
+#
+# The examples are deliberately not in this response. There are a few
+# hundred lines of code in there and nobody reads them all; they are
+# fetched one at a time when a reader opens a module.
+@main_bp.route('/api/modules')
+def modules_api():
+    from . import module_index
+
+    query = request.args.get('q', '')
+    level = request.args.get('level', '')
+    group = request.args.get('group', '')
+
+    if level and level not in module_index.LEVELS:
+        return jsonify({'error': t_unknown(module_index.LEVELS)}), 400
+    if group and group not in module_index.GROUPS:
+        return jsonify({'error': t_unknown(module_index.GROUPS)}), 400
+
+    entries = module_index.search(query, level=level or None, group=group or None)
+    # Availability is measured once per name, not once per request per
+    # entry, and only for the modules actually on screen.
+    measured = {name: module_index.available_here(name) for name in
+                {e.name for e in entries}}
+    return jsonify({
+        'total': len(entries),
+        'total_all': len(module_index.all_entries()),
+        'counts': module_index.counts(),
+        'modules': [e.as_dict(here=measured[e.name]) for e in entries],
+    })
+
+
+@main_bp.route('/api/modules/<name>')
+def module_api(name):
+    from . import module_index
+
+    entry = module_index.find(name)
+    if entry is None:
+        return jsonify({'error': 'unknown module'}), 404
+    detail = entry.as_dict()
+    detail['example'] = entry.example
+    return jsonify(detail)
+
+
+def t_unknown(allowed):
+    """A refusal naming what was allowed, in the reader's language."""
+    t = translator_for(request_locale({}))
+    return t('config.error_one_of', t('modules.filter'), ', '.join(sorted(allowed)))
+
+
 # Python's mimetypes has no entry for .ttf on Windows, so fonts were
 # being served as application/octet-stream. Browsers tolerate that, but
 # a font served with a real font/* type is the correct answer and avoids

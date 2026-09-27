@@ -1288,3 +1288,278 @@ body[data-reduce-motion='true'] *::after {
 .setup-footer .btn {
   min-height: 44px;
 }
+
+/* ---------- Module index ----------
+
+   A native <dialog> for the same reason as the settings panel: focus
+   trapping, Escape and the inert page behind come from the browser. */
+
+.modules {
+  width: min(1000px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100vh - 2 * var(--space-4));
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+
+.modules::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.modules-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 2 * var(--space-4));
+}
+
+.modules-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+}
+
+.modules-title {
+  margin: 0;
+  font-size: 1.25em;
+  font-weight: bold;
+  letter-spacing: normal;
+}
+
+.modules-intro,
+.modules-help {
+  margin: 0;
+  color: var(--muted);
+  letter-spacing: normal;
+}
+
+.modules-intro {
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.modules-help {
+  margin-top: var(--space-1);
+  font-size: 0.9em;
+}
+
+.modules-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-4);
+}
+
+.modules-search {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.modules-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: 0.9em;
+  font-weight: bold;
+  color: var(--muted);
+  letter-spacing: normal;
+}
+
+.modules-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: 1.05em;
+  letter-spacing: normal;
+  color: var(--fg);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  min-height: 44px;
+}
+
+.modules-level-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The pressed level is marked by a border and the words, not by colour
+   alone - a tint is not something a screen reader reports, and not
+   everyone separates the accent from the background. */
+.modules-level[aria-pressed="true"] {
+  border-color: var(--accent);
+  border-width: 2px;
+  font-weight: bold;
+}
+
+.modules-status {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-2);
+  color: var(--muted);
+  font-size: 0.9em;
+  letter-spacing: normal;
+}
+
+/* Two columns on a wide screen, one on a narrow one. The detail sits
+   under the list on a phone, which is the right order: pick a module,
+   then read about it. */
+.modules-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: var(--space-4);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.modules-results-wrap {
+  flex: 1 1 340px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 46vh;
+}
+
+.modules-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.modules-result-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  font: inherit;
+  letter-spacing: normal;
+  color: var(--fg);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.modules-result-btn:hover {
+  border-color: var(--accent);
+}
+
+.modules-name {
+  display: block;
+  font-weight: bold;
+  font-family: "Courier New", monospace;
+}
+
+.modules-summary {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--muted);
+  font-size: 0.95em;
+}
+
+.modules-flag {
+  display: inline-block;
+  margin-top: var(--space-1);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.modules-flag.is-off,
+.modules-flag.is-web {
+  border-style: dashed;
+}
+
+.modules-empty {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--muted);
+  letter-spacing: normal;
+}
+
+.modules-empty-hint {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: 0.9em;
+}
+
+.modules-detail {
+  flex: 1 1 320px;
+  min-width: 0;
+  overflow-y: auto;
+  max-height: 46vh;
+  padding: var(--space-3);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-bg);
+  letter-spacing: normal;
+}
+
+.modules-detail-name {
+  margin: 0 0 var(--space-2);
+  font-family: "Courier New", monospace;
+  font-size: 1.1em;
+}
+
+.modules-detail-summary,
+.modules-choose,
+.modules-note {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+}
+
+.modules-example-label {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 0.95em;
+  color: var(--muted);
+}
+
+/* Tabindex on the <pre> so a keyboard reader can scroll it, and so it is
+   reachable at all - a scrollable region with no focus stop is one a
+   keyboard user cannot read. */
+.modules-example {
+  margin: 0;
+  padding: var(--space-3);
+  font-family: "Courier New", monospace;
+  font-size: 0.95em;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.modules-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* On a narrow screen the detail follows the list instead of sitting
+   beside it, and both stop scrolling themselves so the page does not
+   end up with two nested scrollers. */
+@media (max-width: 700px) {
+  .modules-body {
+    flex-direction: column;
+  }
+
+  .modules-results-wrap,
+  .modules-detail {
+    max-height: none;
+    overflow-y: visible;
+  }
+}

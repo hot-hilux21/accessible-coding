@@ -123,6 +123,13 @@
       <input type="file" id="file-input" accept=".py,.txt" class="visually-hidden">
 
       <div class="tool-group">
+        <button id="btn-modules" class="btn btn-toggle" aria-haspopup="dialog"
+                title="{{ t('modules.title') }}">
+          <span aria-hidden="true">&#128269;</span> {{ t('modules.title') }}
+        </button>
+      </div>
+
+      <div class="tool-group">
         <button id="btn-settings" class="btn btn-toggle" aria-haspopup="dialog"
                 title="{{ t('nav.settings_title') }}">
           <span aria-hidden="true">&#9881;</span> {{ t('nav.settings') }}
@@ -609,6 +616,77 @@
     </div>
   </dialog>
   {% endif %}
+
+  <!-- The module index.
+
+       A native dialog element rather than a div with role="dialog",
+       because the browser then handles the focus trap, Escape, and the
+       inertness of the page behind it. Getting that right by hand is
+       where hand-rolled modals go wrong.
+
+       The list is a plain unordered list of buttons. Not a listbox: a
+       listbox needs its own arrow-key model and roving tabindex, and
+       here every result is also reachable by Tab, which is what
+       somebody reading with a screen reader already expects.
+
+       Results and the count are announced politely, but deliberately
+       without role="alert": every keystroke in the search box would then
+       interrupt, which is unusable.
+  -->
+  <dialog id="modules-dialog" class="modules" aria-labelledby="modules-title">
+    <div class="modules-inner">
+      <div class="modules-head">
+        <h2 id="modules-title" class="modules-title">{{ t('modules.title') }}</h2>
+        <button id="modules-close" class="btn btn-small" type="button">{{ t('modules.close') }}</button>
+      </div>
+
+      <p class="modules-intro">{{ t('modules.intro') }}</p>
+
+      <div class="modules-controls">
+        <div class="modules-search">
+          <label for="modules-search-input" class="modules-label">{{ t('modules.search_label') }}</label>
+          <input type="search" id="modules-search-input" class="modules-input"
+                 autocomplete="off" spellcheck="false"
+                 aria-describedby="modules-search-help">
+          <p id="modules-search-help" class="modules-help">{{ t('modules.search_help') }}</p>
+        </div>
+
+        <div class="modules-levels" role="group" aria-labelledby="modules-filter-label">
+          <span id="modules-filter-label" class="modules-label">{{ t('modules.filter') }}</span>
+          <div class="modules-level-buttons">
+            <button type="button" class="btn btn-small modules-level is-on"
+                    data-level="" aria-pressed="true">{{ t('modules.level_all') }}</button>
+            <button type="button" class="btn btn-small modules-level"
+                    data-level="start" aria-pressed="false">{{ t('modules.level_start') }}</button>
+            <button type="button" class="btn btn-small modules-level"
+                    data-level="everyday" aria-pressed="false">{{ t('modules.level_everyday') }}</button>
+            <button type="button" class="btn btn-small modules-level"
+                    data-level="advanced" aria-pressed="false">{{ t('modules.level_advanced') }}</button>
+          </div>
+        </div>
+      </div>
+
+      <p id="modules-status" class="modules-status" role="status" aria-live="polite"></p>
+
+      <div class="modules-body">
+        <div class="modules-results-wrap">
+          <ul id="modules-results" class="modules-results"
+              aria-labelledby="modules-results-label"></ul>
+          <span id="modules-results-label" class="visually-hidden">{{ t('modules.results_label') }}</span>
+          <p id="modules-empty" class="modules-empty" hidden>
+            {{ t('modules.no_results') }}
+            <span class="modules-empty-hint">{{ t('modules.no_results_hint') }}</span>
+          </p>
+        </div>
+
+        <div id="modules-detail" class="modules-detail" aria-labelledby="modules-detail-label"
+             aria-live="polite">
+          <h3 id="modules-detail-label" class="visually-hidden">{{ t('modules.detail_label') }}</h3>
+          <p class="modules-choose">{{ t('modules.choose') }}</p>
+        </div>
+      </div>
+    </div>
+  </dialog>
 
   <!-- The active catalogue is embedded rather than fetched. The page is
        already in the reader's language before this script runs, and a

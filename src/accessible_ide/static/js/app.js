@@ -1980,4 +1980,304 @@
   // size. The setup screen draws over all of it, and a wizard appearing
   // on top of a half-styled page looks like the app failed to load.
   openSetup();
+
+  // The module index is wired up at the very end of this block, below
+  // its own element lookups. Calling initModules() here instead would
+  // hoist the declarations but not their assignments, so it would find
+  // every element undefined and quietly do nothing.
+
+  // ---------- Module index ----------
+
+  // The list is a plain list of buttons and the example is shown beside
+  // it. Deliberately not a listbox or a combobox: a reader arriving with
+  // a screen reader expects to Tab through results, and a listbox would
+  // take that away and demand arrow keys instead.
+  var modulesDialog = document.getElementById('modules-dialog');
+  var modulesOpen = document.getElementById('btn-modules');
+  var modulesCloseBtn = document.getElementById('modules-close');
+  var modulesSearch = document.getElementById('modules-search-input');
+  var modulesResults = document.getElementById('modules-results');
+  var modulesEmpty = document.getElementById('modules-empty');
+  var modulesStatus = document.getElementById('modules-status');
+  var modulesDetail = document.getElementById('modules-detail');
+  var modulesLevelBtns = document.querySelectorAll('.modules-level');
+
+  var modulesState = {
+    level: '',
+    all: [],
+    shown: 0,
+    // Guards against a slow response for an old keystroke arriving after
+    // a fast one. Without it, typing "shuf" can leave "shu" on screen.
+    wanted: 0
+  };
+
+  function initModules() {
+    if (!modulesDialog || !modulesOpen) return;
+    modulesOpen.addEventListener('click', openModules);
+    if (modulesCloseBtn) modulesCloseBtn.addEventListener('click', closeModules);
+    if (modulesSearch) {
+      modulesSearch.addEventListener('input', onModulesSearch);
+    }
+    for (var i = 0; i < modulesLevelBtns.length; i++) {
+      modulesLevelBtns[i].addEventListener('click', onModulesLevel);
+    }
+  }
+
+  function openModules() {
+    if (typeof modulesDialog.showModal === 'function') {
+      modulesDialog.showModal();
+    } else {
+      modulesDialog.setAttribute('open', '');
+    }
+    if (modulesSearch) {
+      modulesSearch.focus();
+      modulesSearch.select();
+    }
+    if (!modulesState.all.length) loadModules();
+  }
+
+  function closeModules() {
+    if (typeof modulesDialog.close === 'function') {
+      modulesDialog.close();
+    } else {
+      modulesDialog.removeAttribute('open');
+    }
+    // Send the reader back where they were, rather than leaving focus on
+    // the body where the next Tab restarts at the top of the page.
+    modulesOpen.focus();
+  }
+
+  function onModulesSearch() {
+    loadModules();
+  }
+
+  function onModulesLevel(ev) {
+    var btn = ev.currentTarget;
+    modulesState.level = btn.getAttribute('data-level') || '';
+    for (var i = 0; i < modulesLevelBtns.length; i++) {
+      var on = modulesLevelBtns[i] === btn;
+      modulesLevelBtns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+      modulesLevelBtns[i].classList.toggle('is-on', on);
+    }
+    loadModules();
+  }
+
+  // The whole catalogue comes back in one request and is kept, so typing
+  // filters locally and never waits on the network. It is a few tens of
+  // kilobytes, and the reader is going to search it the moment it opens.
+  function loadModules() {
+    var want = ++modulesState.wanted;
+    var params = [];
+    if (modulesSearch && modulesSearch.value.trim()) {
+      params.push('q=' + encodeURIComponent(modulesSearch.value.trim()));
+    }
+    if (modulesState.level) params.push('level=' + encodeURIComponent(modulesState.level));
+
+    var url = '/api/modules' + (params.length ? '?' + params.join('&') : '');
+    return fetch(url, { headers: { 'Accept': 'application/json' } })
+      .then(function (res) {
+        if (!res.ok) throw new Error('modules ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        if (want !== modulesState.wanted) return;
+        modulesState.all = data.modules || [];
+        modulesState.totalAll = data.total_all || 0;
+        renderModules(modulesState.all, data.total_all || 0);
+      })
+      .catch(function () {
+        if (want !== modulesState.wanted) return;
+        modulesResults.textContent = '';
+        if (modulesEmpty) {
+          modulesEmpty.hidden = false;
+          modulesEmpty.textContent = t('modules.no_results');
+        }
+        if (modulesStatus) modulesStatus.textContent = t('modules.no_results');
+      });
+  }
+
+  // Only the first slice is rendered. 192 result buttons is a lot of DOM
+  // for a screen reader to walk past, and the reader who wanted result
+  // 150 has usually typed something narrower. Narrower the search, more
+  // is shown - so a precise search never hides what it found.
+  var MODULES_PAGE = 40;
+
+  function renderModules(list, totalAll) {
+    modulesState.shown = Math.min(list.length, MODULES_PAGE);
+    modulesResults.textContent = '';
+    for (var i = 0; i < modulesState.shown; i++) {
+      modulesResults.appendChild(moduleItem(list[i]));
+    }
+    if (modulesEmpty) modulesEmpty.hidden = list.length !== 0;
+    if (modulesStatus) {
+      modulesStatus.textContent = t('modules.results_aria', list.length);
+    }
+    if (list.length > modulesState.shown) {
+      var more = document.createElement('li');
+      more.className = 'modules-more';
+      var moreBtn = document.createElement('button');
+      moreBtn.type = 'button';
+      moreBtn.className = 'btn btn-small';
+      moreBtn.textContent = t('modules.show_more', modulesState.shown, list.length);
+      moreBtn.addEventListener('click', function () {
+        var from = modulesState.shown;
+        var upto = Math.min(list.length, from + MODULES_PAGE);
+        for (var j = from; j < upto; j++) {
+          modulesResults.appendChild(moduleItem(list[j]));
+        }
+        modulesState.shown = upto;
+        more.remove();
+        modulesStatus.textContent = t('modules.results_aria', list.length);
+      });
+      more.appendChild(moreBtn);
+      modulesResults.appendChild(more);
+    }
+  }
+
+  function moduleItem(entry) {
+    var li = document.createElement('li');
+    li.className = 'modules-result';
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'modules-result-btn';
+    btn.setAttribute('data-module', entry.name);
+
+    var name = document.createElement('span');
+    name.className = 'modules-name';
+    name.textContent = entry.name;
+    btn.appendChild(name);
+
+    var summary = document.createElement('span');
+    summary.className = 'modules-summary';
+    summary.textContent = entry.summary;
+    btn.appendChild(summary);
+
+    // Availability is text, not just a colour: a green tick means
+    // nothing to a screen reader, and means nothing at all to somebody
+    // who cannot separate the two.
+    var flag = document.createElement('span');
+    flag.className = 'modules-flag' + (entry.available ? '' : ' is-off');
+    flag.textContent = entry.available
+      ? t('modules.available_here')
+      : t('modules.not_available');
+    btn.appendChild(flag);
+
+    btn.addEventListener('click', function () {
+      showModule(entry.name);
+    });
+    li.appendChild(btn);
+    return li;
+  }
+
+  function showModule(name) {
+    var token = ++modulesState.wanted;
+    modulesDetail.textContent = '';
+    modulesDetail.appendChild(moduleHeading(name));
+    modulesDetail.appendChild(loadingNote(t('modules.loading')));
+    return fetch('/api/modules/' + encodeURIComponent(name), {
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (token !== modulesState.wanted) return;
+        if (data.error) {
+          modulesDetail.appendChild(loadingNote(t('modules.no_results')));
+          return;
+        }
+        renderModuleDetail(data);
+      })
+      .catch(function () {
+        if (token !== modulesState.wanted) return;
+        modulesDetail.appendChild(loadingNote(t('modules.no_results')));
+      });
+  }
+
+  function moduleHeading(name) {
+    var wrap = document.createElement('div');
+    var h = document.createElement('h3');
+    h.className = 'modules-detail-name';
+    h.textContent = name;
+    wrap.appendChild(h);
+    return wrap;
+  }
+
+  function loadingNote(text) {
+    var p = document.createElement('p');
+    p.className = 'modules-note';
+    p.textContent = text;
+    return p;
+  }
+
+  function renderModuleDetail(data) {
+    modulesDetail.textContent = '';
+    modulesDetail.appendChild(moduleHeading(data.name));
+
+    var sum = document.createElement('p');
+    sum.className = 'modules-detail-summary';
+    sum.textContent = data.summary;
+    modulesDetail.appendChild(sum);
+
+    var flags = document.createElement('p');
+    flags.className = 'modules-detail-flags';
+    var avail = document.createElement('span');
+    avail.className = 'modules-flag' + (data.available ? '' : ' is-off');
+    avail.textContent = data.available
+      ? t('modules.available_here')
+      : t('modules.not_available');
+    flags.appendChild(avail);
+    if (!data.runs_in_web) {
+      flags.appendChild(document.createTextNode(' '));
+      var web = document.createElement('span');
+      web.className = 'modules-flag is-web';
+      web.textContent = t('modules.web_blocked');
+      flags.appendChild(web);
+    }
+    modulesDetail.appendChild(flags);
+
+    var label = document.createElement('h4');
+    label.className = 'modules-example-label';
+    label.textContent = t('modules.example');
+    modulesDetail.appendChild(label);
+
+    var pre = document.createElement('pre');
+    pre.className = 'modules-example';
+    pre.setAttribute('tabindex', '0');
+    pre.textContent = data.example;
+    modulesDetail.appendChild(pre);
+
+    var row = document.createElement('div');
+    row.className = 'modules-actions';
+
+    var insert = document.createElement('button');
+    insert.type = 'button';
+    insert.className = 'btn btn-small';
+    insert.id = 'modules-insert';
+    insert.textContent = t('modules.insert');
+    insert.addEventListener('click', function () {
+      insertExample(data.example);
+    });
+    row.appendChild(insert);
+
+    modulesDetail.appendChild(row);
+  }
+
+  // Appended rather than replacing what the reader already wrote. Losing
+  // work to a reference lookup is a bad trade.
+  function insertExample(code) {
+    if (typeof editor === 'undefined' || !editor) return;
+    var current = editor.getValue();
+    var next = current && current.charAt(current.length - 1) !== '\n'
+      ? current + '\n\n' + code
+      : current + code;
+    editor.setValue(next);
+    editor.focus();
+    editor.setCursor(editor.lineCount(), 0);
+    closeModules();
+    modulesOpen.focus();
+  }
+
+  // The element lookups above have all run by now.
+  initModules();
+
 })();
