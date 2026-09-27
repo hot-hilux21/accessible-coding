@@ -30,6 +30,7 @@ to reach for, so the search finds it by the job rather than by the name.
 """
 from __future__ import annotations
 
+import functools
 import importlib.util
 import re
 
@@ -266,6 +267,7 @@ _by_name = {
 }
 
 
+@functools.lru_cache(maxsize=None)
 def available_here(name):
     """Is this module present in the Python running this app?
 
@@ -274,6 +276,11 @@ def available_here(name):
     package built with ``--without-something`` can be missing a member
     the documentation promises. Asking the interpreter is the only answer
     that is right on the machine in front of the reader.
+
+    Cached, because the answer cannot change while the app is running and
+    the index asks about all 190 modules on every search. Caching is safe
+    here and only here: a plain availability question about the machine
+    the app is already on.
     """
     top = name.split('.')[0]
     if top in _SKIPPED:

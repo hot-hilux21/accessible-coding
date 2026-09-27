@@ -132,6 +132,28 @@ class AvailabilityTests(unittest.TestCase):
         self.assertEqual(module_index.available_here('os.path'),
                          module_index.available_here('os'))
 
+    def test_the_interpreter_is_asked_once_per_name(self):
+        # The index measures all 190 modules on every search, so an
+        # uncached answer makes every keystroke cost 190 find_spec calls
+        # to learn things that cannot have changed.
+        asked = []
+        real = importlib.util.find_spec
+
+        def counting_find_spec(name, *args, **kwargs):
+            asked.append(name)
+            return real(name, *args, **kwargs)
+
+        module_index.available_here.cache_clear()
+        importlib.util.find_spec = counting_find_spec
+        self.addCleanup(setattr, importlib.util, 'find_spec', real)
+        self.addCleanup(module_index.available_here.cache_clear)
+
+        first = module_index.available_here('os')
+        second = module_index.available_here('os')
+        self.assertEqual(first, second)
+        self.assertEqual(asked.count('os'), 1,
+                         'the interpreter was asked more than once')
+
 
 class ExampleRunTests(unittest.TestCase):
     """Every example actually runs.
