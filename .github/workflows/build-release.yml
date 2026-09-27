@@ -6,6 +6,16 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# Every push used to start another Windows build alongside the one already
+# running, and four of them at once made each one so slow that a release
+# took over ten minutes in the tests alone. Superseded runs on a branch are
+# now cancelled. A tagged release is never cancelled: there is nothing
+# newer to replace it, and cancelling half a release is worse than a
+# slow one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 permissions:
   contents: write
 

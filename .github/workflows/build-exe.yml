@@ -12,6 +12,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Only the newest push is worth building. Without this, three pushes in a
+# row left three Windows builds running at once, each one competing for the
+# same runners, and the exe took an hour to appear. The newest wins.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
