@@ -539,8 +539,18 @@ class RealProcessWaitTests(unittest.TestCase):
         self.assertTrue(updater.process_has_exited(0x7FFFFFF0, timeout=5))
 
 
+@unittest.skipUnless(os.name == "nt", "Windows process handles")
 class RealSwapTests(unittest.TestCase):
-    """The whole hand-over, with a real waiting process and a real file."""
+    """The whole hand-over, with a real waiting process and a real file.
+
+    Windows only, like the class above. The helper recognises a finished
+    process by holding a handle to it, and the fallback it uses elsewhere
+    asks ``os.kill(pid, 0)`` - which reports an exited-but-unreaped child
+    as alive, so on Linux the wait would never end. That fallback is not
+    shipped: the updater lives inside the Windows exe, and the website
+    never hands anything over (see ExitHandOverTests). Left unguarded
+    here it made CI sit in this test for the full 24-hour wait limit.
+    """
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
