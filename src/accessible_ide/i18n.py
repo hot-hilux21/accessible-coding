@@ -95,6 +95,15 @@ def load_catalogue(locale: str) -> dict[str, str]:
     """
     path = I18N_DIR / f"{locale}.json"
     if not path.is_file():
+        if locale == DEFAULT_LOCALE:
+            # English is the floor every other language falls back to, so
+            # asking again for it would ask forever. This used to recurse
+            # until Python gave up, which turned a missing file into a
+            # RecursionError that said nothing about the file that was
+            # actually missing.
+            raise FileNotFoundError(
+                f'the {DEFAULT_LOCALE} language file is missing: {path}. '
+                'The build did not include the language files.')
         return dict(load_catalogue(DEFAULT_LOCALE))
     with path.open(encoding="utf-8") as handle:
         return json.load(handle)

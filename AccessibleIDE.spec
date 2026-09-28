@@ -5,11 +5,14 @@ import os
 
 block_cipher = None
 
-# Collect static assets, templates, and fonts
+# Collect static assets, templates, fonts and the language files.
+# Every directory the app reads at runtime has to be listed here, or the
+# build is missing it and the page that needs it fails.
 datas = [
     ('src/accessible_ide/static', 'accessible_ide/static'),
     ('src/accessible_ide/templates', 'accessible_ide/templates'),
     ('src/accessible_ide/assets', 'accessible_ide/assets'),
+    ('src/accessible_ide/i18n', 'accessible_ide/i18n'),
 ]
 
 a = Analysis(
