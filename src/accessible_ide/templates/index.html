@@ -468,6 +468,19 @@
           </div>
           <p class="field-help" id="auto-update-help">{{ t('update.auto_check_help') }}</p>
 
+          <!-- The channel decides which set of releases the check looks at.
+               A native select rather than two buttons, because a reader who
+               cannot see which of two options is current has no way to tell
+               what they will be offered, and the picker shows that. -->
+          <div class="field">
+            <label for="update-channel">{{ t('update.channel') }}</label>
+            <select id="update-channel" aria-describedby="update-channel-help">
+              <option value="beta" {% if config.get('update_channel', 'beta') != 'stable' %}selected{% endif %}>{{ t('update.channel_beta') }}</option>
+              <option value="stable" {% if config.get('update_channel', 'beta') == 'stable' %}selected{% endif %}>{{ t('update.channel_stable') }}</option>
+            </select>
+            <p class="field-help" id="update-channel-help">{{ t('update.channel_help') }}</p>
+          </div>
+
           <div class="field">
             <span class="field-label-static" id="update-check-label">{{ t('update.check_now') }}</span>
             <button id="btn-check-update" class="btn btn-small" type="button" aria-describedby="update-check-label">

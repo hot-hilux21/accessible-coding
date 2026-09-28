@@ -147,6 +147,12 @@ DEFAULT_CONFIG = {
     # only: a check the reader asked for still happens, because refusing to
     # answer a direct question is the same as being broken.
     'auto_update': True,
+    # Which set of releases this reader wants. Beta is the working channel
+    # and gets every tagged release; stable is for a big finished change and
+    # is left alone until one is tagged. Beta is the default because it is
+    # the channel that is actually being worked on, and a reader who has
+    # never chosen should not be parked on one waiting for a first release.
+    'update_channel': 'beta',
 }
 
 # Editor palettes. These are the single source of truth: the settings
@@ -639,7 +645,14 @@ CONFIG_TYPES = {
     'tts_click_to_speak': bool,
     'tts_voice_gender': str,
     'auto_update': bool,
+    'update_channel': str,
 }
+
+# The updater owns the list of channels, and it is imported inside the two
+# routes that need it rather than at the top of this module. So the name is
+# written out here and a test checks the two agree, rather than importing it
+# early and changing that on purpose.
+UPDATE_CHANNELS = {'beta', 'stable'}
 
 CONFIG_VALUES = {
     'font': set(FONTS.keys()),
@@ -653,6 +666,7 @@ CONFIG_VALUES = {
     'setup_step': set(range(1, SETUP_TOTAL_STEPS + 1)),
     'tts_hover_scope': {'off', 'controls', 'all'},
     'tts_voice_gender': {'any', 'male', 'female'},
+    'update_channel': UPDATE_CHANNELS,
 }
 
 # Numeric settings are bounded so a bad value can never produce an
@@ -823,17 +837,23 @@ def update_check_api():
         }), 403
 
     asked = bool(data.get('force'))
-    if not asked and not load_config().get('auto_update', True):
+    config = load_config()
+    # The channel is read here rather than in the browser, for the same
+    # reason the automatic switch is: a page that simply asked for a
+    # different channel must not be able to talk the reader onto one.
+    channel = updater.normalise_channel(config.get('update_channel'))
+    if not asked and not config.get('auto_update', True):
         return jsonify({
             'success': True,
             'applicable': updater.is_frozen(),
             'current': updater.current_version(),
             'update_available': False,
             'automatic': False,
+            'channel': channel,
             'error': '',
         })
 
-    result = updater.check(force=asked)
+    result = updater.check(force=asked, channel=channel)
     result['success'] = True
     result['automatic'] = not asked
     # The updater raises English sentences; the reader is reading one of five
@@ -874,7 +894,14 @@ def update_install_api():
             'error_text': t(UPDATE_ERROR_KEYS['not_applicable']),
         }), 400
 
-    result = updater.check(force=True)
+    # The channel the reader is on, for the same reason the check reads it
+    # from the config rather than from the request: the thing that gets
+    # downloaded has to be the thing the settings screen says it is.
+    result = updater.check(
+        force=True,
+        channel=updater.normalise_channel(
+            load_config().get('update_channel')),
+    )
     if not result.get('update_available'):
         # Nothing to install. Saying so plainly beats downloading whatever
         # the manifest happened to name.

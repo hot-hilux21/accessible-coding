@@ -207,6 +207,90 @@ class ManifestTests(unittest.TestCase):
             updater.fetch_manifest()
 
 
+class ChannelTests(unittest.TestCase):
+    """Which set of releases a reader is offered.
+
+    The channel is a moving release tag the manifest is published under, so
+    the address is the whole mechanism. If a channel resolves to the wrong
+    one the reader is silently offered the wrong builds, which is the kind
+    of wrong nobody reports.
+    """
+
+    def test_each_channel_has_its_own_address(self):
+        # /releases/download/<tag>/ is the shape GitHub serves assets under
+        # for an ordinary tag. Only the literal word "latest" has the
+        # shorter /releases/latest/download/ form, which is exactly the trap
+        # the old code fell into.
+        self.assertEqual(
+            updater.manifest_url("beta"),
+            f"{updater.RELEASES_BASE}/download/beta/{updater.MANIFEST_NAME}")
+        self.assertEqual(
+            updater.manifest_url("stable"),
+            f"{updater.RELEASES_BASE}/download/stable/{updater.MANIFEST_NAME}")
+        self.assertNotEqual(updater.manifest_url("beta"),
+                            updater.manifest_url("stable"))
+
+    def test_beta_is_the_channel_a_reader_gets_without_asking(self):
+        # Nothing stable has been published yet, so defaulting there would
+        # leave a new reader with an app that can never see an update.
+        self.assertEqual(updater.DEFAULT_CHANNEL, "beta")
+        self.assertEqual(updater.manifest_url(), updater.manifest_url("beta"))
+
+    def test_anything_unreadable_becomes_the_default(self):
+        # A hand-edited config, a value from a future version, or nothing at
+        # all. None of those is a reason to show the reader an error.
+        for value in (None, "", "  ", "nightly", 7, [], {}, True):
+            with self.subTest(value=value):
+                self.assertEqual(updater.normalise_channel(value), "beta")
+
+    def test_the_name_is_forgiving_about_case_and_spacing(self):
+        for value in ("BETA", " Stable ", "stable"):
+            with self.subTest(value=value):
+                self.assertEqual(updater.normalise_channel(value),
+                                 value.strip().lower())
+
+    def test_the_manifest_is_read_from_the_channel_that_was_asked_for(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        swapped(self, updater, "cache_path",
+                lambda: pathlib.Path(tmp.name) / "check.json")
+        manifest = {
+            "version": "9.9.9",
+            "url": f"{updater.RELEASES_BASE}/download/v9.9.9/AccessibleIDE.exe",
+            "sha256": "a" * 64,
+            "size": 3,
+        }
+        asked = []
+
+        def record(url, timeout, accept):
+            asked.append(url)
+            return FakeResponse(json.dumps(manifest).encode(), None, 1)
+
+        swapped(self, updater, "_open_url", record)
+
+        updater.fetch_manifest(channel="stable")
+        self.assertTrue(asked[0].startswith(
+            f"{updater.RELEASES_BASE}/download/stable/"), asked[0])
+        # A cache-buster on the query string is expected, so this is a
+        # prefix check rather than an equality one.
+        asked.clear()
+        updater.fetch_manifest(channel="beta")
+        self.assertTrue(asked[0].startswith(
+            f"{updater.RELEASES_BASE}/download/beta/"), asked[0])
+
+    def test_a_check_says_which_channel_it_answered_for(self):
+        # A reader who is offered nothing needs to be able to tell whether
+        # that is because they are up to date or because they are watching
+        # a channel that has not moved.
+        result = updater.check(force=True, channel="stable")
+        self.assertEqual(result["channel"], "stable")
+        self.assertFalse(result["applicable"])  # not frozen under test
+
+    def test_a_junk_channel_is_answered_as_beta_rather_than_failing(self):
+        self.assertEqual(updater.check(force=True, channel="nightly")["channel"],
+                         "beta")
+
+
 class StagingTests(unittest.TestCase):
     """The download is only trusted once the bytes have been checked."""
 
@@ -322,7 +406,10 @@ class CheckResultTests(unittest.TestCase):
         os.environ["ACCESSIBLE_IDE_UPDATE_TEST"] = "1"
         self.addCleanup(os.environ.pop, "ACCESSIBLE_IDE_UPDATE_TEST", None)
 
-        def explode():
+        # The stand-in takes **kwargs because check() now says which channel
+        # it wanted. A double with a fixed signature would fail on the
+        # keyword rather than on the thing it is standing in for.
+        def explode(*args, **kwargs):
             raise updater.UpdateError("could not reach GitHub to check for updates")
         swapped(self, updater, "fetch_manifest", explode)
 
@@ -333,7 +420,7 @@ class CheckResultTests(unittest.TestCase):
     def test_a_newer_build_is_offered(self):
         os.environ["ACCESSIBLE_IDE_UPDATE_TEST"] = "1"
         self.addCleanup(os.environ.pop, "ACCESSIBLE_IDE_UPDATE_TEST", None)
-        swapped(self, updater, "fetch_manifest", lambda: {
+        swapped(self, updater, "fetch_manifest", lambda *a, **k: {
             "version": "99.0.0",
             "url": f"{updater.RELEASES_BASE}/download/v99/AccessibleIDE.exe",
             "sha256": "a" * 64,
@@ -348,7 +435,7 @@ class CheckResultTests(unittest.TestCase):
     def test_the_same_build_is_not_offered(self):
         os.environ["ACCESSIBLE_IDE_UPDATE_TEST"] = "1"
         self.addCleanup(os.environ.pop, "ACCESSIBLE_IDE_UPDATE_TEST", None)
-        swapped(self, updater, "fetch_manifest", lambda: {
+        swapped(self, updater, "fetch_manifest", lambda *a, **k: {
             "version": updater.current_version(),
             "url": f"{updater.RELEASES_BASE}/download/v/AccessibleIDE.exe",
             "sha256": "a" * 64,

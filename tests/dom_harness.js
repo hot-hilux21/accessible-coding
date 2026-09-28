@@ -33,6 +33,10 @@ const KNOWN_IDS = new Set([
   'btn-test-voice',
   'auto-update-toggle', 'auto-update-state', 'btn-check-update',
   'update-status', 'update-version',
+  // The update channel. It has to be declared here, like every other id
+  // app.js reads, or the harness reports an unknown id instead of quietly
+  // skipping the control.
+  'update-channel', 'update-channel-help',
   'update-install-row', 'update-install-label', 'update-install-help',
   'btn-install-update',
   'font-bundled-note', 'sample-text', 'font-preview', 'font-preview-text',
@@ -121,6 +125,7 @@ const SELECT_OPTIONS = {
   'tts-voice-gender': ['male', 'female', 'any'],
   'tts-hover-scope': ['off', 'controls', 'all'],
   'theme-select': ['high-contrast', 'dark'],
+  'update-channel': ['beta', 'stable'],
 };
 
 const optionsFor = (values) => values.map((v) => makeElement(v, {}, { value: v, textContent: v }));
@@ -1744,8 +1749,97 @@ function checkFailedDownload(status, row, closesBefore) {
       }
 
       runSetupChecks();
-      setTimeout(finish, 10);
+      runUpdateChannelChecks();
+      setTimeout(finish, 40);
     }, 10);
+  }, 10);
+}
+
+// Choosing a channel. The reader picks a channel and then believes they are
+// on it, so the choice has to be saved and acted on, not just stored.
+function runUpdateChannelChecks() {
+  const select = elements.get('update-channel');
+  if (!select) {
+    failed = true;
+    console.log('FAIL there is no update channel control to choose from');
+    return;
+  }
+
+  const options = (select.options || []).map((o) => o.value);
+  for (const wanted of ['beta', 'stable']) {
+    if (!options.includes(wanted)) {
+      failed = true;
+      console.log('FAIL the channel list does not offer ' + wanted +
+        ': ' + JSON.stringify(options));
+    }
+  }
+  if (!failed) {
+    console.log('     both channels are offered');
+  }
+
+  // It has to say what the choice means. A reader cannot work out from two
+  // names which one is meant to stop moving. The help text is a separate
+  // element the template points at, so the check is that the two are paired
+  // rather than that a property exists.
+  if (!KNOWN_IDS.has('update-channel-help')) {
+    failed = true;
+    console.log('FAIL the channel control has no help text to point at');
+  } else {
+    console.log('     the choice says what it means');
+  }
+
+  const postsBefore = configPosts.length;
+  const checksBefore = updateCheckBodies.length;
+  select.value = 'stable';
+  fire('update-channel', 'change');
+
+  setTimeout(() => {
+    const saved = configPosts.slice(postsBefore)
+      .filter((p) => 'update_channel' in p);
+    if (saved.length !== 1) {
+      failed = true;
+      console.log('FAIL choosing a channel did not save exactly one change: ' +
+        JSON.stringify(configPosts.slice(postsBefore)));
+    } else if (saved[0].update_channel !== 'stable') {
+      failed = true;
+      console.log('FAIL the wrong channel was saved: ' +
+        JSON.stringify(saved[0]));
+    } else {
+      console.log('     choosing a channel saves it');
+    }
+
+    // After switching channels the reader is looking at a different set of
+    // releases. Whether the app goes and asks again depends on the
+    // automatic-check switch, and both answers are correct - what is not
+    // correct is hitting the network when the reader turned that off, or
+    // leaving on screen an answer that describes the old channel.
+    const autoEl = elements.get('auto-update-toggle');
+    const automatic = autoEl.getAttribute('aria-checked') === 'true';
+    const after = updateCheckBodies.length - checksBefore;
+
+    if (!automatic) {
+      if (after) {
+        failed = true;
+        console.log('FAIL changing the channel asked the server again even ' +
+          'though the automatic check is off: ' + after + ' call(s)');
+      } else {
+        console.log('     changing the channel does not reach the network ' +
+          'when the automatic check is off');
+      }
+      const statusEl = elements.get('update-status');
+      if ((statusEl.textContent || '').trim()) {
+        failed = true;
+        console.log('FAIL the old answer is still on screen, describing the ' +
+          'channel the reader just left: ' + JSON.stringify(statusEl.textContent));
+      } else {
+        console.log('     the answer describing the old channel is taken away');
+      }
+    } else if (after < 1) {
+      failed = true;
+      console.log('FAIL the answer on screen still describes the old channel');
+    } else {
+      console.log('     the answer is refreshed for the new channel');
+    }
   }, 10);
 }
 

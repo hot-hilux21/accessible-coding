@@ -1,11 +1,12 @@
-name: Build Exe (latest)
+name: Build Exe (dev build)
 
 # Builds the Windows exe + Setup installer on every push to main and
-# publishes them to a stable "latest" release, so the desktop app always
-# matches the web app.
+# publishes them to a "dev" release for testing a build before it is
+# tagged. Readers are not pointed here: they are served by the beta and
+# stable channels, which build-release.yml moves when a release is tagged.
 # Download:
-#   exe:      https://github.com/hothilux-21/accessible-coding/releases/latest/download/AccessibleIDE.exe
-#   installer: https://github.com/hothilux-21/accessible-coding/releases/latest/download/AccessibleIDE-Setup.exe
+#   exe:      https://github.com/hothilux-21/accessible-coding/releases/download/dev/AccessibleIDE.exe
+#   installer: https://github.com/hothilux-21/accessible-coding/releases/download/dev/AccessibleIDE-Setup.exe
 
 on:
   push:
@@ -48,6 +49,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The whole history, because the version below is worked out with
+          # git describe. A shallow clone has no tags in it, so that command
+          # finds nothing and every build was stamped 0.0.0.dev.N.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -58,8 +64,13 @@ jobs:
         shell: pwsh
         run: |
           # A main-branch build is the newest tag plus the run number, so
-          # every push produces a version that is strictly newer than the one
-          # before it and older than the next tagged release.
+          # every push carries a number that is strictly newer than the one
+          # before it and says which tag it was built from.
+          #
+          # These builds are published to the "dev" release, which no reader
+          # is ever offered, so how a development build compares to a tagged
+          # release does not matter. The number is here to say which commit
+          # someone is testing.
           $lastTag = (git describe --tags --abbrev=0 2>$null)
           if (-not $lastTag) { $lastTag = "v0.0.0" }
           $base = $lastTag -replace '^v', ''
@@ -92,6 +103,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The whole history, for the same reason as the exe build: the
+          # installer is stamped from the newest tag.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -139,8 +154,8 @@ jobs:
           name: AccessibleIDE-Setup
           path: installer/AccessibleIDE-Setup.exe
 
-  publish-latest:
-    name: Publish to latest release
+  publish-dev:
+    name: Publish to dev release
     needs: [build-windows, build-installer]
     runs-on: ubuntu-latest
     steps:
@@ -155,14 +170,22 @@ jobs:
         with:
           name: AccessibleIDE-Setup
           path: release/
-      - name: Update latest release
+      # Named "dev", and the app never reads it. It used to be called
+      # "latest", which is where the updater looked - so every push to main
+      # quietly replaced the address readers were checking, and a
+      # development build ended up being what every update check compared
+      # against. Readers are served by the beta and stable channels in
+      # build-release.yml instead. This release is for testing a build
+      # before it is tagged.
+      - name: Update dev release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create latest \
-            --title "Latest build" \
-            --notes "Auto-built from the main branch. Matches the live web app." \
+          gh release create dev \
+            --title "Development build" \
+            --notes "Auto-built from the main branch. Not published to readers: the app checks the beta and stable channels." \
+            --prerelease \
             --repo "${{ github.repository }}" 2>/dev/null || true
-          gh release upload latest release/AccessibleIDE.exe release/AccessibleIDE-Setup.exe \
+          gh release upload dev release/AccessibleIDE.exe release/AccessibleIDE-Setup.exe \
             release/version.json \
             --clobber --repo "${{ github.repository }}"

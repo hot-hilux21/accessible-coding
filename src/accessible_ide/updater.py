@@ -13,14 +13,26 @@ and no new dependencies.
 
 How a version is decided
 ------------------------
-There is no comparison against the GitHub release list. The ``latest`` release
-is republished on every push, so a new build of the same version would look
-like an upgrade and readers would be nagged for no reason.
+There is no comparison against the GitHub release list. Instead each build
+writes its own version number into the executable *and* publishes the same
+number as ``version.json`` next to it. The app fetches that file and
+compares it with the version inside the running copy. The build stamps
+itself, so the two can never disagree.
 
-Instead each build writes its own version number into the executable *and*
-publishes the same number as ``version.json`` next to it. The app fetches
-that file and compares it with the version inside the running copy. The build
-stamps itself, so the two can never disagree.
+That file is published twice, under two moving release tags, so the reader
+picks a channel rather than a version. ``beta`` moves on every tagged
+release and ``stable`` moves only for a big finished change. The app reads
+one small file at a fixed address per channel, which means it needs no
+release-list API and no GitHub token.
+
+This replaced a single moving release tagged ``latest``, which was wrong in
+a way that only ever showed up as silence. Every push to the main branch
+republished that release, and every push is a build, so ``latest`` held a
+development version for most of its life. The app read it, decided the
+development build was older than the release the reader was already on, and
+reported that there was no update - while the release it was comparing
+against sat on the same page, unseen. A channel the reader chooses is
+also a channel CI cannot quietly refill with something unreleased.
 
 Trusting the download
 ---------------------
@@ -54,7 +66,45 @@ ASSET_NAME = 'AccessibleIDE.exe'
 MANIFEST_NAME = 'version.json'
 
 RELEASES_BASE = f'https://github.com/{OWNER}/{REPO}/releases'
-MANIFEST_URL = f'{RELEASES_BASE}/latest/download/{MANIFEST_NAME}'
+
+# Two channels, and which one a reader is on.
+#
+# "beta" is the working channel: every tagged release lands there, so a
+# reader on it gets each new version as soon as it is published. "stable" is
+# for a big, finished change, and only moves when one is tagged. Beta is the
+# default because this project has not shipped a stable release yet, and a
+# reader who has never chosen should be on the channel that is actually
+# being worked on rather than one waiting for a first release.
+#
+# The channel name is also the moving release tag the manifest is published
+# under, so the app needs no release-list API and no GitHub token: it reads
+# one small file at a fixed address.
+CHANNELS = ('beta', 'stable')
+DEFAULT_CHANNEL = 'beta'
+
+
+def normalise_channel(channel) -> str:
+    """Return a known channel name, falling back to the default.
+
+    A config file can be hand-edited and an older copy has no channel at
+    all, so anything unrecognised becomes the default rather than raising
+    and turning the check into an error the reader has to read about.
+    """
+    if isinstance(channel, str) and channel.strip().lower() in CHANNELS:
+        return channel.strip().lower()
+    return DEFAULT_CHANNEL
+
+
+def manifest_url(channel: str = DEFAULT_CHANNEL) -> str:
+    """The fixed address the given channel publishes its manifest at.
+
+    The asset sits under /releases/download/<tag>/ like any other release
+    asset. Only the literal word "latest" has the shorter
+    /releases/latest/download/ form, so a channel name must not be put
+    where that word used to go.
+    """
+    return f'{RELEASES_BASE}/download/{normalise_channel(channel)}/{MANIFEST_NAME}'
+
 
 # A desktop IDE is tens of megabytes. Anything far past that is not this
 # program, and a runaway download is a way to fill someone's disk.
@@ -218,10 +268,10 @@ def _read_url(url: str, timeout: int, limit: int) -> bytes:
     return data
 
 
-def fetch_manifest(timeout: int = DEFAULT_TIMEOUT) -> dict:
-    """Download and check the manifest published alongside the exe."""
+def fetch_manifest(timeout: int = DEFAULT_TIMEOUT, channel: str = DEFAULT_CHANNEL) -> dict:
+    """Download and check the manifest published on ``channel``."""
     raw = _read_url(
-        MANIFEST_URL + f'?t={int(time.time())}',
+        f'{manifest_url(channel)}?t={int(time.time())}',
         timeout,
         MAX_MANIFEST_BYTES,
     )
@@ -248,7 +298,7 @@ def cache_path() -> Path:
     return Path(base) / 'AccessibleIDE' / 'update-check.json'
 
 
-def should_check(force: bool = False, now: float = None) -> bool:
+def should_check(force: bool = False, now: float | None = None) -> bool:
     """False when a check was already made recently, unless force is set."""
     if force:
         return True
@@ -262,7 +312,7 @@ def should_check(force: bool = False, now: float = None) -> bool:
     return (now - last) >= CHECK_INTERVAL_SECONDS
 
 
-def remember_check(now: float = None) -> None:
+def remember_check(now: float | None = None) -> None:
     """Note that a check just happened, so the next launch does not repeat it."""
     if now is None:
         now = time.time()
@@ -276,18 +326,23 @@ def remember_check(now: float = None) -> None:
         pass
 
 
-def check(force: bool = False) -> dict:
-    """Report whether a newer build exists.
+def check(force: bool = False, channel: str = DEFAULT_CHANNEL) -> dict:
+    """Report whether a newer build exists on ``channel``.
 
     Never raises: an update check is a background nicety, and a failure here
     must not become a failure to open the editor.
     """
+    channel = normalise_channel(channel)
     result = {
         'applicable': is_frozen(),
         'current': current_version(),
         'update_available': False,
         'error': '',
         'error_code': '',
+        # Echoed back so the page can say which channel answered, rather
+        # than leaving the reader to wonder whether the answer was about
+        # the version they are on.
+        'channel': channel,
     }
     if not result['applicable']:
         return result
@@ -296,7 +351,7 @@ def check(force: bool = False) -> dict:
         result['error_code'] = 'checked_recently'
         return result
     try:
-        manifest = fetch_manifest()
+        manifest = fetch_manifest(channel=channel)
     except UpdateError as error:
         result['error'] = str(error)
         result['error_code'] = error.code

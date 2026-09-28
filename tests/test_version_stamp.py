@@ -178,12 +178,14 @@ class ManifestTests(unittest.TestCase):
                 "http://github.com/a/b/releases/download/v1/x.exe", "", True)
 
     def test_the_addresses_the_workflows_write_are_ones_the_app_allows(self):
-        # The two workflows build their addresses differently: the moving
-        # build names the literal tag "latest", a tagged release names its
-        # own tag. Both have to clear the app's allowlist, or the release it
-        # just published cannot be installed from.
+        # The two workflows build their addresses differently: a moving
+        # channel names a literal channel tag, a tagged release names its own
+        # tag. Both have to clear the app's allowlist, or the release it just
+        # published cannot be installed from.
         base = f"https://github.com/hothilux-21/accessible-coding/releases/download"
-        for url in (f"{base}/latest/{updater.ASSET_NAME}",
+        for url in (f"{base}/dev/{updater.ASSET_NAME}",
+                    f"{base}/beta/{updater.ASSET_NAME}",
+                    f"{base}/stable/{updater.ASSET_NAME}",
                     f"{base}/v0.2.3-beta/{updater.ASSET_NAME}"):
             with self.subTest(url=url):
                 self.assertEqual(updater._allowed_asset_url(url), url)
@@ -282,6 +284,97 @@ class WorkflowStampTests(unittest.TestCase):
             text = (REPO_ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
             with self.subTest(workflow=name):
                 self.assertTrue(self.jobs_that_build(text))
+
+
+class ChannelPublishingTests(unittest.TestCase):
+    """The app reads a fixed address, so the workflows have to publish it.
+
+    These tests read the workflow files as text on purpose. There is no way
+    to check at test time that a release a previous run uploaded actually
+    exists on GitHub, so the only place this can be caught is here, by
+    matching the two sides against each other. If the app is ever pointed at
+    a channel no workflow writes, the updater stops finding updates and
+    nothing anywhere raises an error.
+    """
+
+    RELEASE_WORKFLOW = "build-release.yml"
+    DEV_WORKFLOW = "build-exe.yml"
+
+    def workflow(self, name):
+        return (REPO_ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+
+    def test_every_channel_the_app_knows_is_published_by_a_workflow(self):
+        text = self.workflow(self.RELEASE_WORKFLOW)
+        for channel in updater.CHANNELS:
+            with self.subTest(channel=channel):
+                self.assertIn(f"gh release upload {channel} ", text)
+
+    def test_the_app_never_points_at_a_release_main_branch_overwrites(self):
+        # The one that was broken before: the updater read a release named
+        # after the moving dev build, so every push to main quietly
+        # overwrote the address every reader was checking. The dev build has
+        # to be a release the app does not read, and it is not a channel.
+        self.assertNotIn("latest", updater.CHANNELS)
+        self.assertNotIn("dev", updater.CHANNELS)
+        dev_release = f"{updater.RELEASES_BASE}/download/dev/{updater.MANIFEST_NAME}"
+        for channel in updater.CHANNELS:
+            with self.subTest(channel=channel):
+                self.assertNotEqual(updater.manifest_url(channel), dev_release)
+
+    def test_the_development_build_goes_to_dev_and_not_to_a_reader_channel(self):
+        text = self.workflow(self.DEV_WORKFLOW)
+        self.assertIn("gh release create dev", text)
+        self.assertIn("gh release upload dev", text)
+        # A dev build must not overwrite a release a reader is checking.
+        for channel in updater.CHANNELS:
+            with self.subTest(channel=channel):
+                self.assertNotIn(f"gh release upload {channel} ", text)
+
+    def test_no_workflow_publishes_a_moving_latest_release(self):
+        # "latest" is the one name that means two things: GitHub's own
+        # pointer at the newest non-prerelease, and a release tag that gets
+        # overwritten. Using it as a tag is what made the updater compare
+        # against whatever the main branch last built.
+        for name in (self.RELEASE_WORKFLOW, self.DEV_WORKFLOW):
+            text = self.workflow(name)
+            with self.subTest(workflow=name):
+                self.assertNotIn("gh release create latest", text)
+                self.assertNotIn("gh release upload latest", text)
+
+    def test_a_tagged_release_moves_beta_always(self):
+        # Every release is beta work until the tag says otherwise, so beta
+        # must move even for a stable tag.
+        self.assertIn("gh release upload beta release/version.json",
+                      self.workflow(self.RELEASE_WORKFLOW))
+
+    def test_only_a_finished_tag_moves_stable(self):
+        text = self.workflow(self.RELEASE_WORKFLOW)
+        self.assertIn("stable=true", text)
+        self.assertIn("stable=false", text)
+        # A pre-release suffix means the work is not finished, so stable
+        # must not move. The two branch arms are what prove this.
+        self.assertIn("if [[ \"$version\" == *-* ]]", text)
+        self.assertIn("steps.channels.outputs.stable == 'true'", text)
+
+    def test_the_channel_addresses_use_the_shape_github_serves(self):
+        # /releases/<tag>/download/ is only a real endpoint for the word
+        # "latest". A channel is an ordinary tag, so its assets live under
+        # /releases/download/<tag>/ like any other asset. Getting this wrong
+        # produces a plausible address that 404s for every reader.
+        for channel in updater.CHANNELS:
+            with self.subTest(channel=channel):
+                self.assertEqual(
+                    updater.manifest_url(channel),
+                    f"{updater.RELEASES_BASE}/download/{channel}/"
+                    f"{updater.MANIFEST_NAME}")
+
+    def test_the_build_jobs_can_see_the_tags_they_stamp_from(self):
+        # A shallow clone has no tags, so git describe finds nothing and the
+        # build falls back to 0.0.0.dev.N. The version is written into the
+        # manifest the app compares against, so this is not cosmetic.
+        text = self.workflow(self.DEV_WORKFLOW)
+        self.assertIn("git describe --tags --abbrev=0", text)
+        self.assertIn("fetch-depth: 0", text)
 
 
 if __name__ == "__main__":

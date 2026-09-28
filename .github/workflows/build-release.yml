@@ -155,3 +155,46 @@ jobs:
             release/version.json
           generate_release_notes: true
           prerelease: true
+      # The channels the app reads. Both are moving release tags holding
+      # one file: the manifest, which points at the tagged release above.
+      # Nothing else is copied, so the app needs no release-list API and no
+      # token, only a fixed address per channel.
+      #
+      # Neither channel is marked as the repository's latest release, so the
+      # "Latest" badge on the releases page stays on a real build rather than
+      # pointing a reader at a file that only says where to look.
+      - name: Work out which channels this release belongs to
+        id: channels
+        run: |
+          version="${{ github.ref_name }}"
+          version="${version#v}"
+          # A tag carrying a pre-release suffix is work in progress. A plain
+          # number is a finished change, so it also moves the stable channel.
+          if [[ "$version" == *-* ]]; then
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Point the beta channel at this release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create beta \
+            --title "Beta channel" \
+            --notes "The newest tagged release, for readers who want new work as it lands. Moved by every release." \
+            --prerelease \
+            --repo "${{ github.repository }}" 2>/dev/null || true
+          gh release upload beta release/version.json \
+            --clobber --repo "${{ github.repository }}"
+      - name: Point the stable channel at this release
+        if: steps.channels.outputs.stable == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create stable \
+            --title "Stable channel" \
+            --notes "Big finished changes only. Moved when a release is tagged without a pre-release suffix." \
+            --latest=false \
+            --repo "${{ github.repository }}" 2>/dev/null || true
+          gh release upload stable release/version.json \
+            --clobber --repo "${{ github.repository }}"

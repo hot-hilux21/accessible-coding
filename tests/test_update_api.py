@@ -213,6 +213,90 @@ class AutomaticCheckSettingTests(UpdateEndpointTestCase):
         self.assertTrue(self.client.get("/api/config").get_json()["auto_update"])
 
 
+class ChannelSettingTests(UpdateEndpointTestCase):
+    """The saved channel decides which releases a reader is offered.
+
+    The channel is the one setting a reader cannot work out from looking at
+    the app, so a wrong answer here is silent: the check succeeds, and it
+    simply never mentions a newer build that exists.
+    """
+
+    def test_a_new_reader_is_offered_the_channel_the_updater_defaults_to(self):
+        # These are two copies of one default. If they ever drift, the app
+        # starts on a channel the updater would never have picked.
+        self.assertEqual(routes.DEFAULT_CONFIG["update_channel"],
+                         updater.DEFAULT_CHANNEL)
+        self.assertEqual(routes.load_config()["update_channel"],
+                         updater.DEFAULT_CHANNEL)
+
+    def test_the_setting_offers_exactly_the_channels_the_updater_understands(self):
+        # A channel the settings page lists but the updater cannot fetch would
+        # be a dead end, and a channel the updater knows but the page does not
+        # would be unreachable.
+        self.assertEqual(set(routes.CONFIG_VALUES["update_channel"]),
+                         set(updater.CHANNELS))
+        self.assertEqual(routes.CONFIG_TYPES["update_channel"], str)
+
+    def test_both_channels_are_offered(self):
+        for name in ("beta", "stable"):
+            with self.subTest(channel=name):
+                self.assertIn(name, routes.CONFIG_VALUES["update_channel"])
+
+    def test_a_reader_can_choose_a_channel_and_keep_that_choice(self):
+        for name in ("stable", "beta"):
+            with self.subTest(channel=name):
+                self.client.post("/api/config", json={"update_channel": name})
+                self.assertEqual(
+                    self.client.get("/api/config").get_json()["update_channel"],
+                    name)
+
+    def test_a_channel_nobody_published_to_is_refused_and_not_written(self):
+        self.client.post("/api/config", json={"update_channel": "beta"})
+        for bad in ("nightly", "latest", "dev", "", 0, 1, True, None, [], {}):
+            with self.subTest(value=bad):
+                response = self.client.post("/api/config",
+                                            json={"update_channel": bad})
+                self.assertEqual(response.status_code, 400)
+        # The refused value must not have replaced the good one.
+        self.assertEqual(
+            self.client.get("/api/config").get_json()["update_channel"], "beta")
+
+    def test_the_answer_says_which_channel_it_was_answered_for(self):
+        # Otherwise a reader on beta who sees nothing new cannot tell whether
+        # they are up to date or watching a channel that has not moved.
+        self.client.post("/api/config", json={"update_channel": "stable"})
+        body = self.check(force=True).get_json()
+        self.assertEqual(body["channel"], "stable")
+
+    def test_the_channel_reaches_the_manifest_lookup(self):
+        asked = []
+        self.patch(updater, "fetch_manifest",
+                   lambda channel=None, **k: (asked.append(channel),
+                                              self.fake_manifest("1.0.0"))[1])
+        self.client.post("/api/config", json={"update_channel": "stable"})
+        self.check(force=True)
+        self.assertEqual(asked, ["stable"])
+
+    def test_the_channel_reaches_the_download_too(self):
+        # The check could say "stable" while the install fetched beta, which
+        # would leave a reader on a different build than the one the settings
+        # screen named. The install has to read the channel from the saved
+        # config too, not from whatever the page happened to send.
+        class StopHere(Exception):
+            def __init__(self, channel):
+                self.channel = channel
+
+        def record(*a, **k):
+            raise StopHere(k.get("channel"))
+
+        self.patch(updater, "is_frozen", lambda: True)
+        self.patch(updater, "check", record)
+        routes.save_config(dict(routes.load_config(), update_channel="stable"))
+        with self.assertRaises(StopHere) as caught:
+            self.install()
+        self.assertEqual(caught.exception.channel, "stable")
+
+
 class UpdateCheckIntervalTests(UpdateEndpointTestCase):
     """Launching the app must not mean asking GitHub every single time."""
 

@@ -77,6 +77,7 @@
   var updateVersion = document.getElementById('update-version');
   var updateInstallRow = document.getElementById('update-install-row');
   var btnInstallUpdate = document.getElementById('btn-install-update');
+  var updateChannelEl = document.getElementById('update-channel');
   var settingsDialog = document.getElementById('settings-dialog');
   var btnSettings = document.getElementById('btn-settings');
   var btnSettingsClose = document.getElementById('btn-settings-close');
@@ -1847,6 +1848,31 @@
       } else {
         say(t('update.status_off'));
       }
+    });
+  }
+
+  if (updateChannelEl) {
+    updateChannelEl.addEventListener('change', function () {
+      // The server reads the channel out of the saved config, so the check
+      // has to wait for the save or it asks about the channel the reader
+      // just left. Forcing it also matters: without force, the once-a-day
+      // guard answers "checked recently" and the change looks like it did
+      // nothing.
+      saveConfig({ update_channel: updateChannelEl.value }).then(function (result) {
+        // If the save did not land, the server is still on the old channel.
+        // Asking anyway would replace the answer on screen with one about a
+        // channel the reader has just left, which is the one mistake here
+        // that gives no sign of being wrong. saveConfig has already said the
+        // setting was not kept, so leave the old answer standing.
+        if (!result || !result.ok) return;
+        if (autoUpdateOn) {
+          checkForUpdates(true);
+        } else {
+          // No automatic checking, so no request to make. The status is
+          // cleared because whatever it says is about the old channel.
+          say('');
+        }
+      });
     });
   }
 
