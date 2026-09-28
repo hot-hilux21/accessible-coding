@@ -135,6 +135,69 @@ class InstallerStampTests(unittest.TestCase):
                         f"no installer script at {stamp_version.INSTALLER_FILE}")
 
 
+class InstallLocationTests(unittest.TestCase):
+    """Where the installer puts the program, and why it needs permission.
+
+    These two lines are a pair and only make sense together. Program Files
+    cannot be written to without elevation, and {autopf} silently means the
+    per-user copy under AppData when setup is not elevated - so a program
+    asked for {autopf} without admin quietly lands in the wrong place, and
+    nothing in the log says so.
+    """
+
+    def setUp(self):
+        self.iss = stamp_version.INSTALLER_FILE
+        self.text = self.iss.read_text(encoding="utf-8")
+
+    def setting(self, name):
+        """The value of one setting, or a failure that says which is missing.
+
+        Returning None for an absent key would make assertNotIn below pass
+        for the wrong reason: a setting that is not there at all looks
+        exactly like a setting with the right value.
+        """
+        for line in self.text.splitlines():
+            key, _, value = line.partition("=")
+            if key.strip() == name:
+                return value.strip()
+        self.fail(f"{name} is not set in {self.iss.name}")
+
+    def test_it_installs_under_program_files(self):
+        self.assertEqual(
+            self.setting("DefaultDirName"),
+            r"{commonpf}\HotHilux_21\AccessibleIDE")
+
+    def test_elevating_is_requested_so_that_folder_is_writable(self):
+        self.assertEqual(self.setting("PrivilegesRequired"), "admin")
+
+    def test_a_per_user_path_is_not_used(self):
+        # {autopf} under PrivilegesRequired=lowest resolves to
+        # AppData\Local\Programs, which is where a 64-bit program should not
+        # be. Named explicitly here so the substitution cannot come back.
+        self.assertNotIn("{autopf}", self.setting("DefaultDirName"))
+        self.assertNotIn("{userappdata}", self.setting("DefaultDirName"))
+        self.assertNotIn("{localappdata}", self.setting("DefaultDirName"))
+
+    def test_the_build_is_64_bit_so_it_belongs_in_the_64_bit_program_files(self):
+        # Program Files (x86) would be wrong: the app ships an x64 VC++
+        # runtime and a 64-bit Python, and installs itself in 64-bit mode.
+        self.assertIn("x64compatible",
+                      self.setting("ArchitecturesInstallIn64BitMode"))
+
+    def test_the_app_id_is_unchanged(self):
+        # AppId is how Windows tells an upgrade from a second, separate
+        # install. Changing it would leave the old copy behind with no way
+        # to uninstall it, so this is pinned on purpose.
+        self.assertIn("8E5F2C1A-9B3D-4E7A-8C2F-1D4B6A9E3F50", self.text)
+
+    def test_settings_are_not_written_inside_the_install_folder(self):
+        # Program Files is read-only for a normal user, so a program that
+        # kept its settings next to its own files would fail to save them.
+        from accessible_ide import routes
+        self.assertEqual(routes.CONFIG_DIR, pathlib.Path.home() / ".accessible-ide")
+        self.assertNotIn("HotHilux_21", str(routes.CONFIG_DIR))
+
+
 class ManifestTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

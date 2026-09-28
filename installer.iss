@@ -18,7 +18,7 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
-DefaultDirName={autopf}\AccessibleIDE
+DefaultDirName={commonpf}\HotHilux_21\AccessibleIDE
 DefaultGroupName=AccessibleIDE
 DisableProgramGroupPage=yes
 OutputDir=installer
@@ -27,7 +27,10 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
-PrivilegesRequired=lowest
+; Program Files needs elevation to write to, so the whole setup runs as an
+; administrator. {autopf} with PrivilegesRequired=lowest meant the per-user
+; copy under AppData instead, which is not where a 64-bit program belongs.
+PrivilegesRequired=admin
 MinVersion=10.0
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
