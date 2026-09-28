@@ -12,6 +12,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+import urllib.error
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
@@ -117,6 +118,21 @@ def swapped(test, obj, name, value):
     setattr(obj, name, value)
     test.addCleanup(setattr, obj, name, original)
     return original
+
+
+def http_says(test, status):
+    """Make every request answer with an HTTP error, as GitHub really does.
+
+    Patched at urlopen rather than at the helper above it, so the code that
+    turns a status into the right kind of failure is itself under test.
+    """
+
+    def refuse(request, timeout=None):
+        raise urllib.error.HTTPError(
+            getattr(request, "full_url", request), status,
+            "Test status", None, None)
+
+    swapped(test, updater.urllib.request, "urlopen", refuse)
 
 
 class FakeResponse:
@@ -289,6 +305,64 @@ class ChannelTests(unittest.TestCase):
     def test_a_junk_channel_is_answered_as_beta_rather_than_failing(self):
         self.assertEqual(updater.check(force=True, channel="nightly")["channel"],
                          "beta")
+
+    def test_an_empty_channel_is_not_reported_as_a_broken_connection(self):
+        # A channel nothing has been published to yet is an ordinary state.
+        # Calling it a network fault tells a reader their connection is
+        # broken when it is fine, and there is nothing they can do about it.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        swapped(self, updater, "cache_path",
+                lambda: pathlib.Path(tmp.name) / "check.json")
+        # Updates only apply to the packaged app; in a source checkout the
+        # check politely does nothing at all.
+        swapped(self, updater, "is_frozen", lambda: True)
+        http_says(self, 404)
+
+        with self.assertRaises(updater.UpdateError) as caught:
+            updater.fetch_manifest(channel="stable")
+        self.assertEqual(caught.exception.code, "channel_empty")
+        self.assertIn("stable", str(caught.exception))
+
+        result = updater.check(force=True, channel="stable")
+        self.assertEqual(result["error_code"], "channel_empty")
+        self.assertFalse(result["update_available"])
+        self.assertNotIn("latest", result)
+
+    def test_a_build_that_has_gone_missing_is_its_own_problem(self):
+        # The manifest named a build and the build is not there. That is not
+        # the same as a channel with nothing on it, and not a network fault
+        # either, so it must not borrow either of their sentences.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        swapped(self, updater, "update_dir",
+                lambda: pathlib.Path(tmp.name) / "updates")
+        http_says(self, 404)
+        manifest = {
+            "url": f"{updater.RELEASES_BASE}/download/v0.4.0/{updater.ASSET_NAME}",
+            "sha256": "0" * 64,
+            "size": 10,
+        }
+        with self.assertRaises(updater.UpdateError) as caught:
+            updater.stage(manifest)
+        self.assertEqual(caught.exception.code, "missing_build")
+
+    def test_a_404_leaves_no_half_finished_file_behind(self):
+        # The same care as any other failed download: a part-file left under
+        # the real name could be installed later without being checked.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        swapped(self, updater, "update_dir",
+                lambda: pathlib.Path(tmp.name) / "updates")
+        http_says(self, 404)
+        manifest = {
+            "url": f"{updater.RELEASES_BASE}/download/v0.4.0/{updater.ASSET_NAME}",
+            "sha256": "0" * 64,
+            "size": 10,
+        }
+        with self.assertRaises(updater.UpdateError):
+            updater.stage(manifest)
+        self.assertEqual(list(updater.update_dir().iterdir()), [])
 
 
 class StagingTests(unittest.TestCase):

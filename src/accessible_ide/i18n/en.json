@@ -245,6 +245,7 @@
   "update.error_download_failed": "The download did not finish, so nothing was changed.",
   "update.error_missing_build": "The new version's file is missing.",
   "update.error_network": "Could not reach GitHub to check for updates. Your work is unaffected.",
+  "update.error_channel_empty": "Nothing has been published on this channel yet. You are up to date with the newest build, and there is nothing to download.",
   "update.error_no_checksum": "The new version came without a safety check, so it was not downloaded.",
   "update.error_not_applicable": "Updates only apply to the downloaded desktop app.",
   "update.error_no_update": "There is no newer version to install, so nothing was changed.",

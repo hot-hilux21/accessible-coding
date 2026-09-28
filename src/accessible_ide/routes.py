@@ -371,6 +371,9 @@ def request_locale(data):
 # failure is given words in five languages.
 UPDATE_ERROR_KEYS = {
     'network': 'update.error_network',
+    # A channel nothing has been published to is not a fault and not a
+    # network problem, so it is not given the words for one.
+    'channel_empty': 'update.error_channel_empty',
     'too_large': 'update.error_too_large',
     'bad_manifest': 'update.error_bad_manifest',
     'no_checksum': 'update.error_no_checksum',

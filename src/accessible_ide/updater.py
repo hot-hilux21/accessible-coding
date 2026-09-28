@@ -152,6 +152,18 @@ class UpdateError(Exception):
         self.code = code
 
 
+class _NotFound(Exception):
+    """The server answered 404 for a URL we asked for.
+
+    Deliberately not an ``UpdateError``, because a 404 is not one kind of
+    thing: a missing manifest means a channel has nothing published on it,
+    while a missing build means a release was taken away. Each caller knows
+    which it is looking at and gives the reader their own words. Letting it
+    escape as a code would put one vague sentence on two unrelated problems,
+    and 404 on the manifest is not a fault worth shouting about.
+    """
+
+
 def is_frozen() -> bool:
     """True when running as the packaged exe.
 
@@ -242,6 +254,8 @@ def _open_url(url: str, timeout: int, accept: str):
     try:
         response = urllib.request.urlopen(request, timeout=timeout)
     except urllib.error.HTTPError as error:
+        if error.code == 404:
+            raise _NotFound(url) from error
         raise UpdateError(
             f'could not download from GitHub ({error.code})', code='network'
         ) from error
@@ -270,11 +284,19 @@ def _read_url(url: str, timeout: int, limit: int) -> bytes:
 
 def fetch_manifest(timeout: int = DEFAULT_TIMEOUT, channel: str = DEFAULT_CHANNEL) -> dict:
     """Download and check the manifest published on ``channel``."""
-    raw = _read_url(
-        f'{manifest_url(channel)}?t={int(time.time())}',
-        timeout,
-        MAX_MANIFEST_BYTES,
-    )
+    try:
+        raw = _read_url(
+            f'{manifest_url(channel)}?t={int(time.time())}',
+            timeout,
+            MAX_MANIFEST_BYTES,
+        )
+    except _NotFound as error:
+        # Said in terms of the channel, because that is what the reader
+        # chose and the only useful thing to tell them about it.
+        raise UpdateError(
+            f'nothing has been published on the {normalise_channel(channel)} channel yet',
+            code='channel_empty',
+        ) from error
     try:
         manifest = json.loads(raw.decode('utf-8'))
     except (ValueError, UnicodeDecodeError) as error:
@@ -402,7 +424,18 @@ def stage(manifest: dict) -> Path:
     digest = hashlib.sha256()
     written = 0
     try:
-        with _open_url(url, DEFAULT_TIMEOUT * 10, '*/*') as response:
+        try:
+            response = _open_url(url, DEFAULT_TIMEOUT * 10, '*/*')
+        except _NotFound as error:
+            # The manifest named a build that is not there. Different from an
+            # empty channel: something was promised and is now gone, so the
+            # reader is told a build is missing rather than that there is
+            # nothing new.
+            raise UpdateError(
+                'the build that was offered is no longer there',
+                code='missing_build',
+            ) from error
+        with response:
             with open(temporary, 'wb') as handle:
                 while True:
                     chunk = response.read(256 * 1024)

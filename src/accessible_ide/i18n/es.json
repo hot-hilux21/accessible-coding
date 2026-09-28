@@ -245,6 +245,7 @@
   "update.error_download_failed": "La descarga no se complet\u00f3, as\u00ed que no se cambi\u00f3 nada.",
   "update.error_missing_build": "Falta el archivo de la versi\u00f3n nueva.",
   "update.error_network": "No se pudo conectar con GitHub para buscar actualizaciones. Tu trabajo no se ve afectado.",
+  "update.error_channel_empty": "Todav\u00eda no se ha publicado nada en este canal. Tienes la versi\u00f3n m\u00e1s reciente y no hay nada que descargar.",
   "update.error_no_checksum": "La versi\u00f3n nueva no tra\u00eda comprobaci\u00f3n de seguridad, as\u00ed que no se descarg\u00f3.",
   "update.error_not_applicable": "Las actualizaciones solo se aplican a la aplicaci\u00f3n de escritorio descargada.",
   "update.error_no_update": "No hay una versi\u00f3n m\u00e1s reciente que instalar, as\u00ed que no se ha cambiado nada.",

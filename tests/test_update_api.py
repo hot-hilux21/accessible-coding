@@ -297,6 +297,42 @@ class ChannelSettingTests(UpdateEndpointTestCase):
         self.assertEqual(caught.exception.channel, "stable")
 
 
+    def test_a_channel_nothing_is_published_to_is_explained_in_words(self):
+        # A reader who picks stable before any stable release exists has not
+        # got a broken connection. The sentence has to say what is true, and
+        # must not be the wording used for a network fault.
+        self.fail_manifest(
+            message="nothing has been published on the stable channel yet",
+            code="channel_empty")
+        body = self.check(force=True).get_json()
+        self.assertEqual(body["error_code"], "channel_empty")
+        self.assertEqual(body["error_text"],
+                         routes.translator_for("en")("update.error_channel_empty"))
+        self.assertNotEqual(body["error_text"],
+                            routes.translator_for("en")("update.error_network"))
+        self.assertFalse(body["update_available"])
+        # Nothing is offered, so nothing can be installed by mistake.
+        self.assertNotIn("latest", body)
+
+    def test_the_wording_for_an_empty_channel_exists_in_every_language(self):
+        # It is the one message a reader on a new channel is certain to see,
+        # so a missing translation would hit the first person to try it.
+        self.fail_manifest(code="channel_empty",
+                           message="nothing has been published on that channel yet")
+        for code in ("en", "fr", "es", "ar", "hi"):
+            with self.subTest(locale=code):
+                body = self.check(force=True, locale=code).get_json()
+                self.assertEqual(body["error_code"], "channel_empty")
+                text = body["error_text"]
+                # A key that failed to translate comes back looking like the
+                # key itself, which is worse than no message at all.
+                self.assertNotIn("update.", text)
+                self.assertEqual(
+                    text, routes.translator_for(code)("update.error_channel_empty"))
+                self.assertNotEqual(
+                    text, routes.translator_for(code)("update.error_network"))
+
+
 class UpdateCheckIntervalTests(UpdateEndpointTestCase):
     """Launching the app must not mean asking GitHub every single time."""
 
