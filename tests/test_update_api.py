@@ -173,8 +173,23 @@ class ManualCheckTests(UpdateEndpointTestCase):
 class AutomaticCheckSettingTests(UpdateEndpointTestCase):
     """The saved setting decides, not the page asking."""
 
-    def test_it_is_on_by_default(self):
-        self.assertTrue(routes.load_config()["auto_update"])
+    def test_it_is_off_by_default(self):
+        # Opening a program that runs on the reader's own machine should not
+        # send their address to a server they never agreed to hear from. The
+        # button to ask is right there on the settings screen.
+        self.assertFalse(routes.load_config()["auto_update"])
+
+    def test_an_older_config_without_the_key_does_not_reintroduce_the_check(self):
+        # A config written before this switch existed has no key in it at
+        # all. If that falls back to "on", the phone-home comes back for
+        # exactly the readers who never had the switch to turn it off with.
+        partial = {k: v for k, v in routes.load_config().items()
+                   if k != 'auto_update'}
+        routes.save_config(partial)
+        self.set_manifest('99.0.0')
+        body = self.check().get_json()
+        self.assertFalse(body['update_available'])
+        self.assertFalse(body['automatic'])
 
     def test_turning_it_off_stops_the_automatic_check(self):
         routes.save_config(dict(routes.load_config(), auto_update=False))
@@ -205,6 +220,10 @@ class AutomaticCheckSettingTests(UpdateEndpointTestCase):
         self.assertFalse(self.client.get("/api/config").get_json()["auto_update"])
 
     def test_only_a_real_off_or_on_is_accepted(self):
+        # Start from a known value, so that "unchanged" is a claim about the
+        # rejected values and not an accident of what the default happens to
+        # be today.
+        self.client.post("/api/config", json={"auto_update": True})
         for bad in ("no", 1, None, [], "true"):
             with self.subTest(value=bad):
                 response = self.client.post("/api/config", json={"auto_update": bad})
@@ -337,6 +356,10 @@ class UpdateCheckIntervalTests(UpdateEndpointTestCase):
     """Launching the app must not mean asking GitHub every single time."""
 
     def test_a_recent_check_is_not_repeated_automatically(self):
+        # The once-a-day guard is a second line of defence, and only a
+        # reader who has switched the automatic check on ever reaches it.
+        # With the default off, nothing goes out in the first place.
+        self.client.post("/api/config", json={"auto_update": True})
         self.set_manifest("99.0.0")
         self.assertTrue(self.check().get_json()["update_available"])
         # GitHub would now say 404 because the fake is gone; a second

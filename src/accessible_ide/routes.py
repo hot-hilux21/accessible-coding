@@ -142,11 +142,16 @@ DEFAULT_CONFIG = {
     # The speech API does not say whether a voice is male or female, so
     # this is a preference applied to what is installed, not a promise.
     'tts_voice_gender': 'male',
-    # On by default, because a reader who never hears about a fix has no way
-    # to know it exists. Switching it off turns off the automatic check
-    # only: a check the reader asked for still happens, because refusing to
-    # answer a direct question is the same as being broken.
-    'auto_update': True,
+    # Off by default. This is a program that runs on the reader's own
+    # machine, and opening it should not send their IP address to a server
+    # they never agreed to hear from. Being told about a fix matters, but it
+    # is not worth the reader's privacy by default - so the check happens
+    # when they press the button, and the switch is here to make it happen
+    # on its own afterwards, for anyone who has decided that is a good
+    # trade. Switching it off stops the automatic check only: a check the
+    # reader asked for still happens, because refusing to answer a direct
+    # question is the same as being broken.
+    'auto_update': False,
     # Which set of releases this reader wants. Beta is the working channel
     # and gets every tagged release; stable is for a big finished change and
     # is left alone until one is tagged. Beta is the default because it is
@@ -845,7 +850,11 @@ def update_check_api():
     # reason the automatic switch is: a page that simply asked for a
     # different channel must not be able to talk the reader onto one.
     channel = updater.normalise_channel(config.get('update_channel'))
-    if not asked and not config.get('auto_update', True):
+    # The fallback matches the default above on purpose. A config file
+    # written by an older build can be missing this key, and treating that
+    # as "on" would quietly reintroduce the phone-home the default is off
+    # to avoid - silently, for readers who never had the switch at all.
+    if not asked and not config.get('auto_update', False):
         return jsonify({
             'success': True,
             'applicable': updater.is_frozen(),
