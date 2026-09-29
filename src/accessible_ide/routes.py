@@ -14,6 +14,8 @@ import threading
 from pathlib import Path
 
 from . import i18n
+from .shell import ShellError, ShellTimeout
+from .shell import registry as shell_registry
 
 main_bp = Blueprint('main', __name__)
 
@@ -58,6 +60,23 @@ SANDBOX = on_public_web()
 RATE_LIMIT = {}
 RATE_MAX = 10          # requests per window
 RATE_WINDOW = 60       # seconds
+
+# The shell is metered separately, and more generously.
+#
+# RATE_MAX suits the runner, which is one request per deliberate click. A
+# shell is one request per line the reader types, and the whole point of it is
+# trying things: someone working out how a loop behaves will pass nine
+# commands inside a minute and then be told to wait while their shell still
+# looks perfectly open. Being throttled for using the thing you opened reads
+# as the shell being broken, which is the opposite of what it is.
+#
+# Keyed on the session rather than the address, so one reader exploring cannot
+# lock out everybody else behind the same IP - which on the hosted copy is
+# every visitor behind one proxy. The session id is unguessable and there are
+# at most MAX_SESSIONS of them, and the hosted sandbox still refuses os,
+# subprocess and sockets, so a higher ceiling here is a smaller risk than the
+# throttle causing is.
+SHELL_RATE_MAX = 120
 
 # Modules that are blocked in the sandboxed web runner
 BLOCKED_IMPORTS = [
@@ -478,9 +497,10 @@ def access_code_ok(data):
     return data.get('access_code', '') == ACCESS_CODE
 
 
-def rate_limited(ip):
+def rate_limited(ip, limit=None):
     """Return True if the IP has exceeded the request limit."""
     now = time.time()
+    cap = RATE_MAX if limit is None else limit
     # Clean up old entries occasionally
     if len(RATE_LIMIT) > 1000:
         for key in list(RATE_LIMIT.keys()):
@@ -488,7 +508,7 @@ def rate_limited(ip):
             if not RATE_LIMIT[key]:
                 del RATE_LIMIT[key]
     recent = [t for t in RATE_LIMIT.get(ip, []) if now - t < RATE_WINDOW]
-    if len(recent) >= RATE_MAX:
+    if len(recent) >= cap:
         return True
     recent.append(now)
     RATE_LIMIT[ip] = recent
@@ -529,6 +549,17 @@ def check_sandbox(code, t=None):
     return True, None
 
 
+def _package_version():
+    """The version of the build that is actually running.
+
+    Imported inside the function on purpose. routes is imported by the
+    package that defines __version__, so asking for it at the top of this
+    module would be asking for a name that does not exist yet.
+    """
+    from . import __version__
+    return __version__
+
+
 @main_bp.route('/')
 def index():
     config = load_config()
@@ -545,6 +576,13 @@ def index():
                          config=config,
                          themes=THEMES,
                          fonts=FONTS,
+                         # The version on the badge comes from the build, not
+                         # from a line somebody remembered to edit. It used to
+                         # be written out in the template, which meant a
+                         # reader could be three releases behind and be told
+                         # they were current - and there is a whole update
+                         # panel on this page insisting the number matters.
+                         version=_package_version(),
                          locale=locale,
                          direction=i18n.direction(locale),
                          languages=i18n.available(),
@@ -627,6 +665,170 @@ def run_code():
             os.unlink(temp_file)
         except Exception:
             pass
+
+
+# The Python shell.
+#
+# A different shape from /api/run on purpose. The runner answers "run this
+# file", writes it out and throws it away. A shell has to remember: what you
+# imported is still imported, what you defined is still defined. So this
+# keeps a child process per reader and talks to it over a pipe. That needs
+# more than a route, which is why the machinery lives in shell.py and this is
+# only the part the browser talks to.
+#
+# Every gate the runner has is here too, in the same order. The shell runs
+# code, so anything that was true of /api/run is true of this, and a gate
+# that was added to one and not the other would be a way around it.
+
+@main_bp.route('/api/shell/start', methods=['POST'])
+def shell_start():
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_code_run'),
+            'code_required': True,
+        }), 403
+
+    if rate_limited(client_ip()):
+        return jsonify({
+            'success': False,
+            'error': t('error.too_many_requests'),
+        }), 429
+
+    # The id is minted here, not accepted from the reader, so nobody can
+    # arrive at somebody else's shell by guessing one.
+    return jsonify({'success': True, 'session': shell_registry.start()})
+
+
+@main_bp.route('/api/shell/exec', methods=['POST'])
+def shell_exec():
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+    code = data.get('code', '')
+
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'output': '',
+            'error': t('error.access_code_run'),
+            'error_line': None,
+            'code_required': True,
+        }), 403
+
+    if rate_limited('shell:' + str(data.get('session') or client_ip()),
+                    SHELL_RATE_MAX):
+        return jsonify({
+            'success': False,
+            'output': '',
+            'error': t('error.too_many_requests'),
+            'error_line': None,
+        }), 429
+
+    if not code.strip():
+        return jsonify({
+            'success': True,
+            'output': '',
+            'error': t('shell.no_code'),
+            'error_line': None,
+        })
+
+    ok, sandbox_message = check_sandbox(code, t)
+    if not ok:
+        return jsonify({
+            'success': True,
+            'output': '',
+            'error': sandbox_message,
+            'error_line': None,
+        })
+
+    session = shell_registry.get(data.get('session'))
+    if session is None:
+        return jsonify({
+            'success': False,
+            'output': '',
+            'error': t('shell.no_session'),
+            'error_line': None,
+        })
+
+    try:
+        result = session.exec(code)
+    except ShellTimeout:
+        # The child has already been killed. The next command starts a new
+        # one, so this costs the reader their session and nothing else.
+        return jsonify({
+            'success': True,
+            'output': '',
+            'error': t('shell.timeout'),
+            'error_line': None,
+        })
+    except ShellError as exc:
+        # Either the child was gone already and has been replaced, or it
+        # could not be read. Both are worth a sentence rather than a stack.
+        key = 'shell.restarted' if 'restarted' in str(exc) else 'shell.closed'
+        return jsonify({
+            'success': True,
+            'output': '',
+            'error': t(key),
+            'error_line': None,
+        })
+
+    error = result.get('error', '')
+    error_line = None
+    if error:
+        error, error_line = translate_error(error, t)
+
+    return jsonify({
+        'success': True,
+        'output': result.get('output', ''),
+        'error': error,
+        'error_line': error_line,
+    })
+
+
+@main_bp.route('/api/shell/reset', methods=['POST'])
+def shell_reset():
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_code_run'),
+            'code_required': True,
+        }), 403
+
+    session = shell_registry.get(data.get('session'))
+    if session is None:
+        return jsonify({'success': False, 'error': t('shell.no_session')})
+
+    try:
+        session.reset()
+    except ShellError as exc:
+        key = 'shell.restarted' if 'restarted' in str(exc) else 'shell.closed'
+        return jsonify({'success': False, 'error': t(key)})
+
+    return jsonify({'success': True})
+
+
+@main_bp.route('/api/shell/stop', methods=['POST'])
+def shell_stop():
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_code_run'),
+            'code_required': True,
+        }), 403
+
+    # Stopping a session that is already gone is the outcome the reader
+    # asked for, not a failure, so it is reported as done either way.
+    shell_registry.drop(data.get('session'))
+    return jsonify({'success': True})
 
 
 # Allowed config keys and their expected types

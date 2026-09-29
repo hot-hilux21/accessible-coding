@@ -2303,6 +2303,149 @@
     modulesOpen.focus();
   }
 
+  // The Python shell.
+  //
+  // Deliberately not the runner above. The runner is for handing in a file
+  // and getting its output; this is for trying things and keeping what you
+  // tried. Everything you define here is still here in your next command,
+  // which is the whole difference.
+  //
+  // The session id comes back from the server and rides along with every
+  // command. That is not ceremony: on the hosted copy it is the only thing
+  // keeping one reader's variables out of another reader's shell.
+  var shellPane = document.getElementById('shell-pane');
+  var btnShell = document.getElementById('btn-shell');
+  var shellInput = document.getElementById('shell-input');
+  var shellOutput = document.getElementById('shell-output');
+  var shellStatus = document.getElementById('shell-status');
+  var btnShellRun = document.getElementById('shell-run');
+  var btnShellClear = document.getElementById('shell-clear');
+  var btnShellClose = document.getElementById('shell-close');
+  var shellSession = null;
+  var shellBusy = false;
+
+  function shellPost(url, code) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session: shellSession,
+        access_code: accessCode,
+        locale: META.locale,
+        code: code || ''
+      })
+    }).then(function (res) { return res.json(); });
+  }
+
+  // Appended, never replaced. The point of a shell is being able to look
+  // back at what you did three lines ago.
+  function shellSay(text, isError) {
+    if (text) {
+      shellOutput.textContent += text + '\n';
+      shellOutput.scrollTop = shellOutput.scrollHeight;
+      if (ttsEnabled) speak(text, isError);
+    }
+  }
+
+  function shellFail(data) {
+    if (data.code_required) {
+      // The same gate as the runner, so a hosted reader is asked once and
+      // then answers the same way for both.
+      promptForAccessCode();
+      return true;
+    }
+    return false;
+  }
+
+  function shellOpen() {
+    if (!shellPane || !shellPane.hidden) return;
+    shellPane.hidden = false;
+    if (btnShell) btnShell.setAttribute('aria-expanded', 'true');
+    if (shellInput) shellInput.focus();
+    if (shellSession) return;
+    shellPost('/api/shell/start')
+      .then(function (data) {
+        if (shellFail(data)) return;
+        if (data.error || !data.session) {
+          if (shellStatus) shellStatus.textContent = data.error || '';
+          return;
+        }
+        shellSession = data.session;
+        if (shellStatus) shellStatus.textContent = t('shell.status_waiting');
+      })
+      .catch(function () {
+        if (shellStatus) shellStatus.textContent = t('shell.closed');
+      });
+  }
+
+  function shellClose() {
+    if (!shellPane || shellPane.hidden) return;
+    shellPane.hidden = true;
+    if (btnShell) btnShell.setAttribute('aria-expanded', 'false');
+    // Closing hands the process back rather than leaving it running for
+    // nobody. The id is forgotten, so reopening starts a clean shell.
+    if (shellSession) {
+      var closing = shellSession;
+      shellSession = null;
+      shellPost('/api/shell/stop', '').catch(function () {});
+    }
+    if (btnShell) btnShell.focus();
+  }
+
+  function shellRun() {
+    if (shellBusy || !shellSession || !shellInput) return;
+    var code = shellInput.value;
+    if (!code.trim()) return;
+    shellBusy = true;
+    if (btnShellRun) btnShellRun.disabled = true;
+    shellPost('/api/shell/exec', code)
+      .then(function (data) {
+        if (shellFail(data)) return;
+        shellSay(data.output);
+        if (data.error) {
+          shellSay(data.error, true);
+        }
+      })
+      .catch(function () {
+        shellSay(t('shell.closed'), true);
+      })
+      .then(function () {
+        shellBusy = false;
+        if (btnShellRun) btnShellRun.disabled = false;
+        if (shellInput) shellInput.focus();
+      });
+  }
+
+  function shellClear() {
+    if (!shellSession) return;
+    shellPost('/api/shell/reset', '')
+      .then(function (data) {
+        if (shellFail(data)) return;
+        // The transcript is cleared with the namespace. A reader who wipes
+        // their definitions expects the screen to match.
+        shellOutput.textContent = '';
+        if (shellStatus) shellStatus.textContent = t('shell.status_waiting');
+      })
+      .catch(function () {});
+  }
+
+  if (btnShell) btnShell.addEventListener('click', function () {
+    if (shellPane && shellPane.hidden) shellOpen(); else shellClose();
+  });
+  if (btnShellClose) btnShellClose.addEventListener('click', shellClose);
+  if (btnShellRun) btnShellRun.addEventListener('click', shellRun);
+  if (btnShellClear) btnShellClear.addEventListener('click', shellClear);
+  if (shellInput) {
+    // The same gesture as the editor, because muscle memory should not
+    // have to be relearned for a different box.
+    shellInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        shellRun();
+      }
+    });
+  }
+
   // The element lookups above have all run by now.
   initModules();
 

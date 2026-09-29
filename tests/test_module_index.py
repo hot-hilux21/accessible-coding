@@ -187,6 +187,12 @@ class ExampleRunTests(unittest.TestCase):
                 done = subprocess.run(
                     [sys.executable, '-I', '-c', code],
                     cwd=work, env=env, capture_output=True, text=True,
+                    # The child is told to write UTF-8, but if it dies before
+                    # it gets that far its output is in the console's own
+                    # encoding, and the reader thread would raise while
+                    # decoding a byte that has nothing to do with the test.
+                    # Replacing it keeps a real failure readable.
+                    errors='replace',
                     timeout=20)
             except subprocess.TimeoutExpired:
                 return False, 'took too long'

@@ -49,6 +49,11 @@ const KNOWN_IDS = new Set([
   'modules-search-input', 'modules-search-help', 'modules-filter-label',
   'modules-results', 'modules-results-label', 'modules-empty',
   'modules-status', 'modules-detail', 'modules-detail-label',
+  // The Python shell. Declared here for the same reason as the index above:
+  // without these, the pane cannot be found and nothing about the shell is
+  // exercised, while the harness still reports success.
+  'btn-shell', 'shell-pane', 'shell-input', 'shell-output', 'shell-status',
+  'shell-run', 'shell-clear', 'shell-close',
   // The first-run setup screen. The server stops rendering it once the
   // reader has finished it, so app.js has to treat every one of these as
   // optional - the harness declares them so that path is exercised rather
@@ -583,6 +588,10 @@ function makePage(locale, shared, bodyAttrs) {
           // the stub would start with it showing, and a check about it
           // hiding would pass for the wrong reason.
           id === 'setup-back' ? { hidden: true } : {},
+          // The shell starts closed, so opening it is something a check can
+          // tell has happened. Starting it open would make every later
+          // check pass for the wrong reason.
+          id === 'shell-pane' ? { hidden: true } : {},
         );
         found.set(id, makeElement(id, attributesFor(id), props));
       }
@@ -664,6 +673,10 @@ let closeAttempts = 0;
 // promise has settled rather than at a guessed moment.
 let finish = () => process.exit(failed ? 1 : 0);
 const configPosts = [];
+// What the shell was asked to run, in order. Kept so a check can prove the
+// session id and the reader's own code both went out, rather than only that
+// a request happened.
+const shellCommands = [];
 // Whether a settings write is accepted. Held in a variable so the refused
 // path can be walked: a stub that only ever saves would never show what the
 // app does when the answer comes back "no", which is the case where the
@@ -725,6 +738,43 @@ const MODULE_DETAIL = {
 
 function fetchStub(url, options) {
   fetchCalls.push(url);
+  // The shell, before the catch-all /api/config branch, because the session
+  // id it is handed has to be echoed back or a check cannot tell that one
+  // command's output reached the next.
+  if (String(url).includes('/api/shell/start')) {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ success: true, session: 'session-1' }),
+    });
+  }
+  if (String(url).includes('/api/shell/stop')) {
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) });
+  }
+  if (String(url).includes('/api/shell/reset')) {
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) });
+  }
+  if (String(url).includes('/api/shell/exec')) {
+    let sent = {};
+    try { sent = JSON.parse(options.body); } catch (e) { sent = {}; }
+    shellCommands.push(sent);
+    // Echoing what was typed is the whole contract of a shell in a test
+    // double: a check can prove the reader's own command came back rather
+    // than only that something did.
+    if (sent.code === 'boom') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true, output: '', error: 'NameError: name \'boom\' is not defined',
+        }),
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        success: true, output: (sent.code || '') + '\n', error: '',
+      }),
+    });
+  }
   if (String(url).includes('/api/themes')) {
     return Promise.resolve({
       ok: true,
@@ -2213,139 +2263,6 @@ function runStepperChecks() {
   console.log('     the spacing steppers notch, clamp, save and disable at their limits');
 }
 
-// The module index. The interaction sweep above already fires the search
-// input and the close button, so this checks the things a sweep cannot:
-// that the results actually arrive, that the dialog behaves as a dialog,
-// and that an example reaches the editor without losing what was there.
-function runModuleIndexChecks() {
-  const dialog = elements.get('modules-dialog');
-  const opener = elements.get('btn-modules');
-  const search = elements.get('modules-search-input');
-  const results = elements.get('modules-results');
-  const status = elements.get('modules-status');
-  const empty = elements.get('modules-empty');
-  const detail = elements.get('modules-detail');
-
-  // Opened as a real modal, so the browser supplies the focus trap.
-  if (typeof dialog.showModal !== 'function' || dialog.__open !== true) {
-    failed = true;
-    console.log('FAIL the module index did not open as a modal');
-  } else {
-    console.log('     the module index opens as a real modal');
-  }
-
-  // The search box takes focus, because that is what the reader came for.
-  if (search !== document.activeElement) {
-    failed = true;
-    console.log('FAIL the module index did not put focus in the search box');
-  } else {
-    console.log('     it puts the reader straight in the search box');
-  }
-
-  const drawn = results.children || [];
-  if (drawn.length === 0) {
-    failed = true;
-    console.log('FAIL the module index drew no results');
-  } else {
-    console.log(`     it draws results as a list of ${drawn.length} buttons`);
-  }
-
-  // The count is announced, and it is a number rather than a key.
-  if (typeof status.textContent !== 'string' || !/\d/.test(status.textContent)) {
-    failed = true;
-    console.log(`FAIL the result count was not announced: "${status.textContent}"`);
-  } else {
-    console.log('     it announces how many modules matched');
-  }
-
-  // Availability is words, not a coloured dot. A screen reader says
-  // nothing about a tint, and a dot is invisible in a high-contrast theme.
-  const first = drawn[0];
-  const text = JSON.stringify(first && first.__text || '');
-  if (!/On this computer|Not on this computer/.test(text)) {
-    failed = true;
-    console.log(`FAIL availability was not given in words: ${text.slice(0, 120)}`);
-  } else {
-    console.log('     it says whether a module is on this computer, in words');
-  }
-
-  // 190 results is a lot to walk past, so only the first page is drawn
-  // and the rest is one button away.
-  if (drawn.length > 60) {
-    failed = true;
-    console.log(`FAIL the index drew all ${drawn.length} results at once`);
-  } else {
-    console.log('     it shows a page at a time rather than all 190 at once');
-  }
-
-  // Empty results are explained, not left as a blank panel.
-  if (empty && empty.hidden) {
-    failed = true;
-    console.log('FAIL the empty message was hidden while there were no results');
-  }
-  if (empty && !/built in/.test(empty.textContent || '')) {
-    failed = true;
-    console.log('FAIL the empty message did not mention that some things are built in');
-  } else {
-    console.log('     finding nothing says why, rather than showing a blank');
-  }
-
-  // Closing sends focus back, so the next Tab is not from the top of the
-  // page.
-  elements.get('modules-close').__listeners.click.forEach((h) => h(fakeEvent));
-  if (dialog.__open !== false) {
-    failed = true;
-    console.log('FAIL the module index did not close');
-  }
-  if (opener !== document.activeElement) {
-    failed = true;
-    console.log('FAIL closing the index did not return focus to its button');
-  } else {
-    console.log('     it closes and hands focus back to the button');
-  }
-
-  // Putting an example in the editor appends. A reference lookup must
-  // never cost somebody the work they had already done.
-  const before = editor.getValue();
-  search.value = 'json';
-  search.__listeners.input.forEach((h) => h(fakeEvent));
-  setTimeout(() => {
-    const found = (results.children || [])[0];
-    if (!found || !found.__click) {
-      failed = true;
-      console.log('FAIL no module result offered a click handler');
-      return finishModuleChecks(before);
-    }
-    found.__click(fakeEvent);
-    setTimeout(() => {
-      const insert = elements.get('modules-insert');
-      if (!insert) {
-        failed = true;
-        console.log('FAIL the detail did not offer an insert button');
-        return finishModuleChecks(before);
-      }
-      insert.__listeners.click.forEach((h) => h(fakeEvent));
-      const after = editor.getValue();
-      if (!after.startsWith(before)) {
-        failed = true;
-        console.log('FAIL inserting an example overwrote what was already there');
-      } else if (!/import json/.test(after)) {
-        failed = true;
-        console.log('FAIL the example was not put in the editor');
-      } else {
-        console.log('     an example is added to the editor without losing what was there');
-      }
-      finishModuleChecks(before);
-    }, 20);
-  }, 20);
-}
-
-function finishModuleChecks() {
-  setTimeout(() => {
-    console.log('module index: 6 checks');
-    done();
-  }, 10);
-}
 
 // The module index. The interaction sweep above already fired the search
 // input and the close button, so this checks what a sweep cannot: that
@@ -2554,9 +2471,147 @@ function findButtonByText(node, text) {
   return null;
 }
 
+// The Python shell, end to end: closed, opened, a command run, the answer
+// kept on screen, a failure explained, and a close that hands the process
+// back rather than leaving it running for nobody.
+function runShellChecks() {
+  const btn = elements.get('btn-shell');
+  const pane = elements.get('shell-pane');
+  const input = elements.get('shell-input');
+  const out = elements.get('shell-output');
+  const status = elements.get('shell-status');
+  const run = elements.get('shell-run');
+  const clear = elements.get('shell-clear');
+  const close = elements.get('shell-close');
+
+  // Closed to begin with. A pane that started open would let every later
+  // check pass without the reader ever opening it.
+  if (!pane.hidden) {
+    failed = true;
+    console.log('FAIL the shell started open instead of closed');
+  } else {
+    console.log('     the shell starts closed, so it costs nothing until it is asked for');
+  }
+
+  (btn.__listeners.click || []).forEach((h) => h(fakeEvent));
+  if (pane.hidden) {
+    failed = true;
+    console.log('FAIL the shell did not open');
+  } else {
+    console.log('     it opens from its own button');
+  }
+  // The button says whether it is open, so somebody reading with a screen
+  // reader is not left guessing.
+  if (btn.getAttribute('aria-expanded') !== 'true') {
+    failed = true;
+    console.log('FAIL the shell button did not say it was open');
+  } else {
+    console.log('     the button says the shell is open');
+  }
+
+  setTimeout(() => {
+    // A session has to be opened before anything can be run in it.
+    if (!fetchCalls.some((u) => u.includes('/api/shell/start'))) {
+      failed = true;
+      console.log('FAIL the shell never asked for a session');
+    } else {
+      console.log('     it asks the server for a session, and the id is kept for later commands');
+    }
+
+    input.value = 'answer = 6 * 7';
+    (run.__listeners.click || []).forEach((h) => h(fakeEvent));
+
+    setTimeout(() => {
+      const sent = shellCommands[shellCommands.length - 1];
+      if (!sent) {
+        failed = true;
+        console.log('FAIL nothing was sent to the shell');
+      } else if (sent.session !== 'session-1') {
+        failed = true;
+        console.log(`FAIL the command did not carry its session id: ${sent.session}`);
+      } else if (sent.code !== 'answer = 6 * 7') {
+        failed = true;
+        console.log(`FAIL the wrong code was sent: ${sent.code}`);
+      } else {
+        console.log('     a command is sent with the reader\'s own code and the session id');
+      }
+
+      if (!/answer = 6 \* 7/.test(String(out.textContent))) {
+        failed = true;
+        console.log(`FAIL the shell's answer never reached the screen: "${out.textContent}"`);
+      } else {
+        console.log('     the answer is shown');
+      }
+
+      // A second command must not wipe the first answer off the screen. A
+      // shell you cannot look back in is a log, not a shell.
+      input.value = 'print(answer)';
+      (run.__listeners.click || []).forEach((h) => h(fakeEvent));
+      setTimeout(() => {
+        if (!/answer = 6 \* 7/.test(String(out.textContent))) {
+          failed = true;
+          console.log('FAIL the next command wiped the previous answer off the screen');
+        } else {
+          console.log('     a second command keeps what came before it on screen');
+        }
+
+        // A failure is said in words, not left as an empty box.
+        input.value = 'boom';
+        (run.__listeners.click || []).forEach((h) => h(fakeEvent));
+        setTimeout(() => {
+          if (!/boom/.test(String(out.textContent))) {
+            failed = true;
+            console.log(`FAIL a failed command was not explained: "${out.textContent}"`);
+          } else {
+            console.log('     a failed command is explained on screen, not swallowed');
+          }
+
+          // Clearing wipes the namespace and the transcript together, so
+          // the two never disagree about what is still defined.
+          (clear.__listeners.click || []).forEach((h) => h(fakeEvent));
+          setTimeout(() => {
+            if (!fetchCalls.some((u) => u.includes('/api/shell/reset'))) {
+              failed = true;
+              console.log('FAIL clearing did not tell the server to forget the namespace');
+            } else if (String(out.textContent) !== '') {
+              failed = true;
+              console.log(`FAIL clearing left the old answers on screen: "${out.textContent}"`);
+            } else {
+              console.log('     clearing forgets both the definitions and the transcript');
+            }
+
+            // Closing gives the process back. A shell left running after the
+            // reader walks away is a python.exe nobody is looking after.
+            (close.__listeners.click || []).forEach((h) => h(fakeEvent));
+            if (!pane.hidden) {
+              failed = true;
+              console.log('FAIL the shell did not close');
+            } else if (!fetchCalls.some((u) => u.includes('/api/shell/stop'))) {
+              failed = true;
+              console.log('FAIL closing left the shell process running');
+            } else if (btn.getAttribute('aria-expanded') !== 'false') {
+              failed = true;
+              console.log('FAIL the button still said the shell was open');
+            } else {
+              console.log('     closing hands the process back and clears the button');
+            }
+
+            console.log('shell: 9 checks');
+            finish = () => process.exit(failed ? 1 : 0);
+            finish();
+          }, 10);
+        }, 10);
+      }, 10);
+    }, 10);
+  }, 10);
+}
+
 setTimeout(() => {
   runPanelChecks();
   runStepperChecks();
   runLanguageChecks();
   setTimeout(runLanguageReloadCheck, 10);
+  // Last, because it asserts on the final exit and the checks above are
+  // still in flight when it starts.
+  setTimeout(runShellChecks, 200);
 }, 50);
