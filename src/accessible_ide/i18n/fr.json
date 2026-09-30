@@ -75,6 +75,8 @@
   "modules.level_start": "Pour commencer",
   "modules.loading": "Chargement de l'exemple",
   "modules.no_results": "Aucun r\u00e9sultat. Essayez une phrase plus courte ou effacez la recherche.",
+  "modules.load_failed": "La liste des modules n'a pas pu \u00eatre charg\u00e9e. Veuillez r\u00e9essayer.",
+  "modules.open_failed": "La liste des modules n'a pas pu s'ouvrir. Veuillez r\u00e9essayer.",
   "modules.no_results_hint": "Certaines choses ne sont pas des modules. sorted() et print() sont d\u00e9j\u00e0 l\u00e0, il n'y a rien \u00e0 importer.",
   "modules.not_available": "Pas sur cet ordinateur",
   "modules.results": "{0} modules",

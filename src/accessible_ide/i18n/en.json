@@ -76,6 +76,8 @@
   "modules.level_start": "Start here",
   "modules.loading": "Loading the example",
   "modules.no_results": "Nothing matched. Try a shorter phrase, or clear the search.",
+  "modules.load_failed": "The module list could not be loaded. Please try again.",
+  "modules.open_failed": "The module list would not open. Please try again.",
   "modules.no_results_hint": "Some things are not modules at all. sorted() and print() are built in, so there is nothing to import.",
   "modules.not_available": "Not on this computer",
   "modules.results": "{0} modules",

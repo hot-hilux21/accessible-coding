@@ -682,6 +682,10 @@ const shellCommands = [];
 // app does when the answer comes back "no", which is the case where the
 // reader's answers are at risk.
 let updateConfigOk = true;
+// Flipped on to make the module list fail to load. A broken fetch and an
+// empty catalogue look identical from the outside, which is exactly why the
+// app has to say which one happened.
+let modulesListOk = true;
 // The bodies sent to the update check, so a check can be told apart from a
 // forced one.
 const updateCheckBodies = [];
@@ -794,6 +798,13 @@ function fetchStub(url, options) {
     });
   }
   if (String(url).includes('/api/modules')) {
+    if (!modulesListOk) {
+      return Promise.resolve({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'gone wrong' }),
+      });
+    }
     return Promise.resolve({
       ok: true,
       json: () => Promise.resolve(MODULE_LIST),
@@ -872,6 +883,21 @@ sandbox.matchMedia = (query) => ({
 sandbox.window.location.reload = () => { reloads.push(true); };
 
 let failed = false;
+
+// A check that throws inside a promise chain does not stop the run. The
+// rejection is swallowed, the event loop drains, and node exits 0 - so the
+// harness reports success while quietly skipping every check after the break.
+// That is how a broken gallery could pass. Anything that escapes a chain is
+// now a failure in its own right, and the exit waits to see it.
+let broke = null;
+const chainBroke = (label) => (err) => {
+  if (broke) return;
+  broke = label;
+  console.log('FAIL ' + label);
+  console.log('     ' + ((err && (err.stack || err.message)) || String(err)));
+};
+process.on('unhandledRejection', chainBroke('a check chain threw and the rest were skipped'));
+process.on('uncaughtException', chainBroke('a check threw outside its chain'));
 try {
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox, { filename: 'app.js' });
@@ -1539,7 +1565,13 @@ function runSpeechChecks() {
   // that chain rather than cutting it off at a guessed time. The module
   // index runs just before the exit, because it leaves the editor holding
   // an example and nothing after it should expect the page as it started.
-  finish = () => runModuleIndexChecks(() => process.exit(failed ? 1 : 0));
+  let finishCalled = false;
+  finish = () => {
+    // The last stage runs once, whatever asks for it.
+    if (finishCalled) return;
+    finishCalled = true;
+    runModuleIndexChecks(() => process.exit(broke || failed ? 1 : 0));
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1800,7 +1832,10 @@ function checkFailedDownload(status, row, closesBefore) {
 
       runSetupChecks();
       runUpdateChannelChecks();
-      setTimeout(finish, 40);
+      // No finish() here. The shell stage is the last thing in the run and it
+      // hands over once, at the end. Calling finish from here as well started
+      // the module checks early and then a second time, which is how a
+      // silently broken check could look like a green run.
     }, 10);
   }, 10);
 }
@@ -2279,6 +2314,24 @@ function readText(node) {
 }
 
 function runModuleIndexChecks(done) {
+  // This is the last stage in the run. If it stops part way through, node
+  // exits 0 and everything after the break is silently skipped - which is
+  // exactly what a green run used to mean. So the stage has to reach the end,
+  // or the run is a failure.
+  let settled = false;
+  const watchdog = setTimeout(() => {
+    if (settled) return;
+    failed = true;
+    console.log('FAIL the module checks never finished, so the checks after them were skipped');
+    process.exit(1);
+  }, 5000);
+  const finishStage = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(watchdog);
+    done();
+  };
+
   const dialog = elements.get('modules-dialog');
   const opener = elements.get('btn-modules');
   const search = elements.get('modules-search-input');
@@ -2452,7 +2505,35 @@ function runModuleIndexChecks(done) {
         console.log('     it closes and hands focus back to the button');
       }
 
-      done();
+      // A list that could not be loaded is not an empty list. Telling a
+      // reader "nothing matched" when the server is the thing that failed
+      // sends them hunting for a spelling mistake that is not there.
+      modulesListOk = false;
+      // The app logs the reason to the console, which is right in a browser
+      // and only noise here, where the failure is the point of the check.
+      const realError = console.error;
+      console.error = () => {};
+      search.value = 'zzz';
+      (search.__listeners.input || []).forEach((h) => h(eventFor(search)));
+      setTimeout(() => {
+        console.error = realError;
+        const empty = elements.get('modules-empty');
+        const text = readText(empty);
+        if (!/could not be loaded/.test(text)) {
+          failed = true;
+          console.log('FAIL a failed load is not reported as a failure: ' + text);
+        } else if (/Nothing matched/.test(text)) {
+          failed = true;
+          console.log('FAIL a failed load still claims nothing matched');
+        } else {
+          console.log('     a list that would not load says so, and does not pretend it is empty');
+        }
+        modulesListOk = true;
+        // Printed only if the stage reached its end, so a truncation shows
+        // up as a missing line rather than as a run that quietly passed.
+        console.log('modules: the index opened, searched, filtered and inserted');
+        finishStage();
+      }, 20);
     }, 20);
   }, 20);
 }
@@ -2597,7 +2678,10 @@ function runShellChecks() {
             }
 
             console.log('shell: 9 checks');
-            finish = () => process.exit(failed ? 1 : 0);
+            // Hand over to the module checks rather than exiting here. This
+            // used to reassign finish() first, which quietly replaced the
+            // module stage with a plain exit - so the checks after the shell
+            // never ran and the run still reported success.
             finish();
           }, 10);
         }, 10);

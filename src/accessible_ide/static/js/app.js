@@ -2050,14 +2050,24 @@
   }
 
   function openModules() {
-    if (typeof modulesDialog.showModal === 'function') {
-      modulesDialog.showModal();
-    } else {
-      modulesDialog.setAttribute('open', '');
-    }
-    if (modulesSearch) {
-      modulesSearch.focus();
-      modulesSearch.select();
+    // If showModal() throws, the reader is left staring at a button that
+    // looks broken. A message beats silence every time, so say what broke.
+    try {
+      if (typeof modulesDialog.showModal === 'function') {
+        modulesDialog.showModal();
+      } else {
+        modulesDialog.setAttribute('open', '');
+      }
+      if (modulesSearch) {
+        modulesSearch.focus();
+        modulesSearch.select();
+      }
+    } catch (err) {
+      errorMessage.textContent = t('modules.open_failed');
+      errorPanel.hidden = false;
+      if (ttsEnabled) speak(t('modules.open_failed'));
+      if (err) console.error('module list would not open', err);
+      return;
     }
     if (!modulesState.all.length) loadModules();
   }
@@ -2111,14 +2121,19 @@
         modulesState.totalAll = data.total_all || 0;
         renderModules(modulesState.all, data.total_all || 0);
       })
-      .catch(function () {
+      .catch(function (err) {
         if (want !== modulesState.wanted) return;
         modulesResults.textContent = '';
+        // A failure is not an empty list. Saying "no results" when the list
+        // could not be fetched is the one answer guaranteed to be wrong, and
+        // it sends the reader off looking for a spelling mistake instead of
+        // the thing that actually broke.
         if (modulesEmpty) {
           modulesEmpty.hidden = false;
-          modulesEmpty.textContent = t('modules.no_results');
+          modulesEmpty.textContent = t('modules.load_failed');
         }
-        if (modulesStatus) modulesStatus.textContent = t('modules.no_results');
+        if (modulesStatus) modulesStatus.textContent = t('modules.load_failed');
+        if (err) console.error('modules list failed', err);
       });
   }
 

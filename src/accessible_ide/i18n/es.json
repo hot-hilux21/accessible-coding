@@ -75,6 +75,8 @@
   "modules.level_start": "Para empezar",
   "modules.loading": "Cargando el ejemplo",
   "modules.no_results": "No se encontr\u00f3 nada. Pruebe una frase m\u00e1s corta o borre la b\u00fasqueda.",
+  "modules.load_failed": "No se pudo cargar la lista de m\u00f3dulos. Int\u00e9ntelo de nuevo.",
+  "modules.open_failed": "No se pudo abrir la lista de m\u00f3dulos. Int\u00e9ntelo de nuevo.",
   "modules.no_results_hint": "Algunas cosas no son m\u00f3dulos. sorted() y print() ya est\u00e1n incluidos, no hay nada que importar.",
   "modules.not_available": "No est\u00e1 en esta computadora",
   "modules.results": "{0} m\u00f3dulos",
