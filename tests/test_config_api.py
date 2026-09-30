@@ -561,6 +561,42 @@ class ReduceMotionTests(ConfigApiTestCase):
         # recognise, sending the reader hunting for a control that exists.
         self.assertIn("Reduce motion", message)
         self.assertIn("on or off", message)
+
+
+class FrostedPanelSettingTests(ConfigApiTestCase):
+    """The frosted-panel look is a preference, so it has to survive a save,
+    refuse nonsense with a sentence about the switch, and be off until the
+    reader asks for it - a see-through surface costs contrast, and contrast
+    is not something this app trades for a look."""
+
+    def test_it_is_off_until_it_is_asked_for(self):
+        self.assertIs(routes.DEFAULT_CONFIG["glass"], False)
+        self.assertIs(self.get_settings()["glass"], False)
+
+    def test_it_round_trips(self):
+        for value in (True, False):
+            with self.subTest(glass=value):
+                self.assertEqual(self.post_settings(glass=value).status_code, 200)
+                self.assertIs(self.get_settings()["glass"], value)
+
+    def test_the_page_marks_the_body_before_any_script_runs(self):
+        # Same reasoning as motion: the first paint has to be right, or the
+        # page appears one way and then corrects itself in front of the reader.
+        page = self.client.get("/").data.decode("utf-8")
+        self.assertIn('data-glass="false"', page)
+
+        self.post_settings(glass=True)
+        page = self.client.get("/").data.decode("utf-8")
+        self.assertIn('data-glass="true"', page)
+        self.assertNotIn('data-glass="false"', page)
+
+    def test_a_text_value_is_refused_with_a_message_about_the_switch(self):
+        response = self.post_settings(glass="yes")
+        self.assertEqual(response.status_code, 400)
+        message = response.get_json()["error"]
+        # Naming the switch that exists beats saying the setting is unknown.
+        self.assertIn("Frosted panels", message)
+        self.assertIn("on or off", message)
         self.assertNotIn("not a setting", message)
 
     def test_the_switch_is_announced_as_a_switch(self):

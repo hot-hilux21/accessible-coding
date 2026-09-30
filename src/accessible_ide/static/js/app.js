@@ -1369,6 +1369,33 @@
     });
   }
 
+  // ---------- Frosted panels ----------
+  // A look, not a legibility aid. The switch is off until asked for, and it
+  // only ever changes panels and bars - the editor and the text behind it
+  // keep their solid background, so turning it on cannot cost contrast on
+  // the words the reader is actually trying to read.
+  var btnGlass = document.getElementById('glass');
+  var glassState = document.getElementById('glass-state');
+  var glass = body.getAttribute('data-glass') === 'true';
+
+  function applyGlass(on) {
+    body.setAttribute('data-glass', on ? 'true' : 'false');
+    glass = on;
+    if (btnGlass) {
+      btnGlass.setAttribute('aria-checked', on ? 'true' : 'false');
+      btnGlass.classList.toggle('active', on);
+    }
+    if (glassState) glassState.textContent = on ? t('switch.on') : t('switch.off');
+  }
+
+  applyGlass(glass);
+  if (btnGlass) {
+    btnGlass.addEventListener('click', function () {
+      applyGlass(!glass);
+      saveConfig({ glass: glass });
+    });
+  }
+
   // ---------- Language ----------
   // Changing the language re-renders the whole page rather than swapping
   // text in place. Every string in the app comes from one catalogue, so the

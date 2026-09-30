@@ -27,6 +27,7 @@ const KNOWN_IDS = new Set([
   'blur-intensity', 'blur-intensity-label',
   'blur-field', 'theme-select', 'contrast-select', 'focus-mode',
   'reduce-motion', 'reduce-motion-state',
+  'glass', 'glass-state',
   'tts-toggle', 'tts-state', 'tts-voice', 'tts-rate', 'tts-rate-label',
   'tts-voice-gender', 'tts-hover-scope', 'tts-hover-delay',
   'tts-hover-delay-label', 'tts-click', 'tts-click-state',
@@ -941,6 +942,7 @@ const interactions = [
   ['theme-select', 'change'], ['contrast-select', 'change'],
   ['focus-mode', 'change'],
   ['reduce-motion', 'click'],
+  ['glass', 'click'],
   ['tts-toggle', 'click'], ['tts-voice', 'change'],
   ['tts-voice-gender', 'change'],
   ['tts-hover-scope', 'change'],
@@ -1266,7 +1268,52 @@ function runMotionChecks() {
   }
 
   console.log('     fetch calls: ' + (fetchCalls.length ? fetchCalls.join(', ') : '(none)'));
+  runGlassChecks();
   runSpeechChecks();
+}
+
+// The frosted-panel look. A switch that changes nothing is worse than no
+// switch at all, because the reader is told the app has a setting it does
+// not have. So: the body has to change, the switch has to agree with the
+// body, and the choice has to be saved.
+function runGlassChecks() {
+  const button = elements.get('glass');
+  const label = elements.get('glass-state');
+  const bodyAttrs = documentStub.body.__attributes;
+
+  if (bodyAttrs['data-glass'] !== 'true' && bodyAttrs['data-glass'] !== 'false') {
+    failed = true;
+    console.log(`FAIL data-glass is "${bodyAttrs['data-glass']}" after clicking the switch`);
+  } else {
+    console.log(`     clicking the switch set data-glass="${bodyAttrs['data-glass']}"`);
+  }
+
+  if (button.getAttribute('aria-checked') !== bodyAttrs['data-glass']) {
+    failed = true;
+    console.log('FAIL the switch says aria-checked="' + button.getAttribute('aria-checked') +
+                '" but the page is set to "' + bodyAttrs['data-glass'] + '"');
+  } else {
+    console.log('     the switch and the page agree with each other');
+  }
+
+  if (!label.textContent || label.textContent.indexOf('switch.') === 0) {
+    failed = true;
+    console.log('FAIL the switch label is missing or shows a raw key: ' + label.textContent);
+  } else {
+    console.log('     the switch label is a translated word');
+  }
+
+  const saved = configPosts.filter((p) => 'glass' in p);
+  if (!saved.length) {
+    failed = true;
+    console.log('FAIL the panel choice was never saved');
+  } else if (typeof saved[saved.length - 1].glass !== 'boolean') {
+    failed = true;
+    console.log('FAIL glass was saved as ' + JSON.stringify(saved[saved.length - 1].glass) +
+                ' rather than true/false');
+  } else {
+    console.log('     the panel choice is saved as true or false');
+  }
 }
 
 // ---------------------------------------------------------------------------

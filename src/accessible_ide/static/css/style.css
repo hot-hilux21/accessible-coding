@@ -1224,6 +1224,97 @@ body[data-reduce-motion='true'] *::after {
 }
 
 /* ============================================================
+   Frosted panels and movement
+   Two optional flourishes, both off unless asked for.
+
+   The rule that matters here is a negative one: the editor and
+   the page behind the text never become translucent. Those are
+   where the reading happens, and a see-through surface behind
+   words is a contrast cost for no benefit. Only chrome is
+   affected - the top bar, the panes and the dialogs - so
+   turning this on cannot make the code harder to read.
+   ============================================================ */
+
+/* The surfaces allowed to go translucent, named rather than
+   selected by a broad descendant rule, so the list stays
+   auditable. If you add a surface here, check nothing that
+   needs to be read sits directly on it. */
+body[data-glass='true'] :is(.topbar, .output-pane, .shell-pane, .error-panel,
+                             .settings, .modules, .setup-panel) {
+  /* The opaque declaration comes first on purpose: a browser that does not
+     know color-mix() keeps a solid panel rather than losing its background
+     entirely. Better plain than unreadable. */
+  background: var(--panel-bg);
+  background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+}
+
+/* Dialogs sit over the page rather than inside the layout, so they need
+   their shadow to do more of the work when the fill is thin. */
+body[data-glass='true'] :is(.settings, .modules, .setup-panel) {
+  box-shadow: var(--shadow-3), 0 0 0 1px var(--panel-border);
+}
+
+/* The sheen is deliberately finite. A highlight that sweeps across and
+   keeps sweeping is exactly the kind of looping movement that sets off
+   vestibular symptoms, and it would run for as long as the window is
+   open. Once, then it stops. */
+@keyframes glass-sheen {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+body[data-glass='true'] .topbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg,
+    transparent 0%, rgba(255, 255, 255, 0.10) 45%, transparent 90%);
+  animation: glass-sheen 900ms var(--ease) 1 both;
+}
+
+body[data-glass='true'] .topbar { position: relative; overflow: hidden; }
+
+/* Movement, when it is wanted, is small: a few pixels and a fade. No
+   scaling, no sliding across the screen, nothing that moves a long way
+   past the eye. Long travel is what causes trouble, not motion itself. */
+@keyframes panel-arrive {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes dialog-arrive {
+  from { opacity: 0; transform: translateY(6px) scale(0.99); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes sweep-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
+.error-panel:not([hidden]) { animation: panel-arrive var(--motion-med) var(--ease) both; }
+.shell-pane:not([hidden]) { animation: panel-arrive var(--motion-med) var(--ease) both; }
+.modules-list li { animation: sweep-in var(--motion-fast) var(--ease) both; }
+
+.btn:active,
+.btn-toggle:active,
+.switch-track:active { transform: scale(0.97); }
+.btn,
+.btn-toggle,
+.switch-track { transition: transform var(--motion-fast) var(--ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-reduce-motion='unset'] dialog[open],
+  body[data-reduce-motion='unset'] .modules-list li {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
    First-run setup
    ============================================================
    Wider than Settings, because a font sample needs room to be

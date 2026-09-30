@@ -146,6 +146,12 @@ DEFAULT_CONFIG = {
     # otherwise a reader who has asked for reduced motion at the OS level
     # could never turn movement back on here.
     'reduce_motion': None,
+    # Translucent, frosted panels. Off by default on purpose: a see-through
+    # surface can cost contrast, and contrast is the one thing this app is
+    # not allowed to trade away for a nicer look. The setting only ever
+    # changes panels and bars - never the editor or the page behind the
+    # text, so the contrast of the words themselves is untouched.
+    'glass': False,
     'tts_enabled': False,
     'tts_engine': 'pyttsx3',
     'tts_voice': '',
@@ -846,6 +852,7 @@ CONFIG_TYPES = {
     'blur_intensity': (int, float),
     'contrast': str,
     'reduce_motion': bool,
+    'glass': bool,
     'tts_enabled': bool,
     'tts_engine': str,
     'tts_voice': str,

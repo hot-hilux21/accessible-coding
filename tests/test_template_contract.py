@@ -1047,5 +1047,139 @@ class ReducedMotionCssTests(unittest.TestCase):
         self.assertIn("body[data-reduce-motion='true'] *::after", self.css)
 
 
-if __name__ == "__main__":
-    unittest.main()
+class FrostedPanelAndMovementCssTests(RenderedPageFixture):
+    """The frosted look and the new movement are both optional flourishes on
+    an app whose readers depend on legibility. The rules worth defending are
+    the negative ones: the editor never goes see-through, nothing animates
+    forever, and a browser that cannot do the effect still gets solid panels
+    rather than none."""
+
+    GLASS_KEYS = ("glass.label", "glass.hint", "glass.help")
+
+    def test_the_page_carries_the_setting_before_any_script_runs(self):
+        # Otherwise the page paints solid and then changes under the reader.
+        self.assertIn("data-glass=", self.template)
+
+    def test_there_is_a_switch_and_it_is_a_switch(self):
+        self.assertIn('id="glass"', self.html)
+        row = re.search(r'<button id="glass".*?</button>', self.html, re.S)
+        self.assertIsNotNone(row, "the glass control is not a button")
+        markup = row.group(0) if row else ""
+        self.assertIn('role="switch"', markup)
+        self.assertIn("aria-checked=", markup)
+        # A switch has to say what it does, or the hint is invisible to a
+        # screen reader that lands on it.
+        self.assertIn("glass-hint", markup)
+
+    def test_every_language_can_name_it(self):
+        for language in i18n.LANGUAGES:
+            catalogue = i18n.load_catalogue(language)
+            for key in self.GLASS_KEYS:
+                with self.subTest(language=language, key=key):
+                    self.assertIn(key, catalogue)
+                    self.assertTrue(catalogue[key].strip())
+
+    def test_the_editor_is_never_translucent(self):
+        # This is the rule that keeps the effect safe to offer at all. The
+        # code is read against .editor-pane, so that surface stays solid.
+        block = self.css.split("body[data-glass='true']", 1)[1]
+        block = block[: block.index("\n}")]
+        self.assertIn("backdrop-filter", block)
+        self.assertNotIn("editor-pane", block)
+        self.assertNotIn("editor-wrap", block)
+
+    def test_only_named_surfaces_go_translucent(self):
+        # An open-ended descendant rule would catch the editor next time
+        # somebody adds a panel, so the list is spelled out.
+        block = self.css.split("body[data-glass='true'] :is(", 1)[1]
+        listed = block[: block.index(")")].replace("\n", " ")
+        for surface in (".topbar", ".output-pane", ".shell-pane", ".settings"):
+            with self.subTest(surface=surface):
+                self.assertIn(surface, listed)
+
+    def test_a_browser_without_color_mix_still_gets_a_solid_panel(self):
+        # The opaque declaration has to come first, or the panel loses its
+        # background entirely and the words on it lose their contrast too.
+        # Match the declaration, not the name, which also occurs in the
+        # comment explaining why it is there.
+        block = self.css.split("body[data-glass='true'] :is(", 1)[1]
+        block = block[: block.index("\n}")]
+        self.assertLess(
+            block.index("background: var(--panel-bg)"),
+            block.index("background: color-mix"),
+        )
+
+    def test_nothing_animates_forever(self):
+        # A loop that never stops runs for as long as the window is open,
+        # which is the classic way to set off vestibular symptoms. Every
+        # animation here is allowed to run once.
+        for found in re.finditer(r"animation:\s*([^;]+);", self.css):
+            for declaration in found.group(1).split(","):
+                if "infinite" in declaration:
+                    self.fail(f"an animation loops forever: {declaration.strip()}")
+
+    def _themes(self):
+        """(name, variables) for the root defaults and each theme block."""
+        root = self._vars(self.css.split(":root {", 1)[1].split("\n}", 1)[0])
+        yield "(root defaults)", root
+        for name, block in re.findall(
+            r'body\[data-theme="([^"]+)"\]\s*\{(.*?)\n\}', self.css, re.S
+        ):
+            yield name, dict(root, **self._vars(block))
+
+    @staticmethod
+    def _vars(block):
+        out = {}
+        for name, raw in re.findall(r"(--[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;", block):
+            value = raw.lstrip("#")
+            if len(value) == 3:
+                value = "".join(c * 2 for c in value)
+            out[name] = tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+        return out
+
+    @staticmethod
+    def _luminance(rgb):
+        channels = []
+        for value in rgb:
+            c = value / 255
+            channels.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+        r, g, b = channels
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    @classmethod
+    def _contrast(cls, a, b):
+        la, lb = cls._luminance(a), cls._luminance(b)
+        return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+    def test_the_frosted_panel_never_costs_contrast(self):
+        # The promise made in Settings is that turning this on does not change
+        # the contrast the reader reads by. So it is measured rather than
+        # trusted: composite the fill the stylesheet actually uses over the
+        # page background, and check every theme both for a regression and for
+        # the 4.5:1 that AA asks of text.
+        match = re.search(
+            r"background:\s*color-mix\(in srgb,\s*var\(--panel-bg\)\s*(\d+)%", self.css
+        )
+        self.assertIsNotNone(match, "the frosted fill no longer states its own opacity")
+        alpha = int(match.group(1) if match else "100") / 100
+
+        for name, variables in self._themes():
+            bg, panel = variables.get("--bg"), variables.get("--panel-bg")
+            if not bg or not panel:
+                continue
+            frosted = tuple(round(bg[i] * (1 - alpha) + panel[i] * alpha) for i in range(3))
+            for token in ("--fg", "--muted", "--error-fg"):
+                fg = variables.get(token)
+                if not fg:
+                    continue
+                solid = self._contrast(fg, panel)
+                softened = self._contrast(fg, frosted)
+                with self.subTest(theme=name, token=token):
+                    self.assertLessEqual(
+                        solid, softened + 0.01,
+                        f"frosting lowered {token} in the {name} theme",
+                    )
+                    self.assertGreaterEqual(
+                        softened, 4.5,
+                        f"{token} drops to {softened:.2f}:1 on a frosted panel in {name}",
+                    )
