@@ -1197,11 +1197,15 @@
           return;
         }
         outputEl.textContent = data.output || t('output.no_output');
+        hideInstallOffer();
         if (data.error) {
           errorMessage.textContent = data.error;
           errorPanel.hidden = false;
           highlightErrorLine(data.error_line);
           if (ttsEnabled) speak(data.error);
+          if (data.missing_module && data.missing_package) {
+            offerInstall(data.missing_module, data.missing_package);
+          }
         } else {
           errorPanel.hidden = true;
           if (ttsEnabled) speak(data.output || t('speak.finished'));
@@ -2211,315 +2215,340 @@
   // on top of a half-styled page looks like the app failed to load.
   openSetup();
 
-  // The module index is wired up at the very end of this block, below
-  // its own element lookups. Calling initModules() here instead would
+  // The package manager is wired up at the very end of this block, below
+  // its own element lookups. Calling initPackages() here instead would
   // hoist the declarations but not their assignments, so it would find
   // every element undefined and quietly do nothing.
 
-  // ---------- Module index ----------
+  // ---------- Package manager ----------
+  //
+  // What the reader has added to their own copy of Python, and the box where
+  // they add more.
+  //
+  // Installing is never automatic anywhere in this app. When an import fails,
+  // the shell says which module was missing and offers a button. The button
+  // asks the server to install it. Nothing is downloaded until that button is
+  // pressed, because a program that quietly starts reaching out to the network
+  // the moment it is run is a program nobody should open.
+  //
+  // The list is a plain list of rows, each ending in its own remove button. Not
+  // a listbox: a listbox needs its own arrow-key model and roving tabindex,
+  // and here every row is reachable by Tab, which is what somebody reading
+  // with a screen reader already expects.
+  var packagesDialog = document.getElementById('packages-dialog');
+  var packagesOpen = document.getElementById('btn-packages');
+  var packagesCloseBtn = document.getElementById('packages-close');
+  var packagesForm = document.getElementById('packages-form');
+  var packagesInput = document.getElementById('packages-input');
+  var packagesInstallBtn = document.getElementById('packages-install');
+  var packagesList = document.getElementById('packages-list');
+  var packagesEmpty = document.getElementById('packages-empty');
+  var packagesStatus = document.getElementById('packages-status');
+  var packagesBusy = false;
 
-  // The list is a plain list of buttons and the example is shown beside
-  // it. Deliberately not a listbox or a combobox: a reader arriving with
-  // a screen reader expects to Tab through results, and a listbox would
-  // take that away and demand arrow keys instead.
-  var modulesDialog = document.getElementById('modules-dialog');
-  var modulesOpen = document.getElementById('btn-modules');
-  var modulesCloseBtn = document.getElementById('modules-close');
-  var modulesSearch = document.getElementById('modules-search-input');
-  var modulesResults = document.getElementById('modules-results');
-  var modulesEmpty = document.getElementById('modules-empty');
-  var modulesStatus = document.getElementById('modules-status');
-  var modulesDetail = document.getElementById('modules-detail');
-  var modulesLevelBtns = document.querySelectorAll('.modules-level');
-
-  var modulesState = {
-    level: '',
-    all: [],
-    shown: 0,
-    // Guards against a slow response for an old keystroke arriving after
-    // a fast one. Without it, typing "shuf" can leave "shu" on screen.
-    wanted: 0
+  // What the server last said, so the remove buttons can decide whether to
+  // offer themselves at all. On the hosted copy there is no pip and nothing to
+  // remove, and a row of dead buttons is worse than no row.
+  var packagesState = {
+    canInstall: false,
+    directory: '',
+    installed: [],
+    pending: null
   };
 
-  function initModules() {
-    if (!modulesDialog || !modulesOpen) return;
-    modulesOpen.addEventListener('click', openModules);
-    if (modulesCloseBtn) modulesCloseBtn.addEventListener('click', closeModules);
-    if (modulesSearch) {
-      modulesSearch.addEventListener('input', onModulesSearch);
+  // The offer that appears when an import fails. Kept out of the dialog on
+  // purpose: the reader has just typed something and been told it did not
+  // work, and a modal in front of them interrupts the thought they were in the
+  // middle of.
+  var installOffer = document.getElementById('install-offer');
+  var installOfferText = document.getElementById('install-offer-text');
+  var installOfferYes = document.getElementById('install-offer-yes');
+  var installOfferNo = document.getElementById('install-offer-no');
+
+  function initPackages() {
+    if (packagesDialog && packagesOpen) {
+      packagesOpen.addEventListener('click', openPackages);
+      if (packagesCloseBtn) packagesCloseBtn.addEventListener('click', closePackages);
+      if (packagesDialog && typeof packagesDialog.addEventListener === 'function') {
+        // Escape closes a modal dialog by itself, but only where the browser
+        // supports it. Listening for it as well means the same key closes the
+        // panel on every browser we support, rather than trapping the reader
+        // inside a dialog they cannot leave.
+        packagesDialog.addEventListener('cancel', function (ev) {
+          if (ev && ev.preventDefault) ev.preventDefault();
+          closePackages();
+        });
+      }
     }
-    for (var i = 0; i < modulesLevelBtns.length; i++) {
-      modulesLevelBtns[i].addEventListener('click', onModulesLevel);
-    }
+    if (packagesForm) packagesForm.addEventListener('submit', onPackagesInstall);
+    if (installOfferNo) installOfferNo.addEventListener('click', hideInstallOffer);
   }
 
-  function openModules() {
-    // If showModal() throws, the reader is left staring at a button that
-    // looks broken. A message beats silence every time, so say what broke.
+  // ---------- The panel ----------
+
+  function openPackages() {
+    // If showModal() throws, the reader is left staring at a button that looks
+    // broken. A message beats silence every time, so say what broke.
     try {
-      if (typeof modulesDialog.showModal === 'function') {
-        modulesDialog.showModal();
+      if (packagesDialog.open) return;
+      if (typeof packagesDialog.showModal === 'function') {
+        packagesDialog.showModal();
       } else {
-        modulesDialog.setAttribute('open', '');
+        packagesDialog.setAttribute('open', '');
       }
-      if (modulesSearch) {
-        modulesSearch.focus();
-        modulesSearch.select();
-      }
+      if (packagesInput) packagesInput.focus();
     } catch (err) {
-      errorMessage.textContent = t('modules.open_failed');
-      errorPanel.hidden = false;
-      if (ttsEnabled) speak(t('modules.open_failed'));
-      if (err) console.error('module list would not open', err);
+      packagesStatus.textContent = t('packages.open_failed');
+      if (ttsEnabled) speak(t('packages.open_failed'));
+      if (err) console.error('package list would not open', err);
       return;
     }
-    if (!modulesState.all.length) loadModules();
+    loadPackages();
   }
 
-  function closeModules() {
-    if (typeof modulesDialog.close === 'function') {
-      modulesDialog.close();
+  function closePackages() {
+    if (!packagesDialog) return;
+    if (typeof packagesDialog.close === 'function') {
+      packagesDialog.close();
     } else {
-      modulesDialog.removeAttribute('open');
+      packagesDialog.removeAttribute('open');
     }
     // Send the reader back where they were, rather than leaving focus on
-    // the body where the next Tab restarts at the top of the page.
-    modulesOpen.focus();
+    // something that is no longer on the page.
+    if (packagesOpen) packagesOpen.focus();
   }
 
-  function onModulesSearch() {
-    loadModules();
-  }
-
-  function onModulesLevel(ev) {
-    var btn = ev.currentTarget;
-    modulesState.level = btn.getAttribute('data-level') || '';
-    for (var i = 0; i < modulesLevelBtns.length; i++) {
-      var on = modulesLevelBtns[i] === btn;
-      modulesLevelBtns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
-      modulesLevelBtns[i].classList.toggle('is-on', on);
-    }
-    loadModules();
-  }
-
-  // The whole catalogue comes back in one request and is kept, so typing
-  // filters locally and never waits on the network. It is a few tens of
-  // kilobytes, and the reader is going to search it the moment it opens.
-  function loadModules() {
-    var want = ++modulesState.wanted;
-    var params = [];
-    if (modulesSearch && modulesSearch.value.trim()) {
-      params.push('q=' + encodeURIComponent(modulesSearch.value.trim()));
-    }
-    if (modulesState.level) params.push('level=' + encodeURIComponent(modulesState.level));
-
-    var url = '/api/modules' + (params.length ? '?' + params.join('&') : '');
-    return fetch(url, { headers: { 'Accept': 'application/json' } })
-      .then(function (res) {
-        if (!res.ok) throw new Error('modules ' + res.status);
-        return res.json();
-      })
-      .then(function (data) {
-        if (want !== modulesState.wanted) return;
-        modulesState.all = data.modules || [];
-        modulesState.totalAll = data.total_all || 0;
-        renderModules(modulesState.all, data.total_all || 0);
-      })
-      .catch(function (err) {
-        if (want !== modulesState.wanted) return;
-        modulesResults.textContent = '';
-        // A failure is not an empty list. Saying "no results" when the list
-        // could not be fetched is the one answer guaranteed to be wrong, and
-        // it sends the reader off looking for a spelling mistake instead of
-        // the thing that actually broke.
-        if (modulesEmpty) {
-          modulesEmpty.hidden = false;
-          modulesEmpty.textContent = t('modules.load_failed');
+  function loadPackages() {
+    packagesGet('/api/packages')
+      .then(function (reply) {
+        // The status of the request is what decides this, not whether the
+        // body happens to carry an error string. A server that failed without
+        // saying why sends an empty message, and treating that as success would
+        // draw an empty list and leave the reader believing they have nothing
+        // installed.
+        if (!reply.ok || !reply.data) {
+          packagesStatus.textContent = t('packages.load_failed');
+          return;
         }
-        if (modulesStatus) modulesStatus.textContent = t('modules.load_failed');
-        if (err) console.error('modules list failed', err);
+        var data = reply.data;
+        if (data.error) {
+          packagesStatus.textContent = data.error;
+          return;
+        }
+        packagesState.canInstall = !!data.can_install;
+        packagesState.directory = data.directory || '';
+        packagesState.installed = data.installed || [];
+        renderPackages(packagesState.installed);
       });
   }
 
-  // Only the first slice is rendered. 192 result buttons is a lot of DOM
-  // for a screen reader to walk past, and the reader who wanted result
-  // 150 has usually typed something narrower. Narrower the search, more
-  // is shown - so a precise search never hides what it found.
-  var MODULES_PAGE = 40;
+  function renderPackages(list) {
+    packagesList.textContent = '';
 
-  function renderModules(list, totalAll) {
-    modulesState.shown = Math.min(list.length, MODULES_PAGE);
-    modulesResults.textContent = '';
-    for (var i = 0; i < modulesState.shown; i++) {
-      modulesResults.appendChild(moduleItem(list[i]));
+    if (!list.length) {
+      packagesEmpty.hidden = false;
+    } else {
+      packagesEmpty.hidden = true;
     }
-    if (modulesEmpty) modulesEmpty.hidden = list.length !== 0;
-    if (modulesStatus) {
-      modulesStatus.textContent = t('modules.results_aria', list.length);
+
+    for (var i = 0; i < list.length; i++) {
+      packagesList.appendChild(packageRow(list[i]));
     }
-    if (list.length > modulesState.shown) {
-      var more = document.createElement('li');
-      more.className = 'modules-more';
-      var moreBtn = document.createElement('button');
-      moreBtn.type = 'button';
-      moreBtn.className = 'btn btn-small';
-      moreBtn.textContent = t('modules.show_more', modulesState.shown, list.length);
-      moreBtn.addEventListener('click', function () {
-        var from = modulesState.shown;
-        var upto = Math.min(list.length, from + MODULES_PAGE);
-        for (var j = from; j < upto; j++) {
-          modulesResults.appendChild(moduleItem(list[j]));
-        }
-        modulesState.shown = upto;
-        more.remove();
-        modulesStatus.textContent = t('modules.results_aria', list.length);
-      });
-      more.appendChild(moreBtn);
-      modulesResults.appendChild(more);
+
+    if (packagesInstallBtn) {
+      packagesInstallBtn.disabled = packagesBusy || !packagesState.canInstall;
+    }
+    if (packagesInput) {
+      // On the hosted copy there is nowhere to install to. Saying so once, in
+      // the field itself, beats a button that never works.
+      packagesInput.disabled = packagesBusy || !packagesState.canInstall;
     }
   }
 
-  function moduleItem(entry) {
+  function packageRow(pkg) {
     var li = document.createElement('li');
-    li.className = 'modules-result';
-
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'modules-result-btn';
-    btn.setAttribute('data-module', entry.name);
+    li.className = 'packages-row';
 
     var name = document.createElement('span');
-    name.className = 'modules-name';
-    name.textContent = entry.name;
-    btn.appendChild(name);
+    name.className = 'packages-row-name';
+    name.textContent = pkg.version ? pkg.name + ' ' + pkg.version : pkg.name;
+    li.appendChild(name);
 
-    var summary = document.createElement('span');
-    summary.className = 'modules-summary';
-    summary.textContent = entry.summary;
-    btn.appendChild(summary);
+    var row = document.createElement('span');
+    row.className = 'packages-row-actions';
 
-    // Availability is text, not just a colour: a green tick means
-    // nothing to a screen reader, and means nothing at all to somebody
-    // who cannot separate the two.
-    var flag = document.createElement('span');
-    flag.className = 'modules-flag' + (entry.available ? '' : ' is-off');
-    flag.textContent = entry.available
-      ? t('modules.available_here')
-      : t('modules.not_available');
-    btn.appendChild(flag);
-
-    btn.addEventListener('click', function () {
-      showModule(entry.name);
+    var remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn btn-small packages-remove';
+    remove.textContent = t('packages.remove');
+    // The package name is on the button as well as beside it, so a screen
+    // reader announcing the control out of context says which one it removes.
+    remove.setAttribute('aria-label', t('packages.remove_named', pkg.name));
+    remove.disabled = packagesBusy;
+    remove.addEventListener('click', function () {
+      onPackagesRemove(pkg.name);
     });
-    li.appendChild(btn);
+    row.appendChild(remove);
+
+    li.appendChild(row);
     return li;
   }
 
-  function showModule(name) {
-    var token = ++modulesState.wanted;
-    modulesDetail.textContent = '';
-    modulesDetail.appendChild(moduleHeading(name));
-    modulesDetail.appendChild(loadingNote(t('modules.loading')));
-    return fetch('/api/modules/' + encodeURIComponent(name), {
-      headers: { 'Accept': 'application/json' }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (token !== modulesState.wanted) return;
-        if (data.error) {
-          modulesDetail.appendChild(loadingNote(t('modules.no_results')));
+  // ---------- Installing ----------
+
+  function onPackagesInstall(ev) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    if (!packagesInput) return;
+    var name = packagesInput.value.trim();
+    if (!name) {
+      packagesStatus.textContent = t('packages.name_needed');
+      packagesInput.focus();
+      return;
+    }
+    packagesBusy = true;
+    packagesStatus.textContent = t('packages.installing', name);
+    if (packagesInstallBtn) packagesInstallBtn.disabled = true;
+
+    packagesPost('/api/packages/install', { name: name })
+      .then(function (reply) {
+        packagesBusy = false;
+        var data = reply.data || {};
+        if (!reply.ok || !data.success) {
+          packagesStatus.textContent = data.error || t('packages.failed');
+          if (ttsEnabled) speak(packagesStatus.textContent);
+          renderPackages(packagesState.installed || []);
           return;
         }
-        renderModuleDetail(data);
-      })
-      .catch(function () {
-        if (token !== modulesState.wanted) return;
-        modulesDetail.appendChild(loadingNote(t('modules.no_results')));
+        packagesStatus.textContent = t('packages.installed', name);
+        if (ttsEnabled) speak(packagesStatus.textContent);
+        if (packagesInput) {
+          packagesInput.value = '';
+        }
+        // The shell holds its own copy of everything it imported, so the server
+        // restarted it. Re-render from the server rather than guessing what the
+        // version ended up as.
+        loadPackages();
       });
   }
 
-  function moduleHeading(name) {
-    var wrap = document.createElement('div');
-    var h = document.createElement('h3');
-    h.className = 'modules-detail-name';
-    h.textContent = name;
-    wrap.appendChild(h);
-    return wrap;
+  // ---------- Removing ----------
+
+  function onPackagesRemove(name) {
+    packagesBusy = true;
+    packagesStatus.textContent = t('packages.removing', name);
+    renderPackages(packagesState.installed || []);
+
+    packagesPost('/api/packages/uninstall', { name: name })
+      .then(function (reply) {
+        packagesBusy = false;
+        var data = reply.data || {};
+        if (!reply.ok || !data.success) {
+          packagesStatus.textContent = data.error || t('packages.remove_failed');
+          if (ttsEnabled) speak(packagesStatus.textContent);
+          loadPackages();
+          return;
+        }
+        packagesStatus.textContent = t('packages.removed', name);
+        if (ttsEnabled) speak(packagesStatus.textContent);
+        packagesState.installed = data.installed || [];
+        renderPackages(packagesState.installed);
+      });
   }
 
-  function loadingNote(text) {
-    var p = document.createElement('p');
-    p.className = 'modules-note';
-    p.textContent = text;
-    return p;
-  }
+  // ---------- The offer that follows a failed import ----------
 
-  function renderModuleDetail(data) {
-    modulesDetail.textContent = '';
-    modulesDetail.appendChild(moduleHeading(data.name));
-
-    var sum = document.createElement('p');
-    sum.className = 'modules-detail-summary';
-    sum.textContent = data.summary;
-    modulesDetail.appendChild(sum);
-
-    var flags = document.createElement('p');
-    flags.className = 'modules-detail-flags';
-    var avail = document.createElement('span');
-    avail.className = 'modules-flag' + (data.available ? '' : ' is-off');
-    avail.textContent = data.available
-      ? t('modules.available_here')
-      : t('modules.not_available');
-    flags.appendChild(avail);
-    if (!data.runs_in_web) {
-      flags.appendChild(document.createTextNode(' '));
-      var web = document.createElement('span');
-      web.className = 'modules-flag is-web';
-      web.textContent = t('modules.web_blocked');
-      flags.appendChild(web);
+  // Called with whatever the server reported: the module that was missing and
+  // the package that provides it. They are often different names, which is why
+  // both travel back. The sentence names the package, because that is the word
+  // the reader has to learn and remember, and the module is what their code
+  // already says.
+  function offerInstall(missingModule, missingPackage) {
+    if (!installOffer || !missingModule || !missingPackage) return;
+    packagesState.pending = missingPackage;
+    if (installOfferText) {
+      installOfferText.textContent = t('packages.offer', missingModule, missingPackage);
     }
-    modulesDetail.appendChild(flags);
-
-    var label = document.createElement('h4');
-    label.className = 'modules-example-label';
-    label.textContent = t('modules.example');
-    modulesDetail.appendChild(label);
-
-    var pre = document.createElement('pre');
-    pre.className = 'modules-example';
-    pre.setAttribute('tabindex', '0');
-    pre.textContent = data.example;
-    modulesDetail.appendChild(pre);
-
-    var row = document.createElement('div');
-    row.className = 'modules-actions';
-
-    var insert = document.createElement('button');
-    insert.type = 'button';
-    insert.className = 'btn btn-small';
-    insert.id = 'modules-insert';
-    insert.textContent = t('modules.insert');
-    insert.addEventListener('click', function () {
-      insertExample(data.example);
-    });
-    row.appendChild(insert);
-
-    modulesDetail.appendChild(row);
+    installOffer.hidden = false;
+    if (ttsEnabled) speak(installOfferText.textContent);
+    if (installOfferYes) installOfferYes.focus();
   }
 
-  // Appended rather than replacing what the reader already wrote. Losing
-  // work to a reference lookup is a bad trade.
-  function insertExample(code) {
-    if (typeof editor === 'undefined' || !editor) return;
-    var current = editor.getValue();
-    var next = current && current.charAt(current.length - 1) !== '\n'
-      ? current + '\n\n' + code
-      : current + code;
-    editor.setValue(next);
-    editor.focus();
-    editor.setCursor(editor.lineCount(), 0);
-    closeModules();
-    modulesOpen.focus();
+  function hideInstallOffer() {
+    if (!installOffer) return;
+    packagesState.pending = null;
+    installOffer.hidden = true;
+  }
+
+  // Pressing the offer's button is the same action as typing the name into the
+  // panel, so it goes through the same request and the same code path. Two
+  // copies of "install a package" would drift.
+  if (installOfferYes) {
+    installOfferYes.addEventListener('click', function () {
+      var name = packagesState.pending;
+      hideInstallOffer();
+      if (!name) return;
+      packagesInput = packagesInput || document.getElementById('packages-input');
+      openPackages();
+      if (packagesInput) {
+        packagesInput.value = name;
+        // Not submitted automatically. The reader pressed Install, but on a
+        // dialog they have not seen yet, and installing a package is worth one
+        // more deliberate press on something they can read first.
+        packagesInput.focus();
+      }
+    });
+  }
+
+  // One request helper for all three routes, so the session, access code, and
+  // locale ride along the same way every time.
+  //
+  // It hands back the status alongside the body rather than the body alone.
+  // A 500 with no explanation in it and a 200 with an empty object are the
+  // same shape once parsed, and they mean opposite things to the reader.
+  function packagesPost(url, body) {
+    var payload = body || {};
+    payload.session = shellSession;
+    payload.access_code = accessCode;
+    payload.locale = META.locale;
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        return { ok: res.ok, data: data };
+      }, function () {
+        // The server answered with something that is not JSON at all, which
+        // is what a proxy or a crashed worker looks like from here.
+        return { ok: false, data: null };
+      });
+    }).catch(function () {
+      // The request never arrived. Treated as a failed one rather than left
+      // as an unhandled rejection, so a caller waiting on a busy flag clears
+      // it instead of leaving the panel stuck on "installing".
+      return { ok: false, data: null };
+    });
+  }
+
+  // Listing is a read, so it is asked for with GET. It also rides along with the
+  // session and access code, because the hosted copy gates the same things here
+  // as everywhere else and the page should not have to special-case it.
+  function packagesGet(url) {
+    var query = 'session=' + encodeURIComponent(shellSession || '') +
+      '&access_code=' + encodeURIComponent(accessCode || '') +
+      '&locale=' + encodeURIComponent(META.locale || '');
+    return fetch(url + '?' + query, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        return { ok: res.ok, data: data };
+      }, function () {
+        return { ok: false, data: null };
+      });
+    }).catch(function () {
+      return { ok: false, data: null };
+    });
   }
 
   // The Python shell.
@@ -2623,6 +2652,15 @@
         shellSay(data.output);
         if (data.error) {
           shellSay(data.error, true);
+          // A missing module is the one error with something the reader can do
+          // about it, so the offer goes up here, below the error they just read
+          // and in the order it happened.
+          hideInstallOffer();
+          if (data.missing_module && data.missing_package) {
+            offerInstall(data.missing_module, data.missing_package);
+          }
+        } else {
+          hideInstallOffer();
         }
       })
       .catch(function () {
@@ -2666,6 +2704,6 @@
   }
 
   // The element lookups above have all run by now.
-  initModules();
+  initPackages();
 
 })();

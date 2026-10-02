@@ -64,12 +64,16 @@ const KNOWN_IDS = new Set([
   'preview-status', 'swatches', 'code-color-hex', 'code-color-picker',
   'colour-error', 'btn-reset-colour',
   'language-select',
-  // The module index. Without these declared here, initModules() takes
-  // its early-return path and nothing about the index is exercised.
-  'modules-dialog', 'modules-title', 'btn-modules', 'modules-close',
-  'modules-search-input', 'modules-search-help', 'modules-filter-label',
-  'modules-results', 'modules-results-label', 'modules-empty',
-  'modules-status', 'modules-detail', 'modules-detail-label',
+  // The package manager. Without these declared here, initPackages() takes
+  // its early-return path and nothing about the panel is exercised.
+  'packages-dialog', 'packages-title', 'btn-packages', 'packages-close',
+  'packages-form', 'packages-input', 'packages-install', 'packages-list',
+  'packages-list-label', 'packages-empty', 'packages-status',
+  // The install offer that follows a failed import. Declared here so the
+  // path where the shell offers to install something is walked rather than
+  // skipped.
+  'install-offer', 'install-offer-text', 'install-offer-yes',
+  'install-offer-no',
   // The Python shell. Declared here for the same reason as the index above:
   // without these, the pane cannot be found and nothing about the shell is
   // exercised, while the harness still reports success.
@@ -445,17 +449,7 @@ const GLASS_MATERIAL_RADIOS = ['off', 'mica', 'frosted', 'acrylic'].map((value) 
     { value, checked: value === 'off' })
 );
 
-// The four level filters, in the order the template renders them. The
-// first one starts pressed, because the index opens showing everything.
-const MODULE_LEVELS = ['', 'start', 'everyday', 'advanced'];
-const MODULE_LEVEL_BUTTONS = MODULE_LEVELS.map((level) => {
-  const el = makeElement(`modules-level-${level || 'all'}`, {
-    'data-level': level,
-    'aria-pressed': level === '' ? 'true' : 'false',
-  });
-  el.className = 'btn btn-small modules-level' + (level === '' ? ' is-on' : '');
-  return el;
-});
+
 
 const SETUP_DIALOG = makeElement('setup-dialog', {}, {
   // Recorded rather than discarded: "the wizard was in the markup but never
@@ -664,7 +658,6 @@ function makePage(locale, shared, bodyAttrs) {
     // same four elements every time, so the listeners it attaches are the
     // ones a check can fire.
     querySelectorAll: (selector) => {
-      if (selector === '.modules-level') return MODULE_LEVEL_BUTTONS;
       // The panel material is four radios for one setting, the same shape as
       // the wizard's language radios. Held to the same bar.
       if (selector === 'input[name="glass-material"]') return GLASS_MATERIAL_RADIOS;
@@ -751,7 +744,7 @@ let updateConfigOk = true;
 // Flipped on to make the module list fail to load. A broken fetch and an
 // empty catalogue look identical from the outside, which is exactly why the
 // app has to say which one happened.
-let modulesListOk = true;
+
 // The bodies sent to the update check, so a check can be told apart from a
 // forced one.
 const updateCheckBodies = [];
@@ -773,41 +766,33 @@ const updateInstallBodies = [];
 // can only prove the app ran, not that it said anything.
 const spokenUtterances = [];
 
-// Stand-in module data. A handful is enough: the point is to check how
-// the app draws and orders what it is given, and the catalogue's contents
-// are covered by the Python tests.
-const MODULE_LIST = {
-  total: 3,
-  total_all: 3,
-  counts: { start: 1, everyday: 1, advanced: 1 },
-  modules: [
-    {
-      name: 'json', level: 'everyday', group: 'data',
-      summary: 'Reading and writing data as text a person can read.',
-      words: ['settings'], available: true, runs_in_web: true,
-    },
-    {
-      name: 'curses', level: 'advanced', group: 'system',
-      summary: 'Coloured menus in a terminal window.',
-      words: ['terminal'], available: false, runs_in_web: true,
-    },
-    {
-      name: 'tkinter', level: 'advanced', group: 'graphics',
-      summary: 'Windows, buttons and boxes on the screen.',
-      words: ['windows'], available: true, runs_in_web: false,
-    },
-  ],
-};
+// Stand-in package data. A couple is enough: the point is to check how the
+// app draws and removes what it is given, and which packages really are
+// installed is covered by the Python tests.
+const PACKAGE_LIST = [
+  { name: 'toml', version: '0.10.2', module: 'toml' },
+  { name: 'Pillow', version: '10.0.0', module: 'PIL' },
+];
 
-const MODULE_DETAIL = {
-  name: 'json', level: 'everyday', group: 'data',
-  summary: 'Reading and writing data as text a person can read.',
-  words: ['settings'], available: true, runs_in_web: true,
-  example: 'import json\nprint(json.dumps({"ok": True}))',
-};
+// What the reader asked to install or remove, so a check can tell one request
+// from another.
+const packageBodies = [];
+let packagesListOk = true;
+let packageInstallOk = true;
+
+function parseBody(options) {
+  try { return JSON.parse(options && options.body) || {}; } catch (e) { return {}; }
+}
+
+// Every request, with the method it used. A route that only accepts POST is
+// answered with 405 by Flask, and the page's own handling of that is what the
+// method checks below are about: the list has to be a GET because it changes
+// nothing, and the two that do change things must never be a GET.
+const fetchMethods = [];
 
 function fetchStub(url, options) {
   fetchCalls.push(url);
+  fetchMethods.push({ url: String(url), method: (options && options.method) || 'GET' });
   // The shell, before the catch-all /api/config branch, because the session
   // id it is handed has to be echoed back or a check cannot tell that one
   // command's output reached the next.
@@ -838,6 +823,19 @@ function fetchStub(url, options) {
         }),
       });
     }
+    // The one error the reader can do something about. The module name and the
+    // package that provides it both travel back, because they are often
+    // different words and the panel needs both.
+    if (sent.code === 'needpillow') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true, output: '',
+          error: 'PIL is not installed.',
+          missing_module: 'PIL', missing_package: 'Pillow',
+        }),
+      });
+    }
     return Promise.resolve({
       ok: true,
       json: () => Promise.resolve({
@@ -857,26 +855,44 @@ function fetchStub(url, options) {
       }),
     });
   }
-  if (String(url).includes('/api/modules/')) {
-    const wanted = decodeURIComponent(String(url).split('/api/modules/')[1].split('?')[0]);
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(
-        wanted === MODULE_DETAIL.name ? MODULE_DETAIL : { error: 'unknown module' },
-      ),
-    });
-  }
-  if (String(url).includes('/api/modules')) {
-    if (!modulesListOk) {
+  if (String(url).includes('/api/packages')) {
+    if (String(url).includes('/install')) {
+      packageBodies.push(parseBody(options));
+      // A failure carries a sentence the reader can act on, which is what the
+      // real route sends. A check that only looked for "some error text"
+      // would pass on a raw pip log, which is the thing being ruled out.
+      return Promise.resolve(packageInstallOk
+        ? { ok: true, json: () => Promise.resolve({ success: true, package: PACKAGE_LIST[0] }) }
+        : {
+          ok: false,
+          json: () => Promise.resolve({
+            success: false, reason: 'install_failed',
+            error: 'pip could not install nope. The name may be wrong, or the download may have failed.',
+          }),
+        });
+    }
+    if (String(url).includes('/uninstall')) {
+      packageBodies.push(parseBody(options));
+      const gone = PACKAGE_LIST.filter((p) => p.name !== parseBody(options).name);
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true, removed: 1, installed: gone }),
+      });
+    }
+    if (!packagesListOk) {
+      // A server that cannot answer does not get to describe the failure in
+      // its own words, so the app has to fall back to its own sentence.
       return Promise.resolve({
         ok: false,
         status: 500,
-        json: () => Promise.resolve({ error: 'gone wrong' }),
+        json: () => Promise.resolve({ error: '' }),
       });
     }
     return Promise.resolve({
       ok: true,
-      json: () => Promise.resolve(MODULE_LIST),
+      json: () => Promise.resolve({
+        installed: PACKAGE_LIST, can_install: true, directory: '/tmp/pkgs',
+      }),
     });
   }
   if (String(url).includes('/api/config') && options && options.body) {
@@ -1919,7 +1935,7 @@ function runSpeechChecks() {
     // The last stage runs once, whatever asks for it.
     if (finishCalled) return;
     finishCalled = true;
-    runModuleIndexChecks(() => process.exit(broke || failed ? 1 : 0));
+    runPackageChecks(() => process.exit(broke || failed ? 1 : 0));
   };
 }
 
@@ -2649,10 +2665,6 @@ function runStepperChecks() {
 
 
 // The module index. The interaction sweep above already fired the search
-// input and the close button, so this checks what a sweep cannot: that
-// results arrive and are drawn, that the dialog behaves as a dialog, and
-// that an example reaches the editor without losing what was there.
-//
 // Text of a subtree, the way a screen reader would read it out.
 function readText(node) {
   if (!node) return '';
@@ -2662,7 +2674,8 @@ function readText(node) {
   return (node.children || []).map(readText).join(' ');
 }
 
-function runModuleIndexChecks(done) {
+// The package manager.
+function runPackageChecks(done) {
   // This is the last stage in the run. If it stops part way through, node
   // exits 0 and everything after the break is silently skipped - which is
   // exactly what a green run used to mean. So the stage has to reach the end,
@@ -2671,7 +2684,7 @@ function runModuleIndexChecks(done) {
   const watchdog = setTimeout(() => {
     if (settled) return;
     failed = true;
-    console.log('FAIL the module checks never finished, so the checks after them were skipped');
+    console.log('FAIL the package checks never finished, so the checks after them were skipped');
     process.exit(1);
   }, 5000);
   const finishStage = () => {
@@ -2681,214 +2694,277 @@ function runModuleIndexChecks(done) {
     done();
   };
 
-  const dialog = elements.get('modules-dialog');
-  const opener = elements.get('btn-modules');
-  const search = elements.get('modules-search-input');
-  const results = elements.get('modules-results');
-  const status = elements.get('modules-status');
-  const empty = elements.get('modules-empty');
+  const dialog = elements.get('packages-dialog');
+  const opener = elements.get('btn-packages');
+  const form = elements.get('packages-form');
+  const input = elements.get('packages-input');
+  const list = elements.get('packages-list');
+  const status = elements.get('packages-status');
+  const empty = elements.get('packages-empty');
 
-  // Open it from its own button, rather than relying on the interaction
-  // sweep above: this check is then independent of where that sweep's
-  // list happens to sit, and it exercises the button a reader presses.
+  // Open it from its own button, rather than relying on the interaction sweep
+  // above: this check is then independent of where that sweep happened to sit,
+  // and it exercises the button a reader presses.
   (opener.__listeners.click || []).forEach((h) => h(fakeEvent));
 
   // Opened as a real modal, so the browser supplies the focus trap.
   if (dialog.__open !== true) {
     failed = true;
-    console.log('FAIL the module index did not open as a modal');
+    console.log('FAIL the package panel did not open as a modal');
   } else {
-    console.log('     the module index opens as a real modal');
+    console.log('     the package panel opens as a real modal');
   }
 
-  // The search box takes focus, because that is what the reader came for.
-  if (documentStub.activeElement !== search) {
+  // The name box takes focus, because that is where an install starts.
+  if (documentStub.activeElement !== input) {
     failed = true;
-    console.log('FAIL the module index did not put focus in the search box');
+    console.log('FAIL the package panel did not put focus in the name box');
   } else {
-    console.log('     it puts the reader straight in the search box');
+    console.log('     it puts the reader straight in the name box');
   }
 
-  // The catalogue is fetched, rather than embedded, and asked for by name.
-  if (!fetchCalls.some((u) => u.includes('/api/modules'))) {
+  // Listing is a read, so it is asked for with GET. The route only answers
+  // GET, and a POST here comes back 405, which the page would render as
+  // "could not open the package list" on every single open.
+  const listCalls = fetchMethods.filter((c) => c.url.includes('/api/packages')
+    && !c.url.includes('/install') && !c.url.includes('/uninstall'));
+  if (!listCalls.length) {
     failed = true;
-    console.log('FAIL the module index never asked the server for the catalogue');
+    console.log('FAIL the package panel never asked the server what is installed');
+  } else if (!listCalls.every((c) => c.method === 'GET')) {
+    failed = true;
+    console.log(`FAIL the package list was asked for with ${listCalls[0].method} rather than GET`);
   } else {
-    console.log('     it asks the server for the catalogue');
+    console.log('     it asks the server what is installed, with a GET');
   }
 
   setTimeout(() => {
-    const drawn = (results.children || []).filter((c) => c.tagName !== 'li-more');
-    if (drawn.length === 0) {
+    const drawn = (list.children || []).filter((c) => c.tagName !== 'li-more');
+    if (drawn.length !== PACKAGE_LIST.length) {
       failed = true;
-      console.log('FAIL the module index drew no results');
+      console.log(`FAIL the package list drew ${drawn.length} rows, expected ${PACKAGE_LIST.length}`);
     } else {
-      console.log(`     it draws the ${drawn.length} results the server sent`);
+      console.log(`     it draws one row for each of the ${drawn.length} installed packages`);
     }
 
-    // The count is announced, in a number rather than a raw key.
-    if (!/\d/.test(String(status.textContent))) {
+    // Each row names the package and its version, and carries its own remove
+    // button. A screen reader reaching the button has to be told which package
+    // it removes, so the name is in the label too.
+    const first = readText(drawn[0]);
+    if (!first.includes('toml') || !first.includes('0.10.2')) {
       failed = true;
-      console.log(`FAIL the result count was not announced: "${status.textContent}"`);
+      console.log(`FAIL a row did not name its package and version: ${first.slice(0, 90)}`);
     } else {
-      console.log('     it announces how many modules matched');
+      console.log('     a row names the package and the version installed');
+    }
+    const remove = findButtonByText(drawn[0], 'Remove');
+    if (!remove) {
+      failed = true;
+      console.log('FAIL a package row carried no remove button');
+    } else if (!/toml/.test(String(remove.getAttribute('aria-label')))) {
+      failed = true;
+      console.log(`FAIL the remove button did not name its package: ${remove.getAttribute('aria-label')}`);
+    } else {
+      console.log('     the remove button names the package it removes');
     }
 
-    // Each result names the module, says what it is for, and says whether
-    // it is on this computer. Availability in words, not a coloured dot:
-    // a screen reader says nothing about a tint.
-    const said = readText(drawn[0]);
-    if (!said.includes('json')) {
+    // Nothing is installed without the reader asking, so an empty name is
+    // refused in the page rather than sent to the server. The box is emptied
+    // first because the harness gives every text field a placeholder value.
+    input.value = '';
+    const beforeBlank = packageBodies.length;
+    (form.__listeners.submit || []).forEach((h) => h(eventFor(form)));
+    if (packageBodies.length !== beforeBlank) {
       failed = true;
-      console.log(`FAIL the first result did not name its module: ${said.slice(0, 90)}`);
-    } else if (!/On this computer|Not on this computer/.test(said)) {
+      console.log('FAIL an empty name was sent to the server');
+    } else if (!/Type the name/.test(String(status.textContent))) {
       failed = true;
-      console.log(`FAIL availability was not given in words: ${said.slice(0, 90)}`);
+      console.log(`FAIL an empty name was not explained: "${status.textContent}"`);
     } else {
-      console.log('     a result names the module, says what it does, and says if it is here');
+      console.log('     an empty name is refused before it reaches the network');
     }
 
-    // A module that is not installed is still listed - it is part of
-    // Python - but it says so, rather than looking runnable.
-    const offText = readText(drawn[1]);
-    if (!/Not on this computer/.test(offText)) {
+    // A typed name is sent, and only then. This is the whole promise the
+    // panel makes, so it is checked rather than assumed.
+    input.value = 'pygame';
+    (form.__listeners.submit || []).forEach((h) => h(eventFor(form)));
+    if (!packageBodies.some((b) => b.name === 'pygame')) {
       failed = true;
-      console.log(`FAIL a missing module was not marked: ${offText.slice(0, 90)}`);
+      console.log('FAIL a typed package name was not sent to the server');
     } else {
-      console.log('     a module that is not installed says so in words');
-    }
-
-    // Choosing a result loads its example, and offers the two things a
-    // reader can do with it.
-    const button = (drawn[0].children || [])[0];
-    const handlers = (button && button.__listeners && button.__listeners.click) || [];
-    if (handlers.length === 0) {
-      failed = true;
-      console.log('FAIL a module result was not clickable');
-    } else {
-      handlers[0](fakeEvent);
+      console.log('     a typed name is installed only because the reader pressed the button');
     }
 
     setTimeout(() => {
-      const detail = elements.get('modules-detail');
-      const detailText = readText(detail);
-      if (!detailText.includes('import json')) {
+      if (!/pygame is installed/.test(String(status.textContent))) {
         failed = true;
-        console.log(`FAIL the example was not shown: ${detailText.slice(0, 120)}`);
+        console.log(`FAIL the install was not confirmed in words: "${status.textContent}"`);
       } else {
-        console.log('     choosing a module shows its example');
+        console.log('     a finished install is confirmed in words');
       }
-      // Web-blocked is a sentence, and only appears for a module that
-      // really cannot run there.
-      const detailAll = readText(detail);
-      if (/web version/.test(detailAll)) {
+      if (String(input.value) !== '') {
         failed = true;
-        console.log('FAIL a runnable module was marked as web-blocked');
+        console.log('FAIL the name box kept the name after a successful install');
       } else {
-        console.log('     a runnable example is not marked as blocked');
+        console.log('     the name box is emptied, so the next install is a fresh one');
       }
 
-      // Putting it in the editor appends. A reference lookup must never
-      // cost somebody the work they had already done.
-      const before = editorInstance.getValue();
-      const insert = (detail.children || []).map(readText).join(' ');
-      const insertBtn = findButtonByText(detail, 'Put the example in the editor');
-      if (!insertBtn) {
-        failed = true;
-        console.log(`FAIL the detail offered no insert button: ${insert.slice(0, 140)}`);
-      } else {
-        insertBtn.__listeners.click.forEach((h) => h(fakeEvent));
-        const after = editorInstance.getValue();
-        if (after === before) {
-          failed = true;
-          console.log('FAIL inserting an example changed nothing');
-        } else if (!after.startsWith(before)) {
-          failed = true;
-          console.log('FAIL inserting an example overwrote what was already there');
-        } else if (!after.includes('import json')) {
-          failed = true;
-          console.log('FAIL the example was not put in the editor');
-        } else {
-          console.log('     an example is added without losing what was already there');
-        }
-      }
-
-      // The level filters. Choosing one has to be reflected in the
-      // request and in aria-pressed, and the others have to stand down -
-      // two filters that look pressed at once is a lie about what is
-      // being shown.
-      const before2 = fetchCalls.length;
-      const everyday = MODULE_LEVEL_BUTTONS[2];
-      (everyday.__listeners.click || []).forEach((h) => h(eventFor(everyday)));
-      if (everyday.__attributes['aria-pressed'] !== 'true') {
-        failed = true;
-        console.log('FAIL the chosen level filter did not report itself as pressed');
-      } else {
-        console.log('     a level filter reports that it is the one in use');
-      }
-      const othersPressed = MODULE_LEVEL_BUTTONS.filter(
-        (b) => b !== everyday && b.__attributes['aria-pressed'] === 'true');
-      if (othersPressed.length) {
-        failed = true;
-        console.log(`FAIL ${othersPressed.length} other level filters stayed pressed`);
-      } else {
-        console.log('     the other filters stand down, so only one looks chosen');
-      }
-      const asked = fetchCalls.slice(before2).join(' ');
-      if (!/level=everyday/.test(asked)) {
-        failed = true;
-        console.log(`FAIL the level was not sent to the server: ${asked.slice(0, 120)}`);
-      } else {
-        console.log('     the chosen level is sent to the server');
-      }
-
-      // And the index gets out of the way, handing focus back.
-      if (dialog.__open !== false) {
-        failed = true;
-        console.log('FAIL inserting did not close the index');
-      }
-      if (documentStub.activeElement !== opener) {
-        failed = true;
-        console.log('FAIL focus was not returned to the button that opened the index');
-      } else {
-        console.log('     it closes and hands focus back to the button');
-      }
-
-      // A list that could not be loaded is not an empty list. Telling a
-      // reader "nothing matched" when the server is the thing that failed
-      // sends them hunting for a spelling mistake that is not there.
-      modulesListOk = false;
-      // The app logs the reason to the console, which is right in a browser
-      // and only noise here, where the failure is the point of the check.
-      const realError = console.error;
-      console.error = () => {};
-      search.value = 'zzz';
-      (search.__listeners.input || []).forEach((h) => h(eventFor(search)));
+      // Removing a package asks the server to remove it and reports what
+      // happened. The claim that matters is that the reader is told either way.
+      packageInstallOk = false;
+      input.value = 'nope';
+      (form.__listeners.submit || []).forEach((h) => h(eventFor(form)));
       setTimeout(() => {
-        console.error = realError;
-        const empty = elements.get('modules-empty');
-        const text = readText(empty);
-        if (!/could not be loaded/.test(text)) {
+        packageInstallOk = true;
+        if (!/could not be installed|could not install/.test(String(status.textContent))) {
           failed = true;
-          console.log('FAIL a failed load is not reported as a failure: ' + text);
-        } else if (/Nothing matched/.test(text)) {
-          failed = true;
-          console.log('FAIL a failed load still claims nothing matched');
+          console.log(`FAIL a failed install was not reported: "${status.textContent}"`);
         } else {
-          console.log('     a list that would not load says so, and does not pretend it is empty');
+          console.log('     a failed install is reported rather than left silent');
         }
-        modulesListOk = true;
-        // Printed only if the stage reached its end, so a truncation shows
-        // up as a missing line rather than as a run that quietly passed.
-        console.log('modules: the index opened, searched, filtered and inserted');
-        finishStage();
+
+        const removeBtn = findButtonByText(drawn[1], 'Remove');
+        const beforeGone = packageBodies.length;
+        (removeBtn.__listeners.click || []).forEach((h) => h(fakeEvent));
+        if (packageBodies.length === beforeGone) {
+          failed = true;
+          console.log('FAIL pressing remove asked the server nothing');
+        } else if (packageBodies[packageBodies.length - 1].name !== 'Pillow') {
+          failed = true;
+          console.log(`FAIL the wrong package was removed: ${packageBodies[packageBodies.length - 1].name}`);
+        } else {
+          console.log('     a row removes the package that row names');
+        }
+
+        setTimeout(() => {
+          if (!/Pillow is removed/.test(String(status.textContent))) {
+            failed = true;
+            console.log(`FAIL the removal was not confirmed: "${status.textContent}"`);
+          } else {
+            console.log('     a finished removal is confirmed in words');
+          }
+
+          // A list that could not be loaded is not an empty list. Telling a
+          // reader "nothing installed" when the server is the thing that
+          // failed sends them hunting for a mistake that is not there.
+          packagesListOk = false;
+          const realError = console.error;
+          console.error = () => {};
+          // Close first. Opening a panel that is already open does nothing, by
+          // design, so the button alone would never ask again.
+          (elements.get('packages-close').__listeners.click || [])
+            .forEach((h) => h(fakeEvent));
+          (opener.__listeners.click || []).forEach((h) => h(fakeEvent));
+          setTimeout(() => {
+            console.error = realError;
+            const text = String(status.textContent);
+            if (!/could not be loaded/.test(text)) {
+              failed = true;
+              console.log('FAIL a failed load is not reported as a failure: ' + text);
+            } else if (/Nothing has been added/.test(text)) {
+              failed = true;
+              console.log('FAIL a failed load still claims nothing is installed');
+            } else {
+              console.log('     a list that would not load says so, and does not pretend it is empty');
+            }
+            packagesListOk = true;
+
+            // And the install offer, driven the way a reader reaches it: a
+            // command in the shell that fails on a missing module. The module
+            // name and the package name are different words, and both have to
+            // be on screen, because the reader has to learn the package name
+            // to install it.
+            const shellBtn = elements.get('btn-shell');
+            const shellInput = elements.get('shell-input');
+            const offer = elements.get('install-offer');
+            const offerText = elements.get('install-offer-text');
+            (shellBtn.__listeners.click || []).forEach((h) => h(fakeEvent));
+
+            setTimeout(() => {
+              shellInput.value = 'needpillow';
+              (elements.get('shell-run').__listeners.click || []).forEach((h) => h(fakeEvent));
+
+              setTimeout(() => {
+                if (offer.hidden !== false) {
+                  failed = true;
+                  console.log('FAIL a missing module did not bring up the install offer');
+                } else if (!/PIL/.test(String(offerText.textContent))) {
+                  failed = true;
+                  console.log(`FAIL the offer did not name the missing module: ${offerText.textContent}`);
+                } else if (!/Pillow/.test(String(offerText.textContent))) {
+                  failed = true;
+                  console.log(`FAIL the offer did not name the package to install: ${offerText.textContent}`);
+                } else {
+                  console.log('     a missing import is named, with the package that provides it');
+                }
+
+                // Declining has to actually take it away, and has to install
+                // nothing on the way out.
+                const beforeDecline = packageBodies.length;
+                (elements.get('install-offer-no').__listeners.click || [])
+                  .forEach((h) => h(fakeEvent));
+                if (offer.hidden !== true) {
+                  failed = true;
+                  console.log('FAIL declining the offer left it on screen');
+                } else if (packageBodies.length !== beforeDecline) {
+                  failed = true;
+                  console.log('FAIL declining the offer installed something');
+                } else {
+                  console.log('     declining installs nothing and clears the offer');
+                }
+
+                // Accepting does not install on the spot either. It opens the
+                // panel with the name already in the box, so there is one more
+                // thing the reader can read and press.
+                (elements.get('shell-run').__listeners.click || []).forEach((h) => h(fakeEvent));
+                setTimeout(() => {
+                  (elements.get('install-offer-yes').__listeners.click || [])
+                    .forEach((h) => h(fakeEvent));
+                  const beforeAccept = packageBodies.length;
+                  if (input.value !== 'Pillow') {
+                    failed = true;
+                    console.log(`FAIL accepting did not put the package name in the box: "${input.value}"`);
+                  } else if (packageBodies.length !== beforeAccept) {
+                    failed = true;
+                    console.log('FAIL accepting the offer installed without a second press');
+                  } else {
+                    console.log('     accepting opens the panel with the name ready, and installs nothing yet');
+                  }
+
+                  // Checked last, because it can only be judged once the install and the
+                  // removal have actually been driven through the panel. Both
+                  // change the machine, so neither may ever be a GET: that is
+                  // what stops a link, a prefetch, or a browser retry from
+                  // quietly adding or deleting something.
+                  const changing = fetchMethods.filter((c) => c.url.includes('/api/packages/install')
+                    || c.url.includes('/api/packages/uninstall'));
+                  if (!changing.length) {
+                    failed = true;
+                    console.log('FAIL nothing was ever installed or removed');
+                  } else if (changing.some((c) => c.method === 'GET')) {
+                    failed = true;
+                    console.log('FAIL a change to the machine was made with a GET');
+                  } else {
+                    console.log('     installing and removing are asked for with POST, never GET');
+                  }
+
+                  // Printed only if the stage reached its end, so a truncation
+                  // shows up as a missing line rather than as a run that
+                  // quietly passed.
+                  console.log('packages: the panel opened, installed, removed, and offered on a failed import');
+                  finishStage();
+                }, 20);
+              }, 20);
+            }, 20);
+          }, 20);
+        }, 20);
       }, 20);
     }, 20);
   }, 20);
 }
 
 // Depth-first search for a button whose text is exactly this, so the check
-// does not depend on the order the detail pane was built in.
+// does not depend on the order the row was built in.
 function findButtonByText(node, text) {
   for (const child of (node && node.children) || []) {
     if ((child.className || '').includes('btn')

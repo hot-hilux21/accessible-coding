@@ -123,9 +123,9 @@
       <input type="file" id="file-input" accept=".py,.txt" class="visually-hidden">
 
       <div class="tool-group">
-        <button id="btn-modules" class="btn btn-toggle" aria-haspopup="dialog"
-                title="{{ t('modules.title') }}">
-          <span aria-hidden="true">&#128269;</span> {{ t('modules.title') }}
+        <button id="btn-packages" class="btn btn-toggle" aria-haspopup="dialog"
+                title="{{ t('packages.title') }}">
+          <span aria-hidden="true">&#128230;</span> {{ t('packages.title') }}
         </button>
       </div>
 
@@ -177,7 +177,7 @@
         <div class="shell-header-buttons">
           <button id="shell-clear" class="btn btn-small"
                   title="{{ t('shell.clear_title') }}">{{ t('shell.clear') }}</button>
-          <button id="shell-close" class="btn btn-small">{{ t('modules.close') }}</button>
+          <button id="shell-close" class="btn btn-small">{{ t('shell.close') }}</button>
         </div>
       </div>
 
@@ -705,76 +705,73 @@
   </dialog>
   {% endif %}
 
-  <!-- The module index.
+  <!-- The package manager.
 
        A native dialog element rather than a div with role="dialog",
        because the browser then handles the focus trap, Escape, and the
        inertness of the page behind it. Getting that right by hand is
        where hand-rolled modals go wrong.
 
-       The list is a plain unordered list of buttons. Not a listbox: a
-       listbox needs its own arrow-key model and roving tabindex, and
-       here every result is also reachable by Tab, which is what
-       somebody reading with a screen reader already expects.
+       Two jobs in one panel. Installing is a name typed into a box,
+       because that is the only thing a beginner can be expected to know.
+       Removing is a button on each row, so a package that has gone bad
+       can be got rid of without remembering or looking up its name.
 
-       Results and the count are announced politely, but deliberately
-       without role="alert": every keystroke in the search box would then
-       interrupt, which is unusable.
+       The status line is polite, not an alert. An install takes seconds
+       and announcing it as urgent interrupts whatever the reader was
+       doing to say "done" before they know what was finished.
   -->
-  <dialog id="modules-dialog" class="modules" aria-labelledby="modules-title">
-    <div class="modules-inner">
-      <div class="modules-head">
-        <h2 id="modules-title" class="modules-title">{{ t('modules.title') }}</h2>
-        <button id="modules-close" class="btn btn-small" type="button">{{ t('modules.close') }}</button>
+  <dialog id="packages-dialog" class="pkg" aria-labelledby="packages-title">
+    <div class="pkg-inner">
+      <div class="pkg-head">
+        <h2 id="packages-title" class="pkg-title">{{ t('packages.title') }}</h2>
+        <button id="packages-close" class="btn btn-small" type="button">{{ t('packages.close') }}</button>
       </div>
 
-      <p class="modules-intro">{{ t('modules.intro') }}</p>
+      <p class="pkg-intro">{{ t('packages.intro') }}</p>
 
-      <div class="modules-controls">
-        <div class="modules-search">
-          <label for="modules-search-input" class="modules-label">{{ t('modules.search_label') }}</label>
-          <input type="search" id="modules-search-input" class="modules-input"
+      <form id="packages-form" class="pkg-controls">
+        <div class="pkg-search">
+          <label for="packages-input" class="pkg-label">{{ t('packages.name_label') }}</label>
+          <input type="text" id="packages-input" class="pkg-input"
                  autocomplete="off" spellcheck="false"
-                 aria-describedby="modules-search-help">
-          <p id="modules-search-help" class="modules-help">{{ t('modules.search_help') }}</p>
+                 aria-describedby="packages-name-help">
+          <p id="packages-name-help" class="pkg-help">{{ t('packages.name_help') }}</p>
         </div>
+        <button type="submit" id="packages-install" class="btn">
+          {{ t('packages.install') }}
+        </button>
+      </form>
 
-        <div class="modules-levels" role="group" aria-labelledby="modules-filter-label">
-          <span id="modules-filter-label" class="modules-label">{{ t('modules.filter') }}</span>
-          <div class="modules-level-buttons">
-            <button type="button" class="btn btn-small modules-level is-on"
-                    data-level="" aria-pressed="true">{{ t('modules.level_all') }}</button>
-            <button type="button" class="btn btn-small modules-level"
-                    data-level="start" aria-pressed="false">{{ t('modules.level_start') }}</button>
-            <button type="button" class="btn btn-small modules-level"
-                    data-level="everyday" aria-pressed="false">{{ t('modules.level_everyday') }}</button>
-            <button type="button" class="btn btn-small modules-level"
-                    data-level="advanced" aria-pressed="false">{{ t('modules.level_advanced') }}</button>
-          </div>
-        </div>
-      </div>
+      <p id="packages-status" class="pkg-status" role="status" aria-live="polite"></p>
 
-      <p id="modules-status" class="modules-status" role="status" aria-live="polite"></p>
-
-      <div class="modules-body">
-        <div class="modules-results-wrap">
-          <ul id="modules-results" class="modules-results"
-              aria-labelledby="modules-results-label"></ul>
-          <span id="modules-results-label" class="visually-hidden">{{ t('modules.results_label') }}</span>
-          <p id="modules-empty" class="modules-empty" hidden>
-            {{ t('modules.no_results') }}
-            <span class="modules-empty-hint">{{ t('modules.no_results_hint') }}</span>
+      <div class="pkg-body">
+        <div class="pkg-results-wrap">
+          <ul id="packages-list" class="pkg-results"
+              aria-labelledby="packages-list-label"></ul>
+          <span id="packages-list-label" class="visually-hidden">{{ t('packages.list_label') }}</span>
+          <p id="packages-empty" class="pkg-empty" hidden>
+            {{ t('packages.none') }}
           </p>
-        </div>
-
-        <div id="modules-detail" class="modules-detail" aria-labelledby="modules-detail-label"
-             aria-live="polite">
-          <h3 id="modules-detail-label" class="visually-hidden">{{ t('modules.detail_label') }}</h3>
-          <p class="modules-choose">{{ t('modules.choose') }}</p>
         </div>
       </div>
     </div>
   </dialog>
+
+  <!-- The install offer, shown under the shell when an import fails.
+
+       Not a dialog and not an alert: the reader has just typed something and
+       got an error, and putting a modal in front of them interrupts the
+       thought. A short sentence with one button, in the same place as the
+       rest of the shell's output, so it is read in the order it happened.
+  -->
+  <div id="install-offer" class="install-offer" role="status" aria-live="polite" hidden>
+    <p id="install-offer-text" class="install-offer-text"></p>
+    <div class="install-offer-actions">
+      <button id="install-offer-yes" type="button" class="btn">{{ t('packages.install') }}</button>
+      <button id="install-offer-no" type="button" class="btn btn-small">{{ t('packages.not_now') }}</button>
+    </div>
+  </div>
 
   <!-- The active catalogue is embedded rather than fetched. The page is
        already in the reader's language before this script runs, and a

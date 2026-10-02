@@ -1247,7 +1247,7 @@ body[data-reduce-motion='true'] *::after {
    auditable. If you add a surface here, check that nothing which
    needs to be read sits directly on it. */
 body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
-                                           .error-panel, .settings, .modules,
+                                           .error-panel, .settings, .pkg,
                                            .setup-panel) {
   /* Defaults, and what a material that names no values falls back to. */
   --glass-alpha: 72%;
@@ -1274,7 +1274,7 @@ body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
    the surface list above stays the single place that decides what is
    allowed to go translucent. */
 body[data-glass-material='mica'] :is(.topbar, .output-pane, .shell-pane,
-                                        .error-panel, .settings, .modules,
+                                        .error-panel, .settings, .pkg,
                                         .setup-panel) {
   /* Quiet and almost solid. Mica tints itself with whatever is behind
      it; there is no wallpaper behind a window, so it borrows the
@@ -1285,7 +1285,7 @@ body[data-glass-material='mica'] :is(.topbar, .output-pane, .shell-pane,
 }
 
 body[data-glass-material='frosted'] :is(.topbar, .output-pane, .shell-pane,
-                                          .error-panel, .settings, .modules,
+                                          .error-panel, .settings, .pkg,
                                           .setup-panel) {
   /* An even frost, no grain. The middle of the three. */
   --glass-alpha: 72%;
@@ -1294,7 +1294,7 @@ body[data-glass-material='frosted'] :is(.topbar, .output-pane, .shell-pane,
 }
 
 body[data-glass-material='acrylic'] :is(.topbar, .output-pane, .shell-pane,
-                                          .error-panel, .settings, .modules,
+                                          .error-panel, .settings, .pkg,
                                           .setup-panel) {
   /* Heaviest, and the most see-through of the three. The grain below
      is what separates it from a merely blurry panel. */
@@ -1305,11 +1305,11 @@ body[data-glass-material='acrylic'] :is(.topbar, .output-pane, .shell-pane,
 
 /* Grain, on the surfaces large enough for it to read. Kept off the
    panes: a texture over scrolling output is noise for its own sake. */
-body[data-glass-material='acrylic'] :is(.topbar, .settings, .modules, .setup-panel) {
+body[data-glass-material='acrylic'] :is(.topbar, .settings, .pkg, .setup-panel) {
   position: relative;
 }
 
-body[data-glass-material='acrylic'] :is(.topbar, .settings, .modules, .setup-panel)::before {
+body[data-glass-material='acrylic'] :is(.topbar, .settings, .pkg, .setup-panel)::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1321,7 +1321,7 @@ body[data-glass-material='acrylic'] :is(.topbar, .settings, .modules, .setup-pan
 
 /* Dialogs sit over the page rather than inside the layout, so a thin
    fill needs its edge restated or the boundary disappears. */
-body:not([data-glass-material='off']) :is(.settings, .modules, .setup-panel) {
+body:not([data-glass-material='off']) :is(.settings, .pkg, .setup-panel) {
   box-shadow: var(--shadow-3), 0 0 0 1px var(--panel-border);
 }
 
@@ -1331,14 +1331,14 @@ body:not([data-glass-material='off']) :is(.settings, .modules, .setup-panel) {
    against the material rules, and in exactly the case where it matters. */
 @media (prefers-reduced-transparency: reduce) {
   body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
-                                              .error-panel, .settings, .modules,
+                                              .error-panel, .settings, .pkg,
                                               .setup-panel) {
     background: var(--panel-bg) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
 
-  body[data-glass-material='acrylic'] :is(.topbar, .settings, .modules, .setup-panel)::before {
+  body[data-glass-material='acrylic'] :is(.topbar, .settings, .pkg, .setup-panel)::before {
     content: none !important;
   }
 }
@@ -1364,7 +1364,7 @@ body:not([data-glass-material='off']) :is(.settings, .modules, .setup-panel) {
 dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 .error-panel:not([hidden]) { animation: panel-arrive var(--motion-med) var(--ease) both; }
 .shell-pane:not([hidden]) { animation: panel-arrive var(--motion-med) var(--ease) both; }
-.modules-list li { animation: sweep-in var(--motion-fast) var(--ease) both; }
+.packages-row { animation: sweep-in var(--motion-fast) var(--ease) both; }
 
 .btn:active,
 .btn-toggle:active,
@@ -1375,7 +1375,7 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 
 @media (prefers-reduced-motion: reduce) {
   body[data-reduce-motion='unset'] dialog[open],
-  body[data-reduce-motion='unset'] .modules-list li {
+  body[data-reduce-motion='unset'] .packages-row {
     animation: none !important;
   }
 }
@@ -1549,13 +1549,17 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   min-height: 44px;
 }
 
-/* ---------- Module index ----------
+/* ---------- Package manager ----------
 
    A native <dialog> for the same reason as the settings panel: focus
-   trapping, Escape and the inert page behind come from the browser. */
+   trapping, Escape and the inert page behind come from the browser.
 
-.modules {
-  width: min(1000px, calc(100vw - 2 * var(--space-4)));
+   The dialog is narrower than the module index was, on purpose. A package
+   list is one name and one button per row; the width went to reading module
+   descriptions that this panel no longer has. */
+
+.pkg {
+  width: min(720px, calc(100vw - 2 * var(--space-4)));
   max-height: calc(100vh - 2 * var(--space-4));
   padding: 0;
   border: 1px solid var(--panel-border);
@@ -1566,17 +1570,17 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   overflow: hidden;
 }
 
-.modules::backdrop {
+.pkg::backdrop {
   background: rgba(0, 0, 0, 0.6);
 }
 
-.modules-inner {
+.pkg-inner {
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 2 * var(--space-4));
 }
 
-.modules-head {
+.pkg-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1586,43 +1590,51 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   background: var(--panel-bg);
 }
 
-.modules-title {
+.pkg-title {
   margin: 0;
   font-size: 1.25em;
   font-weight: bold;
   letter-spacing: normal;
 }
 
-.modules-intro,
-.modules-help {
+.pkg-intro,
+.pkg-help {
   margin: 0;
   color: var(--muted);
   letter-spacing: normal;
 }
 
-.modules-intro {
+.pkg-intro {
   padding: var(--space-4) var(--space-4) 0;
 }
 
-.modules-help {
+.pkg-help {
   margin-top: var(--space-1);
   font-size: 0.9em;
 }
 
-.modules-controls {
+/* The name box and its button sit on one line on a wide screen and stack on a
+   narrow one. The button stays a real button at full size rather than
+   shrinking to fit, because it is the thing the reader came here to press. */
+.pkg-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-3);
   align-items: flex-start;
   padding: var(--space-4);
 }
 
-.modules-search {
-  flex: 1 1 280px;
+.pkg-search {
+  flex: 1 1 240px;
   min-width: 0;
 }
 
-.modules-label {
+.pkg-controls > .btn {
+  flex: 0 0 auto;
+  margin-top: calc(var(--space-5) + 1px);
+}
+
+.pkg-label {
   display: block;
   margin-bottom: var(--space-1);
   font-size: 0.9em;
@@ -1631,7 +1643,7 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   letter-spacing: normal;
 }
 
-.modules-input {
+.pkg-input {
   width: 100%;
   padding: var(--space-2) var(--space-3);
   font: inherit;
@@ -1644,182 +1656,117 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   min-height: 44px;
 }
 
-.modules-level-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-/* The pressed level is marked by a border and the words, not by colour
-   alone - a tint is not something a screen reader reports, and not
-   everyone separates the accent from the background. */
-.modules-level[aria-pressed="true"] {
-  border-color: var(--accent);
-  border-width: 2px;
-  font-weight: bold;
-}
-
-.modules-status {
+.pkg-status {
   margin: 0;
   padding: 0 var(--space-4) var(--space-2);
   color: var(--muted);
   font-size: 0.9em;
   letter-spacing: normal;
+  min-height: 1.4em;
 }
 
-/* Two columns on a wide screen, one on a narrow one. The detail sits
-   under the list on a phone, which is the right order: pick a module,
-   then read about it. */
-.modules-body {
+.pkg-body {
   display: flex;
   flex: 1;
   min-height: 0;
-  gap: var(--space-4);
   padding: 0 var(--space-4) var(--space-4);
 }
 
-.modules-results-wrap {
-  flex: 1 1 340px;
+.pkg-results-wrap {
+  flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
   overflow-y: auto;
   max-height: 46vh;
 }
 
-.modules-results {
+.pkg-results {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.modules-result-btn {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: var(--space-3);
-  margin-bottom: var(--space-2);
-  font: inherit;
-  letter-spacing: normal;
-  color: var(--fg);
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  min-height: 44px;
-}
-
-.modules-result-btn:hover {
-  border-color: var(--accent);
-}
-
-.modules-name {
-  display: block;
-  font-weight: bold;
-  font-family: "Courier New", monospace;
-}
-
-.modules-summary {
-  display: block;
-  margin-top: var(--space-1);
-  color: var(--muted);
-  font-size: 0.95em;
-}
-
-.modules-flag {
-  display: inline-block;
-  margin-top: var(--space-1);
-  padding: 1px var(--space-2);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  font-size: 0.85em;
-  color: var(--muted);
-}
-
-.modules-flag.is-off,
-.modules-flag.is-web {
-  border-style: dashed;
-}
-
-.modules-empty {
+.pkg-empty {
   margin: 0;
   padding: var(--space-4);
   color: var(--muted);
   letter-spacing: normal;
 }
 
-.modules-empty-hint {
-  display: block;
-  margin-top: var(--space-2);
-  font-size: 0.9em;
+/* One row per package: name and version, then the remove button pushed to
+   the end. A bottom border rather than a card per row, because a screen
+   reader walking a list of boxes is reading far more markup than the list
+   actually needs. */
+.packages-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--panel-border);
 }
 
-.modules-detail {
-  flex: 1 1 320px;
-  min-width: 0;
-  overflow-y: auto;
-  max-height: 46vh;
-  padding: var(--space-3);
+.packages-row:last-child {
+  border-bottom: none;
+}
+
+.packages-row-name {
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+
+.packages-row-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ---------- The install offer ----------
+
+   Sits below the shell rather than in a dialog. The reader has just typed
+   something and been told it did not work, and a modal in front of them
+   interrupts the thought they were in the middle of. */
+
+.install-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-sm);
   background: var(--panel-bg);
   letter-spacing: normal;
 }
 
-.modules-detail-name {
-  margin: 0 0 var(--space-2);
-  font-family: "Courier New", monospace;
-  font-size: 1.1em;
+.install-offer[hidden] {
+  display: none;
 }
 
-.modules-detail-summary,
-.modules-choose,
-.modules-note {
-  margin: 0 0 var(--space-3);
-  color: var(--muted);
-}
-
-.modules-example-label {
-  margin: var(--space-3) 0 var(--space-1);
-  font-size: 0.95em;
-  color: var(--muted);
-}
-
-/* Tabindex on the <pre> so a keyboard reader can scroll it, and so it is
-   reachable at all - a scrollable region with no focus stop is one a
-   keyboard user cannot read. */
-.modules-example {
+.install-offer-text {
   margin: 0;
-  padding: var(--space-3);
-  font-family: "Courier New", monospace;
-  font-size: 0.95em;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  background: var(--bg);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  max-height: 40vh;
-  overflow: auto;
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
-.modules-actions {
+.install-offer-actions {
   display: flex;
   gap: var(--space-2);
-  margin-top: var(--space-3);
 }
 
-/* On a narrow screen the detail follows the list instead of sitting
-   beside it, and both stop scrolling themselves so the page does not
-   end up with two nested scrollers. */
 @media (max-width: 700px) {
-  .modules-body {
-    flex-direction: column;
+  .pkg-controls > .btn {
+    margin-top: 0;
+    width: 100%;
   }
 
-  .modules-results-wrap,
-  .modules-detail {
-    max-height: none;
-    overflow-y: visible;
+  .packages-row-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .packages-row-actions .btn {
+    width: 100%;
   }
 }

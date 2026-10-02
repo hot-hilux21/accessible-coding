@@ -32,6 +32,7 @@ import threading
 import time
 
 from .shell_bootstrap import SENTINEL
+from . import packages
 
 # How long one command may take before the child is killed and the session
 # respawns. Matches the one-shot runner, so the shell is not more patient
@@ -117,6 +118,16 @@ class ShellSession:
             cmd = [sys.executable, '--run-script', script]
         else:
             cmd = [sys.executable, '-u', script]
+
+        # The reader's own packages, so anything they installed is importable.
+        # A dedicated variable rather than PYTHONPATH: it is ours to set and
+        # ours to clear, and it cannot collide with a PYTHONPATH the reader
+        # already had. The bootstrap reads this and prepends it to its own
+        # sys.path.
+        env = os.environ.copy()
+        extra_path = packages.python_path()
+        if extra_path:
+            env['ACCESSIBLE_IDE_PACKAGES'] = extra_path
         # A new process group, so the whole tree can be taken down at once.
         # The reader's commands are allowed to start other programs - that is
         # what a shell is for - and a program started that way inherits this
@@ -136,6 +147,7 @@ class ShellSession:
             encoding='utf-8',
             errors='replace',
             cwd=tempfile.gettempdir(),
+            env=env,
             creationflags=creationflags,
             **({} if sys.platform == 'win32' else {'start_new_session': True}),
         )

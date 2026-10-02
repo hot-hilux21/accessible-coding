@@ -14,6 +14,7 @@ import threading
 from pathlib import Path
 
 from . import i18n
+from . import packages
 from .utils import colour
 from .shell import ShellError, ShellTimeout
 from .shell import registry as shell_registry
@@ -698,6 +699,22 @@ def index():
                          t=i18n.make_translator(locale))
 
 
+def _runner_env():
+    """The environment for a one-shot run, with the packages folder added.
+
+    Prepended to PYTHONPATH so a package the reader installed wins over one of
+    the same name that happens to be elsewhere on the path. The existing value
+    is kept, not replaced: something else on the machine may be relying on it.
+    """
+    env = os.environ.copy()
+    target = packages.python_path()
+    if target and os.path.isdir(target):
+        existing = env.get('PYTHONPATH', '')
+        env['PYTHONPATH'] = (target + os.pathsep + existing
+                             if existing else target)
+    return env
+
+
 @main_bp.route('/api/run', methods=['POST'])
 def run_code():
     data = request.get_json(silent=True) or {}
@@ -748,7 +765,13 @@ def run_code():
             capture_output=True,
             text=True,
             timeout=10,
-            cwd=tempfile.gettempdir()
+            cwd=tempfile.gettempdir(),
+            # The reader's installed packages, so a program that imports
+            # something they added works from the Run button as well as from
+            # the shell. PYTHONPATH rather than the app's own variable here,
+            # because this child runs a file through the interpreter directly
+            # and never goes near shell_bootstrap.
+            env=_runner_env(),
         )
         
         output = result.stdout
@@ -756,9 +779,20 @@ def run_code():
         error_line = None
         
         if error:
+            missing = ''
+            if 'ModuleNotFoundError' in error:
+                missing = packages.missing_module(error)
             error, error_line = translate_error(error, t)
-        
-        return jsonify({'output': output, 'error': error, 'error_line': error_line})
+            return jsonify({
+                'output': output,
+                'error': error,
+                'error_line': error_line,
+                'missing_module': missing,
+                'missing_package': packages.package_for_module(missing) if missing else '',
+            })
+
+        return jsonify({'output': output, 'error': '', 'error_line': None,
+                        'missing_module': '', 'missing_package': ''})
     
     except subprocess.TimeoutExpired:
         return jsonify({'output': '', 'error': t('error.timeout'), 'error_line': None})
@@ -882,7 +916,14 @@ def shell_exec():
 
     error = result.get('error', '')
     error_line = None
+    missing = ''
     if error:
+        # A missing module is the one error with something the reader can do
+        # about it, so the name travels back with the message. The page turns
+        # it into an offer to install, and nothing is installed until they
+        # press the button.
+        if result.get('error_type') == 'ModuleNotFoundError':
+            missing = packages.missing_module(error)
         error, error_line = translate_error(error, t)
 
     return jsonify({
@@ -890,6 +931,10 @@ def shell_exec():
         'output': result.get('output', ''),
         'error': error,
         'error_line': error_line,
+        # Empty when the error was not a missing module. package is the name to
+        # install, which is not always the name imported (PIL is Pillow).
+        'missing_module': missing,
+        'missing_package': packages.package_for_module(missing) if missing else '',
     })
 
 
@@ -1266,57 +1311,140 @@ def fonts_api():
     return jsonify(FONTS)
 
 
-# The module index. One request returns the whole thing - names, levels
-# and one-sentence descriptions - because it is a few tens of kilobytes
-# and a reader is going to search it, so it is needed in full the moment
-# they touch the search box. Splitting it into pages would mean a request
-# on every keystroke, which is the opposite of what a search should do.
+# The package manager. Reading and changing what the reader has added to their
+# own copy of Python.
 #
-# The examples are deliberately not in this response. There are a few
-# hundred lines of code in there and nobody reads them all; they are
-# fetched one at a time when a reader opens a module.
-@main_bp.route('/api/modules')
-def modules_api():
-    from . import module_index
-
-    query = request.args.get('q', '')
-    level = request.args.get('level', '')
-    group = request.args.get('group', '')
-
-    if level and level not in module_index.LEVELS:
-        return jsonify({'error': t_unknown(module_index.LEVELS)}), 400
-    if group and group not in module_index.GROUPS:
-        return jsonify({'error': t_unknown(module_index.GROUPS)}), 400
-
-    entries = module_index.search(query, level=level or None, group=group or None)
-    # Availability is measured once per name, not once per request per
-    # entry, and only for the modules actually on screen.
-    measured = {name: module_index.available_here(name) for name in
-                {e.name for e in entries}}
+# Three rules hold across all three routes.
+#
+# Installing is never automatic. The shell reports a missing module and this
+# offers to install it; nothing is downloaded until the reader presses the
+# button. See packages.py for why that limit is deliberate.
+#
+# The hosted copy cannot install. It runs for many readers at once on one
+# machine, so a per-reader package folder is not meaningful and a server that
+# installs whatever it is asked to is a much larger hole than one on somebody's
+# own laptop. It says so rather than pretending.
+#
+# Failures come back as a reason code, not as pip's output. pip speaks in
+# resolver jargon; the reader gets a sentence and the detail goes to the log.
+@main_bp.route('/api/packages')
+def packages_api():
+    # Asked with GET because listing changes nothing. It carries no sentence
+    # back, so there is no locale to honour here; the panel reads the failure
+    # wording from the two routes that do fail.
     return jsonify({
-        'total': len(entries),
-        'total_all': len(module_index.all_entries()),
-        'counts': module_index.counts(),
-        'modules': [e.as_dict(here=measured[e.name]) for e in entries],
+        'installed': [p.as_dict() for p in packages.installed()],
+        'can_install': packages.pip_available() and not SANDBOX,
+        'directory': str(packages.packages_dir()),
     })
 
 
-@main_bp.route('/api/modules/<name>')
-def module_api(name):
-    from . import module_index
+@main_bp.route('/api/packages/install', methods=['POST'])
+def packages_install():
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
 
-    entry = module_index.find(name)
-    if entry is None:
-        return jsonify({'error': 'unknown module'}), 404
-    detail = entry.as_dict()
-    detail['example'] = entry.example
-    return jsonify(detail)
+    # The same two gates as /api/run, in the same order. Installing is a bigger
+    # thing to allow than running a file: it changes what is on the machine.
+    # A route that skipped them would be a way round both.
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_code_run'),
+            'code_required': True,
+        }), 403
+
+    if rate_limited(client_ip()):
+        return jsonify({
+            'success': False,
+            'error': t('error.too_many_requests'),
+        }), 429
+
+    if SANDBOX:
+        return jsonify({
+            'success': False,
+            'error': t('packages.not_here'),
+        }), 403
+
+    name = data.get('name', '')
+    try:
+        package = packages.install(name)
+    except packages.PackageError as exc:
+        # 400 for a name that was never going to work, 502 for one that might
+        # have. The reader sees the same sentence either way.
+        status = 400 if exc.reason == 'bad_name' else 502
+        return jsonify({
+            'success': False,
+            'reason': exc.reason,
+            'error': t(f'packages.{exc.reason}'),
+        }), status
+
+    # The shell holds its own copy of everything it has imported, so a newly
+    # installed package is not visible to the running session until it is
+    # restarted. The id is handed back so the page can do that rather than
+    # leaving the reader to press a button and see nothing happen.
+    session_id = data.get('session') or ''
+    if session_id and shell_registry.get(session_id):
+        try:
+            shell_registry.get(session_id).reset()
+        except ShellError:
+            # The reset failing is not a failed install. The package is on disk;
+            # the next command respawns the child anyway.
+            pass
+
+    return jsonify({'success': True, 'package': package.as_dict()})
 
 
-def t_unknown(allowed):
-    """A refusal naming what was allowed, in the reader's language."""
-    t = translator_for(request_locale({}))
-    return t('config.error_one_of', t('modules.filter'), ', '.join(sorted(allowed)))
+@main_bp.route('/api/packages/uninstall', methods=['POST'])
+def packages_uninstall():
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+
+    # The same gates as install, for the same reason: this one deletes things.
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_code_run'),
+            'code_required': True,
+        }), 403
+
+    if rate_limited(client_ip()):
+        return jsonify({
+            'success': False,
+            'error': t('error.too_many_requests'),
+        }), 429
+
+    if SANDBOX:
+        return jsonify({
+            'success': False,
+            'error': t('packages.not_here'),
+        }), 403
+
+    name = data.get('name', '')
+    try:
+        removed = packages.uninstall(name)
+    except packages.PackageError as exc:
+        return jsonify({
+            'success': False,
+            'reason': exc.reason,
+            'error': t(f'packages.{exc.reason}'),
+        }), 400 if exc.reason == 'bad_name' else 502
+
+    # Same reason as the install: a module already imported stays in memory
+    # until the child is new. Restarting is what makes the removal real rather
+    # than only reported.
+    session_id = data.get('session') or ''
+    if session_id and shell_registry.get(session_id):
+        try:
+            shell_registry.get(session_id).reset()
+        except ShellError:
+            pass
+
+    return jsonify({
+        'success': True,
+        'removed': removed,
+        'installed': [p.as_dict() for p in packages.installed()],
+    })
 
 
 # Python's mimetypes has no entry for .ttf on Windows, so fonts were

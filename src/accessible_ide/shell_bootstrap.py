@@ -28,6 +28,7 @@ import ast
 import contextlib
 import io
 import json
+import os
 import sys
 import traceback
 
@@ -98,6 +99,20 @@ def _interactive(node):
 
 
 def main():
+    # The reader's own packages, so anything they installed through the app is
+    # importable here. The parent passes it as an environment variable because a
+    # child process does not inherit the parent's sys.path, least of all in the
+    # packaged build.
+    #
+    # Prepended rather than appended: a package the reader installed is the one
+    # they asked for, and if it shadows a name that happens to be in the
+    # standard library that is their decision to make.
+    extra = os.environ.get('ACCESSIBLE_IDE_PACKAGES', '').strip()
+    if extra:
+        for part in extra.split(os.pathsep):
+            if part and os.path.isdir(part) and part not in sys.path:
+                sys.path.insert(0, part)
+
     # Whatever the reader imports or defines lives here, for the life of the
     # process. __builtins__ is put back by exec/exec, so no need to seed it.
     namespace = {'__name__': '__main__', '__doc__': None}

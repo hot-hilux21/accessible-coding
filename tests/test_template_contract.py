@@ -1145,7 +1145,7 @@ class FrostedPanelAndMovementCssTests(RenderedPageFixture):
             ".output-pane",
             ".shell-pane",
             ".settings",
-            ".modules",
+            ".pkg",
             ".setup-panel",
             ".error-panel",
         ):
