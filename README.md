@@ -51,8 +51,8 @@ Jump to any section:
 ## Try it now
 
 - **Web app:** [https://accessible-coding.onrender.com](https://accessible-coding.onrender.com)
-- **Windows installer (recommended):** download `AccessibleIDE-Setup.exe` from the [latest build](https://github.com/hothilux-21/accessible-coding/releases/latest/download/AccessibleIDE-Setup.exe) — installs the app to any folder, installs Python and adds it to PATH, and creates shortcuts
-- **Windows exe (portable):** download `AccessibleIDE.exe` from the [latest build](https://github.com/hothilux-21/accessible-coding/releases/latest/download/AccessibleIDE.exe)
+- **Windows installer (recommended):** download `AccessibleIDE-Setup.exe` from the [latest build](https://github.com/hot-hilux21/accessible-coding/releases/latest/download/AccessibleIDE-Setup.exe) — installs the app to any folder, installs Python and adds it to PATH, and creates shortcuts
+- **Windows exe (portable):** download `AccessibleIDE.exe` from the [latest build](https://github.com/hot-hilux21/accessible-coding/releases/latest/download/AccessibleIDE.exe)
 
 [↑ Back to contents](#contents) · [↓ Next: Getting started](#getting-started)
 
@@ -62,14 +62,14 @@ Jump to any section:
 
 ### Windows installer (recommended)
 
-1. Download `AccessibleIDE-Setup.exe` from the [latest build](https://github.com/hothilux-21/accessible-coding/releases/latest/download/AccessibleIDE-Setup.exe)
+1. Download `AccessibleIDE-Setup.exe` from the [latest build](https://github.com/hot-hilux21/accessible-coding/releases/latest/download/AccessibleIDE-Setup.exe)
 2. Run it. Choose any install folder.
 3. Tick **Install Python and add it to PATH** (on by default) — the installer also installs the Microsoft Visual C++ runtime and the WebView2 runtime it needs.
 4. Finish, and the IDE opens in its own **desktop window** (no browser needed). Write Python, then press **Run** (or `Ctrl+Enter`).
 
 ### Windows portable (.exe)
 
-1. Download `AccessibleIDE.exe` from the [latest build](https://github.com/hothilux-21/accessible-coding/releases/latest/download/AccessibleIDE.exe) (always matches the web app)
+1. Download `AccessibleIDE.exe` from the [latest build](https://github.com/hot-hilux21/accessible-coding/releases/latest/download/AccessibleIDE.exe) (always matches the web app)
 2. Double-click to run. A **desktop window** opens with the IDE (no browser tab).
 3. Write Python, then press **Run** (or `Ctrl+Enter`).
 
@@ -84,7 +84,7 @@ Open [https://accessible-coding.onrender.com](https://accessible-coding.onrender
 ### Development
 
 ```bash
-git clone https://github.com/hothilux-21/accessible-coding.git
+git clone https://github.com/hot-hilux21/accessible-coding.git
 cd accessible-coding
 pip install -r requirements.txt
 python app.py

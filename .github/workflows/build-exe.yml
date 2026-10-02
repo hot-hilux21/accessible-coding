@@ -5,8 +5,8 @@ name: Build Exe (dev build)
 # tagged. Readers are not pointed here: they are served by the beta and
 # stable channels, which build-release.yml moves when a release is tagged.
 # Download:
-#   exe:      https://github.com/hothilux-21/accessible-coding/releases/download/dev/AccessibleIDE.exe
-#   installer: https://github.com/hothilux-21/accessible-coding/releases/download/dev/AccessibleIDE-Setup.exe
+#   exe:      https://github.com/hot-hilux21/accessible-coding/releases/download/dev/AccessibleIDE.exe
+#   installer: https://github.com/hot-hilux21/accessible-coding/releases/download/dev/AccessibleIDE-Setup.exe
 
 on:
   push:

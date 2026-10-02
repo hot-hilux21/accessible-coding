@@ -60,7 +60,7 @@ from pathlib import Path
 # Fixed in the source rather than taken from config or an environment
 # variable. The whole point of checking a checksum is that the answer does
 # not depend on anything the machine running the app can be made to say.
-OWNER = 'hothilux-21'
+OWNER = 'hot-hilux21'
 REPO = 'accessible-coding'
 ASSET_NAME = 'AccessibleIDE.exe'
 MANIFEST_NAME = 'version.json'

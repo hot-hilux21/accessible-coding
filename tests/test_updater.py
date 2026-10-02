@@ -90,7 +90,12 @@ class DownloadAddressTests(unittest.TestCase):
             "https://evil.example.com/AccessibleIDE.exe",
             "https://github.com/someone-else/project/releases/download/v1/a.exe",
             f"{updater.RELEASES_BASE}/../../evil.exe",
-            "http://github.com/hothilux-21/accessible-coding/releases/download/v1/a.exe",
+            # Plain http, even on the right project: a download that gets run
+            # has to be https or it can be swapped on the way.
+            f"http://github.com/{updater.OWNER}/{updater.REPO}/releases/download/v1/a.exe",
+            # The account this project was on before the rename. Same repo name,
+            # different owner, so the allowlist has to key on the owner it was
+            # given and not accept the old one on the strength of the name.
             "https://github.com/hothilux-21/accessible-coding/releases/latest",
             "",
             None,

@@ -89,7 +89,7 @@
     }
   </style>
 </head>
-<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-code-color="{{ config.code_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass="{% if config.glass is sameas true %}true{% else %}false{% endif %}">
+<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-code-color="{{ config.code_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}"{% if glass_tint %} style="--glass-tint: {{ glass_tint }};"{% endif %}>
 
   <a class="skip-link" href="#editor">{{ t('app.skip_to_editor') }}</a>
 
@@ -199,7 +199,7 @@
   </main>
 
   <footer class="footer" role="contentinfo">
-    <p>{{ t('footer.text') }} <a href="https://github.com/hothilux-21/accessible-coding" target="_blank" rel="noopener">{{ t('footer.github') }}</a></p>
+    <p>{{ t('footer.text') }} <a href="https://github.com/hot-hilux21/accessible-coding" target="_blank" rel="noopener">{{ t('footer.github') }}</a></p>
     <button id="btn-quit" class="btn btn-small quit-btn" hidden>{{ t('nav.quit') }}</button>
   </footer>
 
@@ -414,18 +414,38 @@
           </div>
           <p class="field-help">{{ t('motion.help') }}</p>
 
-          <div class="field field-inline">
-            <label for="glass">{{ t('glass.label') }}</label>
-            <button id="glass" class="btn btn-toggle {% if config.glass %}active{% endif %}"
-                    type="button" role="switch"
-                    aria-checked="{% if config.glass is sameas true %}true{% else %}false{% endif %}"
-                    aria-describedby="glass-hint">
-              <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-              <span id="glass-state" class="switch-text">{% if config.glass is sameas true %}{{ t('switch.on') }}{% else %}{{ t('switch.off') }}{% endif %}</span>
-            </button>
+          <div class="field">
+            <span class="field-label" id="glass-material-label">{{ t('glass.material_label') }}</span>
+            <div class="setup-choices" role="radiogroup" aria-labelledby="glass-material-label"
+                 aria-describedby="glass-material-help">
+              {% for value in ['off', 'mica', 'frosted', 'acrylic'] %}
+              <label class="setup-choice">
+                <input type="radio" name="glass-material" value="{{ value }}"
+                       {% if config.glass_material == value %}checked{% endif %}>
+                <span>{{ t('glass.material_' ~ value) }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <p class="field-help" id="glass-material-help">{{ t('glass.material_help') }}</p>
           </div>
-          <p class="settings-hint" id="glass-hint">{{ t('glass.hint') }}</p>
-          <p class="field-help">{{ t('glass.help') }}</p>
+
+          <div class="field">
+            <label for="glass-tint-hex">{{ t('glass.tint_label') }}</label>
+            <div class="field-row">
+              <input type="color" id="glass-tint-picker"
+                     value="{{ config.glass_tint or themes[config.theme]['gutter_bg'] }}"
+                     data-theme-colour="{{ themes[config.theme]['gutter_bg'] }}"
+                     aria-label="{{ t('glass.tint_picker_label') }}">
+              <input type="text" id="glass-tint-hex" class="hex-input" spellcheck="false" autocomplete="off"
+                     inputmode="text" maxlength="7" placeholder="#223344"
+                     value="{{ config.glass_tint }}"
+                     aria-describedby="glass-tint-help glass-tint-error">
+              <button id="glass-tint-reset" class="btn" type="button">{{ t('glass.tint_reset') }}</button>
+            </div>
+            <p class="field-help" id="glass-tint-help">{{ t('glass.tint_help') }}</p>
+            <p class="field-error" id="glass-tint-error" role="alert" hidden></p>
+          </div>
+          <p class="settings-hint">{{ t('glass.help') }}</p>
         </fieldset>
 
         <fieldset class="settings-group">
@@ -761,10 +781,18 @@
        language change reloads the page, so there is nothing to await. -->
   <script id="i18n-data" type="application/json">{{ catalogue | tojson }}</script>
   <script id="i18n-meta" type="application/json">{{ {'locale': locale, 'direction': direction} | tojson }}</script>
+  <!-- Each theme's panel colour and the three token colours that sit on it, so
+       the browser can work out the same painted tint the server worked out for
+       the first paint. Embedded rather than fetched from /api/themes because a
+       theme can change without a reload and a tint mixed against a background
+       that has not arrived yet is the unreadable panel this whole feature
+       exists to prevent. -->
+  <script id="panel-info" type="application/json">{{ panel_info | tojson }}</script>
   <script src="{{ url_for('static', filename='js/codemirror.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/python.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/matchbrackets.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/active-line.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tint.js') }}"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

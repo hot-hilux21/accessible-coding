@@ -245,7 +245,7 @@ class ManifestTests(unittest.TestCase):
         # channel names a literal channel tag, a tagged release names its own
         # tag. Both have to clear the app's allowlist, or the release it just
         # published cannot be installed from.
-        base = f"https://github.com/hothilux-21/accessible-coding/releases/download"
+        base = f"https://github.com/{updater.OWNER}/{updater.REPO}/releases/download"
         for url in (f"{base}/dev/{updater.ASSET_NAME}",
                     f"{base}/beta/{updater.ASSET_NAME}",
                     f"{base}/stable/{updater.ASSET_NAME}",
