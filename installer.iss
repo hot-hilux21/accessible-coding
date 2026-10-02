@@ -6,7 +6,7 @@
 ; ============================================================
 
 #define MyAppName "AccessibleIDE"
-#define MyAppVersion "0.3.1-beta"
+#define MyAppVersion "0.3.5-beta"
 #define MyAppExeName "AccessibleIDE.exe"
 #define MyAppPublisher "AccessibleIDE"
 #define MyAppURL "https://accessible-coding.onrender.com"
@@ -56,12 +56,12 @@ Name: "installpython"; Description: "Install Python and add it to PATH"; GroupDe
 Source: "dist\AccessibleIDE\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "installer\prereqs\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "installer\prereqs\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
-Source: "installer\prereqs\python-3.13.15-amd64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: ShouldInstallPython
+Source: "installer\prereqs\python-3.13.16-amd64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: ShouldInstallPython
 
 [Run]
 Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ Runtime..."; Flags: waituntilterminated
 Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; StatusMsg: "Installing the WebView2 runtime (needed for the app window)..."; Flags: waituntilterminated
-Filename: "{tmp}\python-3.13.15-amd64.exe"; Parameters: "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0 Include_launcher=0 Shortcuts=0"; StatusMsg: "Installing Python and adding it to PATH..."; Flags: waituntilterminated; Check: ShouldInstallPython
+Filename: "{tmp}\python-3.13.16-amd64.exe"; Parameters: "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0 Include_launcher=0 Shortcuts=0"; StatusMsg: "Installing Python and adding it to PATH..."; Flags: waituntilterminated; Check: ShouldInstallPython
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch AccessibleIDE"; Flags: nowait postinstall skipifsilent
 
 [Icons]

@@ -28,8 +28,13 @@ jobs:
     name: Run tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # The action majors are pinned rather than floated. A build that silently
+      # changes runtime under you is a build you cannot repeat, and the whole
+      # point of checking a version in is that the answer stays the same next
+      # month. v5+ of these run on Node 24, which is why the runner image has
+      # to be recent; windows-latest and ubuntu-latest both are.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -48,13 +53,13 @@ jobs:
     needs: test
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The whole history, because the version below is worked out with
           # git describe. A shallow clone has no tags in it, so that command
           # finds nothing and every build was stamped 0.0.0.dev.N.
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -90,7 +95,7 @@ jobs:
             --url "https://github.com/${{ github.repository }}/releases/download/latest/AccessibleIDE.exe" `
             --notes "Automatic build of the main branch."
       - name: Upload exe artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AccessibleIDE-windows
           path: |
@@ -102,12 +107,12 @@ jobs:
     needs: test
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The whole history, for the same reason as the exe build: the
           # installer is stamped from the newest tag.
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -133,23 +138,30 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path "installer\prereqs" -Force | Out-Null
-          Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.13.15/python-3.13.15-amd64.exe" -OutFile "installer\prereqs\python-3.13.15-amd64.exe" -UseBasicParsing
+          Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.13.16/python-3.13.16-amd64.exe" -OutFile "installer\prereqs\python-3.13.16-amd64.exe" -UseBasicParsing
           Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile "installer\prereqs\vc_redist.x64.exe" -UseBasicParsing
           Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "installer\prereqs\MicrosoftEdgeWebview2Setup.exe" -UseBasicParsing
       - name: Install Inno Setup
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe" -OutFile "$env:TEMP\innosetup.exe" -UseBasicParsing
+          # The 64-bit build of the compiler. The older releases shipped one
+          # installer for both architectures and that stopped at 6.x, so the
+          # arch is part of the file name now.
+          Invoke-WebRequest -Uri "https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe" -OutFile "$env:TEMP\innosetup.exe" -UseBasicParsing
           Start-Process -FilePath "$env:TEMP\innosetup.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
       - name: Compile installer
         shell: pwsh
         run: |
-          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          # Inno Setup 7 installs under a versioned folder, so the search is a
+          # pattern rather than a fixed path. Sorted descending so a machine
+          # with two versions side by side picks the newer one.
+          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending | Select-Object -First 1
           if (-not $iscc) { $iscc = Get-ChildItem "$env:LOCALAPPDATA\Programs\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 }
           if (-not $iscc) { throw "ISCC.exe not found" }
           & $iscc.FullName installer.iss
       - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AccessibleIDE-Setup
           path: installer/AccessibleIDE-Setup.exe
@@ -159,14 +171,14 @@ jobs:
     needs: [build-windows, build-installer]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download exe
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: AccessibleIDE-windows
           path: release/
       - name: Download installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: AccessibleIDE-Setup
           path: release/

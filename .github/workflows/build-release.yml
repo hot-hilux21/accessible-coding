@@ -24,8 +24,11 @@ jobs:
     name: Run tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # The action majors are pinned rather than floated, for the same reason as in
+      # build-exe.yml: a version you checked stays the version you get. These
+      # run on Node 24, which the hosted runner images are on.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -44,8 +47,8 @@ jobs:
     needs: test
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -73,7 +76,7 @@ jobs:
             --url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/AccessibleIDE.exe" `
             --notes "Release ${{ github.ref_name }}."
       - name: Upload exe artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AccessibleIDE-windows
           path: |
@@ -85,8 +88,8 @@ jobs:
     needs: test
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -108,23 +111,29 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path "installer\prereqs" -Force | Out-Null
-          Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.13.15/python-3.13.15-amd64.exe" -OutFile "installer\prereqs\python-3.13.15-amd64.exe" -UseBasicParsing
+          Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.13.16/python-3.13.16-amd64.exe" -OutFile "installer\prereqs\python-3.13.16-amd64.exe" -UseBasicParsing
           Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile "installer\prereqs\vc_redist.x64.exe" -UseBasicParsing
           Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "installer\prereqs\MicrosoftEdgeWebview2Setup.exe" -UseBasicParsing
       - name: Install Inno Setup
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe" -OutFile "$env:TEMP\innosetup.exe" -UseBasicParsing
+          # The 64-bit build of the compiler. From 7.x the architecture is part
+          # of the file name, so the old all-in-one URL 404s.
+          Invoke-WebRequest -Uri "https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe" -OutFile "$env:TEMP\innosetup.exe" -UseBasicParsing
           Start-Process -FilePath "$env:TEMP\innosetup.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
       - name: Compile installer
         shell: pwsh
         run: |
-          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          # Inno Setup 7 installs under a versioned folder, so the search is a
+          # pattern rather than a fixed path. Sorted descending so a machine
+          # with two versions side by side picks the newer one.
+          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending | Select-Object -First 1
           if (-not $iscc) { $iscc = Get-ChildItem "$env:LOCALAPPDATA\Programs\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 }
           if (-not $iscc) { throw "ISCC.exe not found" }
           & $iscc.FullName installer.iss
       - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AccessibleIDE-Setup
           path: installer/AccessibleIDE-Setup.exe
@@ -135,14 +144,14 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download exe
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: AccessibleIDE-windows
           path: release/
       - name: Download installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: AccessibleIDE-Setup
           path: release/

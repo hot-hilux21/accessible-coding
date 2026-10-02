@@ -11,6 +11,7 @@ import hashlib
 import importlib
 import json
 import pathlib
+import re
 import sys
 import tempfile
 import unittest
@@ -70,6 +71,19 @@ class StampTests(unittest.TestCase):
         self.init.write_text("x = 1\n", encoding="utf-8")
         with self.assertRaises(stamp_version.StampError):
             stamp_version.stamp_version(self.init, "1.0.0")
+
+    def test_the_two_copies_start_out_saying_the_same_thing(self):
+        # Both are overwritten by every build, so this only ever fails between
+        # a release and the next commit that bumps the package version. Left to
+        # drift, the checked-in installer is what a local ISCC run compiles,
+        # and that is how a two-releases-old version reaches a reader.
+        from accessible_ide import __version__
+        script = stamp_version.INSTALLER_FILE.read_text(encoding="utf-8")
+        found = re.search(r'#define\s+MyAppVersion\s+"([^"]*)"', script)
+        self.assertIsNotNone(found, "installer.iss has no MyAppVersion")
+        self.assertEqual(
+            found.group(1), __version__,
+            "installer.iss and the package disagree on the version")
 
 
 class InstallerStampTests(unittest.TestCase):
@@ -438,6 +452,138 @@ class ChannelPublishingTests(unittest.TestCase):
         text = self.workflow(self.DEV_WORKFLOW)
         self.assertIn("git describe --tags --abbrev=0", text)
         self.assertIn("fetch-depth: 0", text)
+
+
+class ActionVersionTests(unittest.TestCase):
+    """Which actions the builds run on.
+
+    Worth pinning for one reason: these move to a new Node runtime in a new
+    major, and a Node the runner image does not have fails the whole build with
+    a message about the runner rather than about the code. Writing the version
+    down here means the next upgrade is a deliberate edit with a test that says
+    what was changed, instead of a build that broke on a day nobody was
+    watching.
+
+    The majors below are the current ones. When one is bumped, bump it here in
+    the same commit, and check the release notes for a breaking input rename.
+    """
+
+    WORKFLOWS = ("build-exe.yml", "build-release.yml")
+
+    # The current major of each action these workflows use.
+    CURRENT = {
+        "actions/checkout": "v7",
+        "actions/setup-python": "v7",
+        "actions/upload-artifact": "v7",
+        "actions/download-artifact": "v8",
+    }
+
+    def workflow(self, name):
+        return (REPO_ROOT / ".github" / "workflows" / name).read_text(
+            encoding="utf-8")
+
+    def uses_in(self, name):
+        import yaml
+        document = yaml.safe_load(self.workflow(name))
+        found = []
+        for job in (document.get("jobs") or {}).values():
+            for step in job.get("steps") or []:
+                if step.get("uses"):
+                    found.append(str(step["uses"]))
+        return found
+
+    def test_every_action_is_pinned_to_a_whole_version(self):
+        # @v4 rather than @main or @master. A floating ref means the build you
+        # tested is not the build you shipped.
+        for name in self.WORKFLOWS:
+            for ref in self.uses_in(name):
+                with self.subTest(workflow=name, action=ref):
+                    self.assertRegex(ref, r"^[^@\s]+@v\d+$")
+
+    def test_they_are_on_the_current_majors(self):
+        for name in self.WORKFLOWS:
+            for ref in self.uses_in(name):
+                action = ref.rsplit("@", 1)[0]
+                if action not in self.CURRENT:
+                    continue  # a third-party action, not one we pin here
+                with self.subTest(workflow=name, action=action):
+                    self.assertEqual(
+                        ref, f"{action}@{self.CURRENT[action]}",
+                        f"{name}: {action} needs a deliberate bump in this test")
+
+    def test_the_third_party_release_action_is_pinned_too(self):
+        # It creates the release readers download from, so an unpinned ref
+        # there is the same risk as an unpinned ref anywhere else.
+        for name in self.WORKFLOWS:
+            refs = [r for r in self.uses_in(name) if "action-gh-release" in r]
+            for ref in refs:
+                with self.subTest(workflow=name, action=ref):
+                    self.assertRegex(ref, r"^[^@\s]+@v\d+$")
+
+    def test_upload_and_download_are_on_matching_majors(self):
+        # Artifacts written by one major are not readable by another, and the
+        # failure shows up as a missing file at the end of a long release
+        # rather than as anything to do with versions.
+        for name in self.WORKFLOWS:
+            refs = self.uses_in(name)
+            uploads = [r for r in refs if "upload-artifact" in r]
+            downloads = [r for r in refs if "download-artifact" in r]
+            if not uploads or not downloads:
+                continue
+            # The majors have moved apart on purpose (download is at v8 for
+            # its digest checks), so what matters is that both are past v4,
+            # where the incompatibility was introduced.
+            for ref in uploads + downloads:
+                with self.subTest(workflow=name, action=ref):
+                    major = int(ref.rsplit("@v", 1)[1])
+                    self.assertGreaterEqual(major, 4)
+
+
+class InstallerPrerequisiteTests(unittest.TestCase):
+    """The files the installer ships alongside the program.
+
+    installer.iss names a Python installer three times and each workflow
+    downloads one file. Bump the download and not the script and the build
+    fails at compile time; bump the script and not the download and it fails
+    the same way. Both are caught here instead of on the runner, where the
+    only symptom is a red build nobody can reproduce.
+    """
+
+    PREREQ = re.compile(r"python-(\d+\.\d+\.\d+)-amd64\.exe")
+
+    def test_the_workflows_and_the_installer_agree_on_python(self):
+        script = stamp_version.INSTALLER_FILE.read_text(encoding="utf-8")
+        wanted = set(self.PREREQ.findall(script))
+        self.assertTrue(wanted, "installer.iss names no Python installer")
+
+        for name in ActionVersionTests.WORKFLOWS:
+            text = (REPO_ROOT / ".github" / "workflows" / name).read_text(
+                encoding="utf-8")
+            for found in set(self.PREREQ.findall(text)):
+                with self.subTest(workflow=name, python=found):
+                    self.assertIn(found, wanted)
+
+    def test_the_installer_script_names_the_same_file_throughout(self):
+        # Every reference has to be the same file name, including the one the
+        # [Run] section launches. A mismatch here is a silent skip: the
+        # prerequisite is copied to {tmp} under one name and looked for under
+        # another, so Python simply is not installed and nothing says why.
+        text = stamp_version.INSTALLER_FILE.read_text(encoding="utf-8")
+        names = set(re.findall(r"python-\d+\.\d+\.\d+-amd64\.exe", text))
+        self.assertEqual(
+            len(names), 1,
+            f"installer.iss refers to more than one Python file: {sorted(names)}")
+
+    def test_the_inno_setup_url_names_an_architecture(self):
+        # From 7.x Inno Setup ships one installer per architecture and the
+        # architecture is in the file name. The old all-in-one URL now 404s,
+        # and the build fails before it reaches the compile step.
+        for name in ActionVersionTests.WORKFLOWS:
+            text = (REPO_ROOT / ".github" / "workflows" / name).read_text(
+                encoding="utf-8")
+            with self.subTest(workflow=name):
+                self.assertNotIn("innosetup-6.", text)
+                self.assertIn("innosetup-7.1.0-x64.exe", text)
 
 
 if __name__ == "__main__":
