@@ -1224,58 +1224,124 @@ body[data-reduce-motion='true'] *::after {
 }
 
 /* ============================================================
-   Frosted panels and movement
-   Two optional flourishes, both off unless asked for.
+   Panel materials and movement
+   Three optional materials for the chrome, plus some movement.
+   All of it is off unless asked for.
 
    The rule that matters here is a negative one: the editor and
    the page behind the text never become translucent. Those are
    where the reading happens, and a see-through surface behind
    words is a contrast cost for no benefit. Only chrome is
-   affected - the top bar, the panes and the dialogs - so
-   turning this on cannot make the code harder to read.
+   affected - the top bar, the panes and the dialogs.
+
+   The names borrow from Windows' acrylic and mica, but these
+   are imitations and are described as such in Settings. The
+   real materials are a Windows composition API that a WebView2
+   window cannot reach. What is here is CSS that looks the part:
+   mica is quiet and nearly solid, acrylic is heavier, more
+   colourful, and grained.
    ============================================================ */
 
 /* The surfaces allowed to go translucent, named rather than
-   selected by a broad descendant rule, so the list stays
-   auditable. If you add a surface here, check nothing that
+   picked up by a broad descendant rule, so the list stays
+   auditable. If you add a surface here, check that nothing which
    needs to be read sits directly on it. */
-body[data-glass='true'] :is(.topbar, .output-pane, .shell-pane, .error-panel,
-                             .settings, .modules, .setup-panel) {
-  /* The opaque declaration comes first on purpose: a browser that does not
-     know color-mix() keeps a solid panel rather than losing its background
-     entirely. Better plain than unreadable. */
+body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
+                                           .error-panel, .settings, .modules,
+                                           .setup-panel) {
+  /* Defaults, and what a material that names no values falls back to. */
+  --glass-alpha: 72%;
+  --glass-blur: 16px;
+  --glass-sat: 150%;
+
+  /* A custom tint is mixed into the theme's own panel colour rather
+     than replacing it. A tint is meant to shift the hue, not to take
+     over, and mixing keeps the contrast anchor where the theme put it -
+     so even a deliberately awful colour cannot leave the panel
+     unreadable. */
+  --glass-fill: color-mix(in srgb, var(--glass-tint, var(--panel-bg)) 45%, var(--panel-bg));
+
+  /* The opaque declaration comes first on purpose: a browser that does
+     not know color-mix() keeps a solid panel rather than losing its
+     background entirely. Better plain than unreadable. */
   background: var(--panel-bg);
-  background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  backdrop-filter: blur(14px) saturate(150%);
+  background: color-mix(in srgb, var(--glass-fill) var(--glass-alpha), transparent);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
 }
 
-/* Dialogs sit over the page rather than inside the layout, so they need
-   their shadow to do more of the work when the fill is thin. */
-body[data-glass='true'] :is(.settings, .modules, .setup-panel) {
-  box-shadow: var(--shadow-3), 0 0 0 1px var(--panel-border);
+/* Each material only sets the three numbers that make it different, so
+   the surface list above stays the single place that decides what is
+   allowed to go translucent. */
+body[data-glass-material='mica'] :is(.topbar, .output-pane, .shell-pane,
+                                        .error-panel, .settings, .modules,
+                                        .setup-panel) {
+  /* Quiet and almost solid. Mica tints itself with whatever is behind
+     it; there is no wallpaper behind a window, so it borrows the
+     page's own background and stays subtle. */
+  --glass-alpha: 88%;
+  --glass-blur: 8px;
+  --glass-sat: 112%;
 }
 
-/* The sheen is deliberately finite. A highlight that sweeps across and
-   keeps sweeping is exactly the kind of looping movement that sets off
-   vestibular symptoms, and it would run for as long as the window is
-   open. Once, then it stops. */
-@keyframes glass-sheen {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(100%); }
+body[data-glass-material='frosted'] :is(.topbar, .output-pane, .shell-pane,
+                                          .error-panel, .settings, .modules,
+                                          .setup-panel) {
+  /* An even frost, no grain. The middle of the three. */
+  --glass-alpha: 72%;
+  --glass-blur: 16px;
+  --glass-sat: 150%;
 }
 
-body[data-glass='true'] .topbar::after {
+body[data-glass-material='acrylic'] :is(.topbar, .output-pane, .shell-pane,
+                                          .error-panel, .settings, .modules,
+                                          .setup-panel) {
+  /* Heaviest, and the most see-through of the three. The grain below
+     is what separates it from a merely blurry panel. */
+  --glass-alpha: 60%;
+  --glass-blur: 34px;
+  --glass-sat: 175%;
+}
+
+/* Grain, on the surfaces large enough for it to read. Kept off the
+   panes: a texture over scrolling output is noise for its own sake. */
+body[data-glass-material='acrylic'] :is(.topbar, .settings, .modules, .setup-panel) {
+  position: relative;
+}
+
+body[data-glass-material='acrylic'] :is(.topbar, .settings, .modules, .setup-panel)::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(100deg,
-    transparent 0%, rgba(255, 255, 255, 0.10) 45%, transparent 90%);
-  animation: glass-sheen 900ms var(--ease) 1 both;
+  /* Flat to the eye and it does not move, so it adds no animation and
+     no reading of its own. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.055'/%3E%3C/svg%3E");
 }
 
-body[data-glass='true'] .topbar { position: relative; overflow: hidden; }
+/* Dialogs sit over the page rather than inside the layout, so a thin
+   fill needs its edge restated or the boundary disappears. */
+body:not([data-glass-material='off']) :is(.settings, .modules, .setup-panel) {
+  box-shadow: var(--shadow-3), 0 0 0 1px var(--panel-border);
+}
+
+/* Somebody who has asked their operating system for less transparency
+   gets none of this, whatever the app is set to. The !important is the
+   same reasoning as the reduced-motion block above: this has to win
+   against the material rules, and in exactly the case where it matters. */
+@media (prefers-reduced-transparency: reduce) {
+  body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
+                                              .error-panel, .settings, .modules,
+                                              .setup-panel) {
+    background: var(--panel-bg) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  body[data-glass-material='acrylic'] :is(.topbar, .settings, .modules, .setup-panel)::before {
+    content: none !important;
+  }
+}
 
 /* Movement, when it is wanted, is small: a few pixels and a fade. No
    scaling, no sliding across the screen, nothing that moves a long way

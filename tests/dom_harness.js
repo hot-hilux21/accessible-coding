@@ -13,6 +13,26 @@ const APP_JS = path.join(
 );
 const source = fs.readFileSync(APP_JS, 'utf8');
 
+// tint.js is loaded ahead of app.js, the way the template loads it. It is the
+// real file, not a stub: the panel colour is the one place in this app where
+// the arithmetic decides whether the reader can read the screen, and a stub
+// would let the checks pass against behaviour no reader ever gets.
+const TINT_JS = path.join(
+  __dirname, '..', 'src', 'accessible_ide', 'static', 'js', 'tint.js'
+);
+const tintSource = fs.readFileSync(TINT_JS, 'utf8');
+
+// tests/tint_vectors.json is the one file both copies of the tint maths are
+// checked against. The Python suite reads it in test_panel_materials.py; this
+// is the browser's half of the same contract. Without it the two copies are
+// only ever compared by eye, and they did drift once: Python's round() rounds
+// ties to even, Math.round rounds them up, and 12 cases came out a channel
+// apart. Both answers were readable, so no contrast test noticed. The vectors
+// marked "tie" are the ones that catch it.
+const TINT_VECTORS = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'tint_vectors.json'), 'utf8')
+);
+
 // Ids that index.html is expected to provide. Anything app.js looks up but
 // that is missing here will be reported, because that is exactly the bug
 // this harness exists to catch.
@@ -27,7 +47,7 @@ const KNOWN_IDS = new Set([
   'blur-intensity', 'blur-intensity-label',
   'blur-field', 'theme-select', 'contrast-select', 'focus-mode',
   'reduce-motion', 'reduce-motion-state',
-  'glass', 'glass-state',
+  'glass-tint-picker', 'glass-tint-hex', 'glass-tint-error', 'glass-tint-reset',
   'tts-toggle', 'tts-state', 'tts-voice', 'tts-rate', 'tts-rate-label',
   'tts-voice-gender', 'tts-hover-scope', 'tts-hover-delay',
   'tts-hover-delay-label', 'tts-click', 'tts-click-state',
@@ -66,6 +86,12 @@ const KNOWN_IDS = new Set([
   // returning the key, and this harness would stop testing translations
   // at all while still reporting success.
   'i18n-data', 'i18n-meta',
+  // Each theme's panel text colours. Without these the browser has no way to
+  // work out which backgrounds keep the text readable, so it falls back to
+  // pinning the tint to the panel's own luminance - a path that destroys most
+  // of the colour on the light themes. Declared here so that path is measured
+  // rather than quietly skipped.
+  'panel-info',
 ]);
 
 // The swatch colours, mirroring the list rendered into the panel.
@@ -387,6 +413,38 @@ const SETUP_LOCALE_RADIOS = ['en', 'hi', 'fr', 'es', 'ar'].map((code) =>
     { value: code, checked: code === 'en' })
 );
 
+// Each theme's panel colour and the three token colours sitting on it, which is
+// what the server embeds in the page. The browser needs both to work out the
+// painted tint before it paints anything, so they are here rather than being
+// left to /api/themes: a fetch that has not answered yet would mix the tint
+// against a background no reader ever sees.
+// tests/test_panel_materials.py fails if this and routes.py drift apart, so a
+// new theme cannot be added to one and forgotten in the other.
+const PANEL_INFO = {
+  'high-contrast': { panel: '#161616', texts: ['#ffffff', '#c9c9c9', '#ffc1c1'] },
+  dark: { panel: '#1f2126', texts: ['#e6e6e6', '#9aa3ad', '#ffb4a0'] },
+  pastel: { panel: '#f2ecdf', texts: ['#453f3a', '#736a5f', '#8f2f1a'] },
+  light: { panel: '#f2f2f2', texts: ['#2b2b2b', '#5f5f5f', '#8f1a1a'] },
+};
+
+// What /api/themes answers with, held as a table so the checks can name the
+// colours they expect rather than hard-coding them beside the fetch stub.
+const SANDBOX_THEMES = {
+  'high-contrast': {
+    name: 'High Contrast', bg: '#0b0b0b', fg: '#ffffff', gutter_bg: '#161616',
+  },
+  dark: { name: 'Dark', bg: '#17181c', fg: '#e6e6e6', gutter_bg: '#1f2126' },
+  pastel: { name: 'Pastel', bg: '#fbf6ec', fg: '#453f3a', gutter_bg: '#f2ecdf' },
+  light: { name: 'Light', bg: '#fcfcfc', fg: '#2b2b2b', gutter_bg: '#f2f2f2' },
+};
+
+// The four materials, in the order the template renders them. "off" starts
+// chosen, because that is the default and the safe answer.
+const GLASS_MATERIAL_RADIOS = ['off', 'mica', 'frosted', 'acrylic'].map((value) =>
+  makeElement(`glass-material-${value}`, { name: 'glass-material' },
+    { value, checked: value === 'off' })
+);
+
 // The four level filters, in the order the template renders them. The
 // first one starts pressed, because the index opens showing everything.
 const MODULE_LEVELS = ['', 'start', 'everyday', 'advanced'];
@@ -526,6 +584,9 @@ function makePage(locale, shared, bodyAttrs) {
     'i18n-meta': makeElement('i18n-meta', {}, {
       textContent: JSON.stringify({ locale, direction: locale === 'ar' ? 'rtl' : 'ltr' }),
     }),
+    'panel-info': makeElement('panel-info', {}, {
+      textContent: JSON.stringify(PANEL_INFO),
+    }),
   };
   // The main page shares the harness-wide element map and lookup log, so
   // every existing check keeps working. The per-language pages get their
@@ -602,9 +663,13 @@ function makePage(locale, shared, bodyAttrs) {
     // The module index asks for its level filters this way, and gets the
     // same four elements every time, so the listeners it attaches are the
     // ones a check can fire.
-    querySelectorAll: (selector) => (
-      selector === '.modules-level' ? MODULE_LEVEL_BUTTONS : []
-    ),
+    querySelectorAll: (selector) => {
+      if (selector === '.modules-level') return MODULE_LEVEL_BUTTONS;
+      // The panel material is four radios for one setting, the same shape as
+      // the wizard's language radios. Held to the same bar.
+      if (selector === 'input[name="glass-material"]') return GLASS_MATERIAL_RADIOS;
+      return [];
+    },
     createElement: (tag) => makeElement(tag),
     addEventListener: noop,
     removeEventListener: noop,
@@ -784,8 +849,11 @@ function fetchStub(url, options) {
     return Promise.resolve({
       ok: true,
       json: () => Promise.resolve({
-        'high-contrast': { name: 'High Contrast', bg: '#0b0b0b', fg: '#ffffff' },
-        dark: { name: 'Dark', bg: '#17181c', fg: '#e6e6e6' },
+        // gutter_bg is the panel colour the server also reports, and it is
+        // what a chosen tint is painted over. Without it the tint has no
+        // background to work against and falls back to the page background,
+        // so the checks would pass against a colour no reader ever sees.
+        SANDBOX_THEMES,
       }),
     });
   }
@@ -901,6 +969,10 @@ process.on('unhandledRejection', chainBroke('a check chain threw and the rest we
 process.on('uncaughtException', chainBroke('a check threw outside its chain'));
 try {
   vm.createContext(sandbox);
+  // Before app.js, as the template does it. app.js calls into it on its very
+  // first pass, so loading it afterwards would leave every tint check passing
+  // against the panels staying the theme colour.
+  vm.runInContext(tintSource, sandbox, { filename: 'tint.js' });
   vm.runInContext(source, sandbox, { filename: 'app.js' });
   console.log('OK  app.js executed with no error');
 } catch (error) {
@@ -914,6 +986,71 @@ const unknown = [...new Set(lookups)].filter((id) => !KNOWN_IDS.has(id));
 if (unknown.length) {
   failed = true;
   console.log('FAIL app.js looked up ids this harness does not know: ' + unknown.join(', '));
+}
+
+// ---------------------------------------------------------------------------
+// The browser's half of the shared tint contract.
+//
+// This is the only check that can catch colour.py and tint.js disagreeing, and
+// it runs against the real tint.js rather than a stub. Each vector is a chosen
+// tint against one theme's panel, with that theme's own three text colours.
+// ---------------------------------------------------------------------------
+if (sandbox.AccessibleTint) {
+  const Tint = sandbox.AccessibleTint;
+  let vectorFails = 0;
+  const reportVector = (kind, label, got, want) => {
+    vectorFails += 1;
+    console.log(`FAIL ${kind} ${label}: tint.js gave ${got}, vectors say ${want}`);
+  };
+
+  for (const testCase of TINT_VECTORS.cases) {
+    const got = Tint.safePanelTint(testCase.tint, testCase.panel, testCase.texts);
+    if (got !== testCase.expected) {
+      reportVector('vector', `${testCase.theme} ${testCase.tint}`, got,
+                   testCase.expected);
+    }
+    // A tint that already reads must come back untouched, or the reader gets a
+    // colour they did not choose. Worth checking on this side too: the browser
+    // is where a live theme change happens, so this is the copy that runs.
+    const untouched = Tint.readableOn(testCase.texts.map(Tint.parseHex),
+                                      Tint.parseHex(testCase.tint)) >= 4.5;
+    if (untouched && got !== testCase.tint) {
+      reportVector('untouched', `${testCase.theme} ${testCase.tint}`, got,
+                   testCase.tint);
+    }
+    // Whatever the arithmetic settled on, the words have to stay readable on
+    // it. This is the promise the whole module exists to keep, so it is
+    // checked rather than assumed.
+    const worst = Math.min(
+      ...testCase.texts.map(
+        (c) => Tint.contrastRatio(c, got)
+      )
+    );
+    if (worst < 4.5) {
+      vectorFails += 1;
+      console.log(`FAIL readable ${testCase.theme} ${testCase.tint}: the `
+                  + `worst text on ${got} is ${worst.toFixed(3)}, under 4.5`);
+    }
+  }
+
+  for (const testCase of TINT_VECTORS.empty_tint) {
+    const got = Tint.safePanelTint(testCase.tint, '#f2f2f2', testCase.texts);
+    if (got !== testCase.expected) {
+      reportVector('blank tint', JSON.stringify(testCase.tint), got,
+                   JSON.stringify(testCase.expected));
+    }
+  }
+
+  if (vectorFails) {
+    failed = true;
+    console.log(`FAIL the browser tint maths does not match `
+                + `tests/tint_vectors.json (${vectorFails} problems)`);
+  } else {
+    const ties = TINT_VECTORS.cases.filter((c) => c.tie).length;
+    console.log(`OK  tint.js matched all ${TINT_VECTORS.cases.length} shared `
+                + `vectors (${ties} of them rounding ties) and `
+                + `${TINT_VECTORS.empty_tint.length} blank-tint cases`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -942,7 +1079,9 @@ const interactions = [
   ['theme-select', 'change'], ['contrast-select', 'change'],
   ['focus-mode', 'change'],
   ['reduce-motion', 'click'],
-  ['glass', 'click'],
+  ['glass-tint-picker', 'input'], ['glass-tint-picker', 'change'],
+  ['glass-tint-hex', 'input'], ['glass-tint-hex', 'change'],
+  ['glass-tint-reset', 'click'],
   ['tts-toggle', 'click'], ['tts-voice', 'change'],
   ['tts-voice-gender', 'change'],
   ['tts-hover-scope', 'change'],
@@ -1027,6 +1166,18 @@ function contrastRatio(first, second) {
 
 function fire(id, type, event = fakeEvent) {
   const el = elements.get(id);
+  if (!el) return null;
+  for (const handler of el.__listeners[type] || []) handler(event);
+  return el;
+}
+
+// The same thing, for an element the harness holds directly rather than by id.
+// The radios behind the panel material and the wizard's choices are shared
+// stubs, not elements the page looked up, so they are not in the id map.
+// Passing one of those to fire() above looks up an object as a key, finds
+// nothing, and returns quietly - which leaves the check reporting a control
+// that "did nothing" when in fact nothing was ever fired at it.
+function fireElement(el, type, event = fakeEvent) {
   if (!el) return null;
   for (const handler of el.__listeners[type] || []) handler(event);
   return el;
@@ -1277,42 +1428,193 @@ function runMotionChecks() {
 // not have. So: the body has to change, the switch has to agree with the
 // body, and the choice has to be saved.
 function runGlassChecks() {
-  const button = elements.get('glass');
-  const label = elements.get('glass-state');
   const bodyAttrs = documentStub.body.__attributes;
+  const MATERIALS = ['off', 'mica', 'frosted', 'acrylic'];
 
-  if (bodyAttrs['data-glass'] !== 'true' && bodyAttrs['data-glass'] !== 'false') {
+  // --- the material ---
+  // Each radio is selected in turn and the body has to follow. A radio that
+  // saves without changing anything, or changes the page without saving,
+  // leaves the reader with a setting that only half works.
+  for (const value of MATERIALS) {
+    const radio = GLASS_MATERIAL_RADIOS.find((r) => r.value === value);
+    if (!radio) {
+      failed = true;
+      console.log(`FAIL there is no radio for "${value}"`);
+      continue;
+    }
+    // A browser unchecks the others when one radio in a group is chosen. The
+    // stub does not, so a check that only sets its own radio leaves all four
+    // looking chosen - and the "only one is ever checked" check below would
+    // fail for a reason that is the harness's, not the page's.
+    GLASS_MATERIAL_RADIOS.forEach((r) => { r.checked = r === radio; });
+    fireElement(radio, 'change');
+
+    if (bodyAttrs['data-glass-material'] !== value) {
+      failed = true;
+      console.log(`FAIL choosing "${value}" left the page at ` +
+                  `"${bodyAttrs['data-glass-material']}"`);
+    }
+  }
+  console.log('     every material choice reaches the page');
+
+  const chosen = configPosts.filter((p) => 'glass_material' in p);
+  if (chosen.length !== MATERIALS.length) {
     failed = true;
-    console.log(`FAIL data-glass is "${bodyAttrs['data-glass']}" after clicking the switch`);
+    console.log(`FAIL ${MATERIALS.length} materials were chosen but ` +
+                `${chosen.length} were saved`);
+  } else if (chosen[chosen.length - 1].glass_material !== 'acrylic') {
+    failed = true;
+    console.log('FAIL the last material saved was ' +
+                JSON.stringify(chosen[chosen.length - 1].glass_material));
   } else {
-    console.log(`     clicking the switch set data-glass="${bodyAttrs['data-glass']}"`);
+    console.log('     each material is saved as it is chosen');
   }
 
-  if (button.getAttribute('aria-checked') !== bodyAttrs['data-glass']) {
+  // Exactly one radio may stay checked, or the control looks like a switch
+  // that is somehow on in three places at once. Checked before the colour
+  // work below, which has nothing to do with the radios.
+  const stillChecked = GLASS_MATERIAL_RADIOS.filter((r) => r.checked);
+  if (stillChecked.length !== 1) {
     failed = true;
-    console.log('FAIL the switch says aria-checked="' + button.getAttribute('aria-checked') +
-                '" but the page is set to "' + bodyAttrs['data-glass'] + '"');
+    console.log(`FAIL ${stillChecked.length} materials are checked at once`);
   } else {
-    console.log('     the switch and the page agree with each other');
+    console.log('     only one material is ever checked');
   }
 
-  if (!label.textContent || label.textContent.indexOf('switch.') === 0) {
+  // --- the colour ---
+  // The picker and the text box are two ways to change one setting, so both
+  // have to move the body and both have to save.
+  const picker = elements.get('glass-tint-picker');
+  const hex = elements.get('glass-tint-hex');
+  const error = elements.get('glass-tint-error');
+
+  // The colour the panels end up painted in is not the colour that was typed:
+  // it is pulled toward the theme's panel colour until that theme's own text
+  // stays readable on it. So each check below compares against the answer the
+  // arithmetic gives, not against the raw value. A tint left exactly as typed
+  // is only correct when it happened to be readable already, which is what the
+  // "kept as chosen" check below establishes.
+  const infoFor = () => {
+    const name = documentStub.body.getAttribute('data-theme') || 'high-contrast';
+    return PANEL_INFO[name];
+  };
+  const painted = (raw) => {
+    const info = infoFor();
+    return sandbox.AccessibleTint.safePanelTint(raw, info.panel, info.texts);
+  };
+
+  picker.value = '#336699';
+  fireElement(picker, 'input');
+  const fromPicker = painted('#336699');
+  if (bodyAttrs['data-glass-tint'] !== fromPicker) {
     failed = true;
-    console.log('FAIL the switch label is missing or shows a raw key: ' + label.textContent);
+    console.log('FAIL the colour picker did not reach the page, it shows ' +
+                `"${bodyAttrs['data-glass-tint']}" rather than "${fromPicker}"`);
+  }
+  if (hex.value !== '#336699') {
+    failed = true;
+    console.log('FAIL the colour picker did not fill in the text box');
   } else {
-    console.log('     the switch label is a translated word');
+    console.log('     the colour picker drives the page and the text box');
   }
 
-  const saved = configPosts.filter((p) => 'glass' in p);
-  if (!saved.length) {
+  // What gets saved has to be the choice, not the clamped answer. Saving the
+  // clamped colour back would rewrite the reader's red into a darker red the
+  // first time they changed anything else on the page.
+  //
+  // Fired on 'change' rather than 'input', because that is the event the
+  // picker sends when the reader lets go, and it is the one that commits. An
+  // 'input' drag through a hundred colours would post a hundred saves.
+  fireElement(picker, 'change');
+  const afterPicker = configPosts.filter((p) => 'glass_tint' in p);
+  if (!afterPicker.length) {
     failed = true;
-    console.log('FAIL the panel choice was never saved');
-  } else if (typeof saved[saved.length - 1].glass !== 'boolean') {
+    console.log('FAIL the chosen colour was never saved');
+  } else if (afterPicker[afterPicker.length - 1].glass_tint !== '#336699') {
     failed = true;
-    console.log('FAIL glass was saved as ' + JSON.stringify(saved[saved.length - 1].glass) +
-                ' rather than true/false');
+    console.log('FAIL the saved colour is not the one that was chosen, it saved ' +
+                JSON.stringify(afterPicker[afterPicker.length - 1].glass_tint) +
+                ' rather than "#336699"');
+  } else if (fromPicker === '#336699') {
+    console.log('     the saved colour is the choice, not the clamped answer');
   } else {
-    console.log('     the panel choice is saved as true or false');
+    console.log(`     the saved colour is the choice, not the clamped answer ` +
+                `("${fromPicker}")`);
+  }
+
+  hex.value = '#4a7fb5';
+  fireElement(hex, 'input');
+  const fromTyping = painted('#4a7fb5');
+  if (bodyAttrs['data-glass-tint'] !== fromTyping) {
+    failed = true;
+    console.log('FAIL typing a colour did not reach the page');
+  }
+
+  // A half-typed colour must not be applied and must not be shouted at: the
+  // reader cannot have made a mistake they have not finished expressing.
+  hex.value = '#4a7f';
+  fireElement(hex, 'input');
+  if (bodyAttrs['data-glass-tint'] !== fromTyping) {
+    failed = true;
+    console.log('FAIL an unfinished colour was applied anyway: ' +
+                `"${bodyAttrs['data-glass-tint']}"`);
+  }
+  if (!error.hidden) {
+    failed = true;
+    console.log('FAIL an unfinished colour produced an error message');
+  } else {
+    console.log('     an unfinished colour is left alone, not complained about');
+  }
+
+  // But leaving the field with something unusable is worth saying once.
+  hex.value = 'not-a-colour';
+  fireElement(hex, 'change');
+  if (error.hidden) {
+    failed = true;
+    console.log('FAIL a colour that can never work was accepted in silence');
+  } else if (error.textContent && error.textContent.indexOf('try.') === 0) {
+    failed = true;
+    console.log('FAIL the colour error shows a raw key: ' + error.textContent);
+  } else {
+    console.log('     an unusable colour is explained, in the reader\'s language');
+  }
+
+  // Reset has to mean "follow the theme", which is the empty string and not
+  // a leftover colour, and it has to save that.
+  fireElement(elements.get('glass-tint-reset'), 'click');
+  if (bodyAttrs['data-glass-tint'] !== '') {
+    failed = true;
+    console.log('FAIL reset left a colour behind: ' +
+                `"${bodyAttrs['data-glass-tint']}"`);
+  }
+  if (hex.value !== '') {
+    failed = true;
+    console.log('FAIL reset left the text box filled in');
+  } else {
+    console.log('     reset returns the panels to the theme colour');
+  }
+
+  // The CSS reads the tint through a custom property with a fallback, so an
+  // empty tint has to remove the property rather than blank it. A blank
+  // --glass-tint wins the cascade and leaves nothing to blend with.
+  const style = documentStub.body.__style;
+  if (style && style.getPropertyValue('--glass-tint') === '') {
+    failed = true;
+    console.log('FAIL --glass-tint was set to an empty value instead of removed');
+  } else {
+    console.log('     the empty tint removes --glass-tint so the fallback applies');
+  }
+
+  const tints = configPosts.filter((p) => 'glass_tint' in p);
+  if (!tints.length) {
+    failed = true;
+    console.log('FAIL the colour was never saved');
+  } else if (tints[tints.length - 1].glass_tint !== '') {
+    failed = true;
+    console.log('FAIL reset did not save the empty tint, it saved ' +
+                JSON.stringify(tints[tints.length - 1].glass_tint));
+  } else {
+    console.log('     the colour is saved, including the reset to the theme');
   }
 }
 

@@ -90,9 +90,7 @@
   "modules.title": "Module index",
   "modules.web_blocked": "This example cannot run in the web version. It works in the desktop app.",
   "motion.help": "Turning this on stops the buttons, switches and panels moving. Nothing disappears, it just arrives straight away.",
-  "glass.label": "Frosted panels",
-  "glass.hint": "This is a look, not a legibility aid. It softens the bars and panels around your code and leaves the editor itself solid.",
-  "glass.help": "Turning this on makes the panels see-through. The words in your code keep their solid background, so the contrast you read by does not change. Turn it off if the softened edges make anything harder to pick out.",
+  "glass.help": "These are a look, not a legibility aid. If the softened edges or the extra colour make anything harder to pick out, choose None (solid).",
   "motion.hint": "Movement is extra. Turning it off never changes what the app does, only how quickly things arrive.",
   "motion.label": "Reduce motion",
   "nav.open": "Open",
@@ -282,5 +280,15 @@
   "update.status_downloading": "Downloading the new version. This can take a minute.",
   "update.status_off": "Automatic checking is off. You can still ask at any time.",
   "update.version_line": "Version {0}",
-  "update.status_ready": "Version {0} is ready. Close the app and open it again to finish."
+  "update.status_ready": "Version {0} is ready. Close the app and open it again to finish.",
+  "glass.material_label": "Panel material",
+  "glass.material_off": "None (solid)",
+  "glass.material_mica": "Mica",
+  "glass.material_frosted": "Frosted",
+  "glass.material_acrylic": "Acrylic",
+  "glass.material_help": "How solid the bars and panels around your code are. Your code itself always stays solid, so the contrast you read by does not change. Mica is quiet and nearly solid. Frosted is an even blur. Acrylic is the heaviest and most see-through, with a faint grain.",
+  "glass.tint_label": "Panel colour",
+  "glass.tint_picker_label": "Choose a colour for the panels",
+  "glass.tint_help": "Blends with the colour your theme already uses, so it shifts the panels' colour without losing the theme's contrast. Leave it empty to follow the theme. Type a hex colour such as #223344.",
+  "glass.tint_reset": "Use theme colour"
 }

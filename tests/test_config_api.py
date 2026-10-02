@@ -264,6 +264,7 @@ class SetupWizardSettingsTests(ConfigApiTestCase):
                     r'<section id="setup-panel-%s"(.*?)>' % name, page, re.S
                 )
                 self.assertIsNotNone(tag, "the panel is missing from the page")
+                assert tag is not None
                 self.assertEqual("hidden" not in tag.group(1), shown)
 
     def test_answering_the_wizard_asks_nothing(self):
@@ -563,41 +564,109 @@ class ReduceMotionTests(ConfigApiTestCase):
         self.assertIn("on or off", message)
 
 
-class FrostedPanelSettingTests(ConfigApiTestCase):
-    """The frosted-panel look is a preference, so it has to survive a save,
-    refuse nonsense with a sentence about the switch, and be off until the
-    reader asks for it - a see-through surface costs contrast, and contrast
-    is not something this app trades for a look."""
+class PanelMaterialSettingTests(ConfigApiTestCase):
+    """The material and its colour are preferences, so they have to survive
+    a save, refuse nonsense with a sentence about the control the reader
+    actually used, and start solid - a see-through surface costs contrast,
+    and contrast is not something this app trades for a look."""
 
-    def test_it_is_off_until_it_is_asked_for(self):
-        self.assertIs(routes.DEFAULT_CONFIG["glass"], False)
-        self.assertIs(self.get_settings()["glass"], False)
+    MATERIALS = ("off", "mica", "frosted", "acrylic")
 
-    def test_it_round_trips(self):
-        for value in (True, False):
-            with self.subTest(glass=value):
-                self.assertEqual(self.post_settings(glass=value).status_code, 200)
-                self.assertIs(self.get_settings()["glass"], value)
+    def test_it_is_solid_until_it_is_asked_for(self):
+        self.assertEqual(routes.DEFAULT_CONFIG["glass_material"], "off")
+        self.assertEqual(self.get_settings()["glass_material"], "off")
+        self.assertEqual(routes.DEFAULT_CONFIG["glass_tint"], "")
+        self.assertEqual(self.get_settings()["glass_tint"], "")
+
+    def test_the_material_round_trips(self):
+        for value in self.MATERIALS:
+            with self.subTest(glass_material=value):
+                self.assertEqual(
+                    self.post_settings(glass_material=value).status_code, 200
+                )
+                self.assertEqual(self.get_settings()["glass_material"], value)
+
+    def test_a_colour_round_trips_in_both_accepted_lengths(self):
+        # The 3-digit form is accepted on the same rule as the code-colour
+        # field: "#abc" and "#aabbcc" mean the same colour, and refusing the
+        # short one would be a rule nobody could guess.
+        for value in ("#223344", "#fff", "#223344"):
+            with self.subTest(glass_tint=value):
+                self.assertEqual(self.post_settings(glass_tint=value).status_code, 200)
+                self.assertEqual(self.get_settings()["glass_tint"], value)
 
     def test_the_page_marks_the_body_before_any_script_runs(self):
         # Same reasoning as motion: the first paint has to be right, or the
         # page appears one way and then corrects itself in front of the reader.
         page = self.client.get("/").data.decode("utf-8")
-        self.assertIn('data-glass="false"', page)
+        self.assertIn('data-glass-material="off"', page)
 
-        self.post_settings(glass=True)
+        self.post_settings(glass_material="acrylic", glass_tint="#336699")
         page = self.client.get("/").data.decode("utf-8")
-        self.assertIn('data-glass="true"', page)
-        self.assertNotIn('data-glass="false"', page)
+        self.assertIn('data-glass-material="acrylic"', page)
+        self.assertNotIn('data-glass-material="off"', page)
 
-    def test_a_text_value_is_refused_with_a_message_about_the_switch(self):
-        response = self.post_settings(glass="yes")
+        # The stored colour is the reader's own, unchanged, so that it can be
+        # shown back to them and re-clamped for a different theme.
+        self.assertEqual(self.get_settings()["glass_tint"], "#336699")
+
+        # What the page paints is that colour pulled toward the chosen theme's
+        # panel until that theme's own text stays readable on it. It has to
+        # reach CSS before the first paint too, or the panels would flash the
+        # theme colour and change.
+        from accessible_ide.utils import colour as tint_utils
+
+        theme = routes.DEFAULT_CONFIG["theme"]
+        expected = tint_utils.safe_panel_tint(
+            "#336699",
+            routes._panel_colour(theme),
+            routes.PANEL_TEXT[theme],
+        )
+        self.assertNotEqual(expected, "#336699")
+        self.assertIn(f'data-glass-tint="{expected}"', page)
+        self.assertIn(f"--glass-tint: {expected};", page)
+        # And it has to still be the same colour the browser works out, or the
+        # panels would change the moment the first script runs.
+        self.assertEqual(expected, routes.panel_tint_for(theme, "#336699"))
+
+    def test_an_unknown_material_is_refused_by_name(self):
+        response = self.post_settings(glass_material="obsidian")
         self.assertEqual(response.status_code, 400)
         message = response.get_json()["error"]
-        # Naming the switch that exists beats saying the setting is unknown.
-        self.assertIn("Frosted panels", message)
-        self.assertIn("on or off", message)
-        self.assertNotIn("not a setting", message)
+        # Naming the choice that exists beats saying the setting is unknown.
+        self.assertIn("Panel material", message)
+        for value in self.MATERIALS:
+            self.assertIn(value, message)
+
+    def test_a_colour_with_alpha_is_refused(self):
+        # Alpha is how a colour silently becomes unreadable, and the panels
+        # are already translucent. Letting a reader set both at once would
+        # remove the floor that keeps the text legible.
+        response = self.post_settings(glass_tint="#33669980")
+        self.assertEqual(response.status_code, 400)
+        message = response.get_json()["error"]
+        self.assertIn("Panel colour", message)
+
+    def test_the_old_on_off_switch_is_translated_rather_than_rejected(self):
+        # Somebody who tried the earlier build has a stored key the validator
+        # no longer knows. An unrecognised setting is an error worth showing,
+        # so the old value is migrated instead of left to break.
+        import json
+        from pathlib import Path
+
+        # Written from scratch rather than read, so the test does not depend
+        # on whether an earlier test happened to save anything.
+        routes.CONFIG_FILE.write_text(
+            json.dumps(dict(routes.DEFAULT_CONFIG, glass=True)), encoding="utf-8"
+        )
+        migrated = routes.load_config()
+        self.assertEqual(migrated["glass_material"], "frosted")
+        self.assertNotIn("glass", migrated)
+
+        routes.CONFIG_FILE.write_text(
+            json.dumps(dict(routes.DEFAULT_CONFIG, glass=False)), encoding="utf-8"
+        )
+        self.assertEqual(routes.load_config()["glass_material"], "off")
 
     def test_the_switch_is_announced_as_a_switch(self):
         page = self.client.get("/").data.decode("utf-8")

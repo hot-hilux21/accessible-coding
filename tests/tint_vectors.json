@@ -1,0 +1,912 @@
+{
+  "_comment": [
+    "Shared ground truth for the two copies of the tint maths:",
+    "accessible_ide/utils/colour.py (server, first paint and save) and",
+    "static/js/tint.js (browser, live theme change).",
+    "Both test suites read this file, so a disagreement between them fails a",
+    "test instead of showing the reader a colour that is subtly wrong.",
+    "",
+    "Each case is a chosen tint against one theme's panel colour, with that",
+    "theme's own three text colours. The expected value is that tint faded",
+    "toward the panel, and only as far as it takes for all three of those",
+    "text colours to stay readable on it. A tint that already reads comes",
+    "back untouched.",
+    "",
+    "Cases marked \"tie\" land on a rounding boundary on the step that decides",
+    "the answer. Python rounds ties to even, JavaScript rounds them up, so",
+    "these are the cases that catch one copy drifting to the other's rounding",
+    "rule. Every other case gives the same colour either way and cannot catch",
+    "that.",
+    "Themes are named so a failure says which one broke.",
+    "",
+    "Cases marked \"conversion\" cover the float and clamping paths in",
+    "parse_hex and to_hex rather than the bisection: the differential sweep",
+    "only ever passed hex strings, so it never reached them. Python's parse_hex",
+    "truncated with int() and did not clamp, while parseHex rounded and",
+    "clamped, so a float triple came out a channel apart and the browser built",
+    "colours containing 256."
+  ],
+  "cases": [
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#000000",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#000000"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#ffffff",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#555555"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#ff0000",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#ad0808"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#0000ff",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#0000ff"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#00ff00",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#0f630f"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#7a1fa2",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#7a1fa2"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#0057b8",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#0252ad"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#ffd93d",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#615422"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#336699",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#2e5781"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#4a7fb5",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#365779"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#1b6b2f",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#1a612c"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#e8d5b0",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#5b5448"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#abcdef",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#4b5662"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#88ff00",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#395f0f"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#7f7f7f",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#555555"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#000000",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#000000"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#ffffff",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#38393e"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#ff0000",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#711518"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#0000ff",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#0909c1"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#00ff00",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#1a4120"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#7a1fa2",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#55206f"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#0057b8",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#113968"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#ffd93d",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#3d3929"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#336699",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#263a50"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#4a7fb5",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#2b3a4d"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#1b6b2f",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#1d402a"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#e8d5b0",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#3a3939"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#abcdef",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#333943"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#88ff00",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#2d3e21"
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#7f7f7f",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#38393d"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#000000",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f1ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#ffffff",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#ffffff"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#ff0000",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f2ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#0000ff",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f1ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#00ff00",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f1ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#7a1fa2",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f2ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#0057b8",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f1ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#ffd93d",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f2ecdc"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#336699",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f1ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#4a7fb5",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f1ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#1b6b2f",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f1ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#e8d5b0",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f2ecde"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#abcdef",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f1ecdf"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#88ff00",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f2ecde"
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#7f7f7f",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f1ecdf"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#000000",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#d9d9d9"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#ffffff",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#ffffff"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#ff0000",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#f4d1d1"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#0000ff",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#d7d7f3"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#00ff00",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#00ff00"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#7a1fa2",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#e1d5e7"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#0057b8",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#cddae9"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#ffd93d",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#ffd93d"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#336699",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#d1dae2"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#4a7fb5",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#cfdae5"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#1b6b2f",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#cfdcd2"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#e8d5b0",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#e9d7b3"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#abcdef",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#c7dbf0"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#88ff00",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#88ff00"
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#7f7f7f",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#d9d9d9"
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#d97f26",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#774a1e",
+      "tie": true
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#da7f25",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#784a1d",
+      "tie": true
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#f6f600",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#575710",
+      "tie": true
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#897f76",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#39383a",
+      "tie": true
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#8b7f74",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#3a3839",
+      "tie": true
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#917f6e",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#3b3838",
+      "tie": true
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#937f6c",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#3c3837",
+      "tie": true
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#997f66",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#3d3836",
+      "tie": true
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#9b7f64",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#3e3835",
+      "tie": true
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#aa00aa",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#641168",
+      "tie": true
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#df00df",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#611666",
+      "tie": true
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#f4f400",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f2edd1",
+      "tie": true
+    },
+    {
+      "theme": "high-contrast",
+      "panel": "#161616",
+      "tint": "#2f4f7f",
+      "texts": [
+        "#ffffff",
+        "#c9c9c9",
+        "#ffc1c1"
+      ],
+      "expected": "#2f4f7f",
+      "conversion": true
+    },
+    {
+      "theme": "dark",
+      "panel": "#1f2126",
+      "tint": "#7f5f2f",
+      "texts": [
+        "#e6e6e6",
+        "#9aa3ad",
+        "#ffb4a0"
+      ],
+      "expected": "#423729",
+      "conversion": true
+    },
+    {
+      "theme": "pastel",
+      "panel": "#f2ecdf",
+      "tint": "#5f7f2f",
+      "texts": [
+        "#453f3a",
+        "#736a5f",
+        "#8f2f1a"
+      ],
+      "expected": "#f2ecde",
+      "conversion": true
+    },
+    {
+      "theme": "light",
+      "panel": "#f2f2f2",
+      "tint": "#2f7f7f",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": "#ccdcdc",
+      "conversion": true
+    }
+  ],
+  "empty_tint": [
+    {
+      "tint": "",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": ""
+    },
+    {
+      "tint": "   ",
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": ""
+    },
+    {
+      "tint": null,
+      "texts": [
+        "#2b2b2b",
+        "#5f5f5f",
+        "#8f1a1a"
+      ],
+      "expected": ""
+    }
+  ]
+}

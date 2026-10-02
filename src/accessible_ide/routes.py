@@ -14,6 +14,7 @@ import threading
 from pathlib import Path
 
 from . import i18n
+from .utils import colour
 from .shell import ShellError, ShellTimeout
 from .shell import registry as shell_registry
 
@@ -146,12 +147,16 @@ DEFAULT_CONFIG = {
     # otherwise a reader who has asked for reduced motion at the OS level
     # could never turn movement back on here.
     'reduce_motion': None,
-    # Translucent, frosted panels. Off by default on purpose: a see-through
-    # surface can cost contrast, and contrast is the one thing this app is
-    # not allowed to trade away for a nicer look. The setting only ever
-    # changes panels and bars - never the editor or the page behind the
-    # text, so the contrast of the words themselves is untouched.
-    'glass': False,
+    # Which material the panels are made of. "off" is the default on
+    # purpose: a see-through surface can cost contrast, and contrast is
+    # the one thing this app is not allowed to trade away for a nicer
+    # look. The names are ours, not Windows' - the panels imitate
+    # acrylic and mica rather than using the real Windows materials,
+    # which a WebView2 window cannot reach.
+    'glass_material': 'off',
+    # The tint for those panels. Empty means "whatever the chosen theme
+    # uses", which is the safe answer and what the reset button sends.
+    'glass_tint': '',
     'tts_enabled': False,
     'tts_engine': 'pyttsx3',
     'tts_voice': '',
@@ -262,6 +267,56 @@ THEMES = {
     }
 }
 
+def _panel_colour(theme):
+    """The colour a theme's panels are painted in.
+
+    Read from the theme table rather than from the stylesheet because the
+    server has to agree with the CSS about this number, and a second copy of
+    it in Python would eventually be a second copy that is wrong. The
+    gutter colour is the same value the stylesheet uses for --panel-bg;
+    tests/test_panel_materials.py checks that the two still agree.
+    """
+    return _palette(theme)['gutter_bg']
+
+
+# The three token colours that sit on a panel: the words, the quieter
+# secondary text, and the error text. These are what a custom panel tint has
+# to stay readable behind, so a tint is checked against all three of them.
+#
+# Kept here, beside the theme table, rather than in utils/colour.py because
+# they are the theme's identity and this is where the themes live. The
+# stylesheet holds the same three values under --fg, --muted and --error-fg,
+# and tests/test_panel_materials.py checks the two have not drifted apart -
+# the same way it checks --panel-bg. A custom tint that silently ignored the
+# error text would be worse than no tint at all.
+PANEL_TEXT = {
+    'high-contrast': ('#ffffff', '#c9c9c9', '#ffc1c1'),
+    'dark': ('#e6e6e6', '#9aa3ad', '#ffb4a0'),
+    'pastel': ('#453f3a', '#736a5f', '#8f2f1a'),
+    'light': ('#2b2b2b', '#5f5f5f', '#8f1a1a'),
+}
+
+
+def _palette(theme):
+    """A theme's table, falling back to the default for an unknown name."""
+    return THEMES.get(theme) or THEMES[DEFAULT_CONFIG['theme']]
+
+
+def panel_tint_for(theme, tint_hex):
+    """The colour the panels actually get, for ``theme``.
+
+    Checked against the theme's own three text colours, so a tint is pulled
+    toward the panel only as far as it takes to keep the words readable.
+
+    Shared with the browser through the same arithmetic in static/js/tint.js,
+    so a theme change on the client lands where the server would have put it.
+    """
+    name = theme if theme in PANEL_TEXT else DEFAULT_CONFIG['theme']
+    return colour.safe_panel_tint(
+        tint_hex, _panel_colour(name), PANEL_TEXT[name]
+    )
+
+
 # Reading fonts. This table is the single source of truth: the settings
 # screen and app.js both read it from /api/fonts, so a font can never be
 # listed in one place and missing from the other. That duplication is
@@ -367,6 +422,16 @@ def load_config():
         try:
             with open(CONFIG_FILE, 'r') as f:
                 config = json.load(f)
+            # The frosted panels were first shipped as a single on/off
+            # switch before they became a choice of material. Somebody who
+            # tried that build has a stored key the validator no longer
+            # knows, and an unrecognised setting is an error worth showing
+            # them. So the old switch is translated rather than left to
+            # break: on becomes frosted, off becomes the default.
+            if 'glass' in config:
+                config['glass_material'] = (
+                    'frosted' if config.pop('glass') else DEFAULT_CONFIG['glass_material']
+                )
             # Merge with defaults for any missing keys
             for key, value in DEFAULT_CONFIG.items():
                 if key not in config:
@@ -581,6 +646,40 @@ def index():
     return render_template('index.html',
                          config=config,
                          themes=THEMES,
+                         # The colour the panels actually get. The stored
+                         # tint is whatever the reader chose; this is that
+                         # choice pulled toward the panel until the chosen
+                         # theme's own panel text stays readable, so it cannot
+                         # cost contrast. Computed here so the first paint is
+                         # right, and again in the browser on a theme change.
+                         glass_tint=panel_tint_for(
+                             config.get('theme', DEFAULT_CONFIG['theme']),
+                             config.get('glass_tint', ''),
+                         ),
+                         # The choice itself, separately from the colour above.
+                         # The two are not the same value, and the page needs
+                         # both: the hex field shows what the reader picked,
+                         # the body carries what the panels are painted in.
+                         # Reading the choice back out of the painted colour
+                         # would mean saving a clamped colour over their
+                         # original one the first time they changed anything
+                         # else.
+                         glass_choice=config.get('glass_tint', ''),
+                         # Each theme's panel colour and the text colours that
+                         # sit on it, so the browser can work out the same
+                         # answer without waiting for /api/themes. Two reasons
+                         # it is embedded rather than fetched: the first paint
+                         # needs it before any script runs, and a tint computed
+                         # against a fallback background is the unreadable
+                         # panel this exists to prevent. A tint that ignored
+                         # the text colours is the same failure.
+                         panel_info={
+                             name: {
+                                 'panel': _panel_colour(name),
+                                 'texts': list(PANEL_TEXT[name]),
+                             }
+                             for name in PANEL_TEXT
+                         },
                          fonts=FONTS,
                          # The version on the badge comes from the build, not
                          # from a line somebody remembered to edit. It used to
@@ -852,7 +951,8 @@ CONFIG_TYPES = {
     'blur_intensity': (int, float),
     'contrast': str,
     'reduce_motion': bool,
-    'glass': bool,
+    'glass_material': str,
+    'glass_tint': str,
     'tts_enabled': bool,
     'tts_engine': str,
     'tts_voice': str,
@@ -876,6 +976,7 @@ CONFIG_VALUES = {
     'theme': set(THEMES.keys()),
     'focus_mode': {'off', 'gutter', 'lines'},
     'contrast': {'normal', 'high'},
+    'glass_material': {'off', 'frosted', 'acrylic', 'mica'},
     'locale': set(i18n.LANGUAGES),
     # The wizard has three steps. The bound is not decoration: a corrupt or
     # hand-edited value would otherwise render a screen with no step shown
@@ -914,7 +1015,7 @@ CONFIG_MAX_LENGTHS = {
 # as well as the empty, broken and "transparent" values that would
 # quietly make the code unreadable. A hex colour is the one colour
 # format that cannot carry a second declaration.
-CONFIG_HEX_COLORS = {'code_color'}
+CONFIG_HEX_COLORS = {'code_color', 'glass_tint'}
 
 # Only the 3- and 6-digit forms. The 4- and 8-digit forms (with alpha)
 # are left out on purpose: alpha is how a colour silently becomes

@@ -14,12 +14,27 @@
   // rather see a gap than silently get English in the middle of Hindi.
   var CATALOGUE = {};
   var META = { locale: 'en', direction: 'ltr' };
+  // Each theme's panel colour and the text colours on it, as
+  // { theme: { panel: '#rrggbb', texts: [fg, muted, error-fg] } }.
+  //
+  // Embedded in the page rather than fetched, because the tint has to be right
+  // the first time it is painted. /api/themes may not have answered yet, and a
+  // tint mixed against a placeholder background is unreadable.
+  var PANEL_INFO = {};
   try {
     CATALOGUE = JSON.parse(document.getElementById('i18n-data').textContent) || {};
     META = JSON.parse(document.getElementById('i18n-meta').textContent) || META;
   } catch (err) {
     // No embedded catalogue: fall back to whatever the server already put
     // in the page. The page still works, just without JS-side strings.
+  }
+
+  try {
+    PANEL_INFO = JSON.parse(
+      document.getElementById('panel-info').textContent
+    ) || {};
+  } catch (err) {
+    PANEL_INFO = {};
   }
 
   function t(key) {
@@ -1374,25 +1389,173 @@
   // only ever changes panels and bars - the editor and the text behind it
   // keep their solid background, so turning it on cannot cost contrast on
   // the words the reader is actually trying to read.
-  var btnGlass = document.getElementById('glass');
-  var glassState = document.getElementById('glass-state');
-  var glass = body.getAttribute('data-glass') === 'true';
+  // A material name is only ever one of these four, because the server
+  // will not save anything else. The fallback is 'off' rather than the
+  // attribute's raw value: a bad value in the DOM should leave the panels
+  // solid, never leave them in some half-understood material.
+  var MATERIALS = ['off', 'mica', 'frosted', 'acrylic'];
+  // Same shape the server accepts (HEX_COLOR_RE in routes.py): 3- or
+  // 6-digit only. Alpha forms are refused on both sides, because alpha is
+  // how a colour silently becomes unreadable.
+  var GLASS_HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  var glassMaterial = body.getAttribute('data-glass-material');
+  if (MATERIALS.indexOf(glassMaterial) === -1) glassMaterial = 'off';
+  // The reader's own choice, not the colour the panels ended up painted in.
+  // The two differ whenever the choice had to be faded toward the theme's
+  // panel to keep the text on it readable, and only the choice is ever saved
+  // back: saving the painted colour instead would quietly rewrite their red
+  // into a darker red the first time they touched anything else.
+  var glassTint = (body.getAttribute('data-glass-choice') || '').trim();
 
-  function applyGlass(on) {
-    body.setAttribute('data-glass', on ? 'true' : 'false');
-    glass = on;
-    if (btnGlass) {
-      btnGlass.setAttribute('aria-checked', on ? 'true' : 'false');
-      btnGlass.classList.toggle('active', on);
-    }
-    if (glassState) glassState.textContent = on ? t('switch.on') : t('switch.off');
+  function applyGlassMaterial(name) {
+    body.setAttribute('data-glass-material', name);
   }
 
-  applyGlass(glass);
-  if (btnGlass) {
-    btnGlass.addEventListener('click', function () {
-      applyGlass(!glass);
-      saveConfig({ glass: glass });
+  // The panel colour and the text colours that sit on it, both from the table
+  // the server embedded, for the theme that is showing now.
+  //
+  // Read from the page rather than from /api/themes on purpose. That fetch may
+  // still be in flight when the reader picks a colour, and falling back to the
+  // placeholder background mixes the tint against a panel no reader ever sees.
+  function panelInfo() {
+    return PANEL_INFO[themeSelect.value] || null;
+  }
+
+  // The colour the panels are actually painted in. This is the reader's choice
+  // pulled toward the theme's panel colour until that theme's own text stays
+  // readable on it, so it cannot cost contrast however vivid the choice was.
+  // tint.js does the arithmetic and its Python twin does the same for the first
+  // paint.
+  function panelColour() {
+    var info = panelInfo();
+    if (info && info.panel) return info.panel;
+    var palette = themePalette[themeSelect.value] || themePalette;
+    return palette.gutter_bg || palette.bg || '';
+  }
+
+  // The three text colours the current theme puts on a panel, which is what
+  // the tint is checked against. A theme missing from the embedded table falls
+  // back to no check, and tint.js then hands back the panel colour itself: the
+  // reader asked for something the app cannot show is readable, so it errs
+  // toward the theme rather than toward a guess. That only happens if the
+  // table and the theme list have drifted apart, which
+  // tests/test_panel_materials.py fails on.
+  function panelTexts() {
+    var info = panelInfo();
+    return info && info.texts ? info.texts : null;
+  }
+
+  function applyGlassTint(hex) {
+    glassTint = hex || '';
+    var safe = '';
+    if (glassTint && panelColour()) {
+      try {
+        safe = AccessibleTint.safePanelTint(
+          glassTint, panelColour(), panelTexts());
+      } catch (error) {
+        // An unusable colour is caught by the field's own error message.
+        // Here it just means the panels keep the theme colour, which is
+        // the safe answer and never a blank one.
+        safe = '';
+      }
+    }
+    body.setAttribute('data-glass-tint', safe);
+    // The property is removed rather than set to an empty string: the CSS
+    // reads it with a fallback, and an empty --glass-tint would win the
+    // cascade and leave nothing to blend with.
+    if (safe) body.style.setProperty('--glass-tint', safe);
+    else body.style.removeProperty('--glass-tint');
+  }
+
+  applyGlassMaterial(glassMaterial);
+  applyGlassTint(glassTint);
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll('input[name="glass-material"]'),
+    function (radio) {
+      radio.checked = radio.value === glassMaterial;
+      radio.addEventListener('change', function () {
+        if (!radio.checked) return;
+        glassMaterial = radio.value;
+        applyGlassMaterial(glassMaterial);
+        saveConfig({ glass_material: glassMaterial });
+      });
+    }
+  );
+
+  var tintPicker = document.getElementById('glass-tint-picker');
+  var tintHex = document.getElementById('glass-tint-hex');
+  var tintError = document.getElementById('glass-tint-error');
+  var tintReset = document.getElementById('glass-tint-reset');
+
+  function setTintError(message) {
+    if (!tintError) return;
+    tintError.textContent = message || '';
+    tintError.hidden = !message;
+    if (tintHex) tintHex.setAttribute('aria-invalid', message ? 'true' : 'false');
+  }
+
+  function commitTint(hex, save) {
+    applyGlassTint(hex);
+    setTintError('');
+    if (save) saveConfig({ glass_tint: glassTint });
+  }
+
+  if (tintPicker) {
+    tintPicker.addEventListener('input', function () {
+      commitTint(tintPicker.value, false);
+      if (tintHex) tintHex.value = tintPicker.value;
+    });
+    tintPicker.addEventListener('change', function () {
+      saveConfig({ glass_tint: glassTint });
+    });
+  }
+
+  // Same rule as the code-colour field above, and for the same reason: an
+  // unfinished colour is not applied and not complained about until the
+  // reader leaves the field. A red box appearing after the first keystroke
+  // of "#223344" would be discouraging, and they cannot have made a
+  // mistake they have not finished expressing.
+  function onTintInput() {
+    var value = (tintHex.value || '').trim();
+    if (value === '') {
+      commitTint('', false);
+      return;
+    }
+    if (!GLASS_HEX_RE.test(value)) return;
+    setTintError('');
+    if (tintPicker) tintPicker.value = expandHex(value);
+    applyGlassTint(value);
+  }
+
+  if (tintHex) {
+    tintHex.addEventListener('input', onTintInput);
+    tintHex.addEventListener('change', function () {
+      var value = (tintHex.value || '').trim();
+      if (GLASS_HEX_RE.test(value)) {
+        setTintError('');
+        commitTint(value, true);
+      } else if (value === '') {
+        // Empty means "follow the theme", which is a real answer rather
+        // than an unfinished one, so it is saved as it stands.
+        setTintError('');
+        commitTint('', true);
+      } else {
+        setTintError(t('try.error_not_hex'));
+      }
+    });
+  }
+
+  if (tintReset) {
+    tintReset.addEventListener('click', function () {
+      setTintError('');
+      commitTint('', true);
+      if (tintHex) tintHex.value = '';
+      // The picker always needs a real colour to show, so it returns to the
+      // theme's own rather than to blank. Read from the DOM, so switching
+      // theme while a tint is set still lands on the right colour.
+      var themeColour = tintPicker && tintPicker.getAttribute('data-theme-colour');
+      if (tintPicker && themeColour) tintPicker.value = themeColour;
     });
   }
 
@@ -1420,6 +1583,20 @@
     updateFontNote();
     updatePreview();
     saveConfig({ font: fontSelect.value });
+  });
+
+  // A theme change moves the panel colour under the tint, so the tint has to
+  // be worked out again. Saved first so a theme change made while the
+  // Settings panel is closed is not silently lost.
+  themeSelect.addEventListener('change', function () {
+    applyGlassTint(glassTint);
+    if (tintPicker) {
+      var panel = panelColour();
+      if (panel) {
+        tintPicker.value = panel;
+        tintPicker.setAttribute('data-theme-colour', panel);
+      }
+    }
   });
 
   // ---------- Try it out panel ----------

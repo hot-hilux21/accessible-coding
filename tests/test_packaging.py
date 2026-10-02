@@ -70,7 +70,12 @@ class SpecContentsTests(unittest.TestCase):
                 continue
             shipped = [f for f in path.rglob('*')
                        if f.is_file() and f.name != '.gitkeep'
-                       and '__pycache__' not in f.parts]
+                       and '__pycache__' not in f.parts
+                       # Python source is compiled into the exe by the import
+                       # that reaches it, not copied as a file. A directory
+                       # holding only modules needs nothing listed, and asking
+                       # for it would put a phantom entry in the spec.
+                       and f.suffix != '.py']
             if not shipped:
                 continue
             for name in SPECS:

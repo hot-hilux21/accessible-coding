@@ -25,6 +25,7 @@ if SRC not in sys.path:
     sys.path.append(SRC)
 
 from accessible_ide import create_app, i18n, routes  # noqa: E402
+from accessible_ide.utils.colour import parse_hex  # noqa: E402
 
 APP_JS = REPO_ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
 STYLESHEET = (
@@ -198,7 +199,8 @@ class TemplateContractTests(RenderedPageFixture):
         for control in re.findall(r"<input[^>]*type=\"range\"[^>]*>", self.html):
             match = re.search(r'id="([^"]+)"', control)
             self.assertIsNotNone(match, f"range input has no id: {control}")
-            element_id = match.group(1) if match else ""
+            assert match is not None  # for the type checker, not the test
+            element_id = match.group(1)
             with self.subTest(control=element_id):
                 self.assertTrue(
                     f'<label for="{element_id}"' in self.html
@@ -209,7 +211,8 @@ class TemplateContractTests(RenderedPageFixture):
         for control in re.findall(r"<select[^>]*>", self.html):
             match = re.search(r'id="([^"]+)"', control)
             self.assertIsNotNone(match, f"select has no id: {control}")
-            element_id = match.group(1) if match else ""
+            assert match is not None  # for the type checker, not the test
+            element_id = match.group(1)
             with self.subTest(control=element_id):
                 self.assertTrue(
                     f'<label for="{element_id}"' in self.html
@@ -245,7 +248,8 @@ class TemplateContractTests(RenderedPageFixture):
         # reload.
         body_match = re.search(r"<body[^>]*>", self.html)
         self.assertIsNotNone(body_match, "index.html has no <body> tag")
-        body_tag = body_match.group(0) if body_match else ""
+        assert body_match is not None  # for the type checker, not the test
+        body_tag = body_match.group(0)
         for attribute in (
             "data-theme",
             "data-font",
@@ -1054,22 +1058,58 @@ class FrostedPanelAndMovementCssTests(RenderedPageFixture):
     forever, and a browser that cannot do the effect still gets solid panels
     rather than none."""
 
-    GLASS_KEYS = ("glass.label", "glass.hint", "glass.help")
+    GLASS_KEYS = (
+        "glass.material_label",
+        "glass.material_off",
+        "glass.material_mica",
+        "glass.material_frosted",
+        "glass.material_acrylic",
+        "glass.material_help",
+        "glass.tint_label",
+        "glass.tint_picker_label",
+        "glass.tint_help",
+        "glass.tint_reset",
+        "glass.help",
+    )
+
+    # The body rule that opts a surface in. "off" is excluded here rather
+    # than handled by a later override, so the solid state cannot be
+    # reached by accident.
+    SELECTOR = "body:not([data-glass-material='off']) :is("
 
     def test_the_page_carries_the_setting_before_any_script_runs(self):
         # Otherwise the page paints solid and then changes under the reader.
-        self.assertIn("data-glass=", self.template)
+        self.assertIn("data-glass-material=", self.template)
+        self.assertIn("data-glass-tint=", self.template)
 
-    def test_there_is_a_switch_and_it_is_a_switch(self):
-        self.assertIn('id="glass"', self.html)
-        row = re.search(r'<button id="glass".*?</button>', self.html, re.S)
-        self.assertIsNotNone(row, "the glass control is not a button")
-        markup = row.group(0) if row else ""
-        self.assertIn('role="switch"', markup)
-        self.assertIn("aria-checked=", markup)
-        # A switch has to say what it does, or the hint is invisible to a
-        # screen reader that lands on it.
-        self.assertIn("glass-hint", markup)
+    def test_the_material_is_a_radio_group_and_is_labelled(self):
+        # Radios, not buttons: these are four names for one setting, so the
+        # arrow keys have to move between them and only one can be chosen.
+        self.assertIn('name="glass-material"', self.html)
+        for value in ("off", "mica", "frosted", "acrylic"):
+            with self.subTest(material=value):
+                self.assertIn(f'value="{value}"', self.html)
+        self.assertIn('role="radiogroup"', self.html)
+        # A radiogroup needs a label and a description, or a screen reader
+        # announces four bare buttons.
+        self.assertIn('aria-labelledby="glass-material-label"', self.html)
+        self.assertIn('aria-describedby="glass-material-help"', self.html)
+        self.assertIn('id="glass-material-label"', self.html)
+
+    def test_the_colour_picker_is_labelled_and_can_be_reset(self):
+        self.assertIn('id="glass-tint-picker"', self.html)
+        self.assertIn('id="glass-tint-hex"', self.html)
+        self.assertIn('id="glass-tint-reset"', self.html)
+        # The picker and the text box both change the one setting, so both
+        # need names of their own rather than sharing a <label for>.
+        self.assertIn('for="glass-tint-hex"', self.html)
+        self.assertIn('aria-label="{{ t(\'glass.tint_picker_label\') }}"', self.template)
+        self.assertIn('aria-describedby="glass-tint-help glass-tint-error"', self.html)
+        # Reset is a real button, so it is in the tab order and can be
+        # operated from the keyboard.
+        self.assertRegex(
+            self.html, r'<button id="glass-tint-reset"[^>]*type="button"'
+        )
 
     def test_every_language_can_name_it(self):
         for language in i18n.LANGUAGES:
@@ -1082,18 +1122,33 @@ class FrostedPanelAndMovementCssTests(RenderedPageFixture):
     def test_the_editor_is_never_translucent(self):
         # This is the rule that keeps the effect safe to offer at all. The
         # code is read against .editor-pane, so that surface stays solid.
-        block = self.css.split("body[data-glass='true']", 1)[1]
-        block = block[: block.index("\n}")]
-        self.assertIn("backdrop-filter", block)
-        self.assertNotIn("editor-pane", block)
-        self.assertNotIn("editor-wrap", block)
+        # Every material block is checked, not just the first: a new
+        # material with its own selector could reintroduce the risk.
+        for block in self._material_blocks():
+            self.assertNotIn("editor-pane", block)
+            self.assertNotIn("editor-wrap", block)
+
+    def _material_blocks(self):
+        """Every rule whose body sets a backdrop-filter, with its selector."""
+        for match in re.finditer(
+            r"([^{}]*backdrop-filter[^{}]*)\{([^}]*)\}", self.css
+        ):
+            yield match.group(1), match.group(2)
 
     def test_only_named_surfaces_go_translucent(self):
         # An open-ended descendant rule would catch the editor next time
         # somebody adds a panel, so the list is spelled out.
-        block = self.css.split("body[data-glass='true'] :is(", 1)[1]
+        block = self.css.split(self.SELECTOR, 1)[1]
         listed = block[: block.index(")")].replace("\n", " ")
-        for surface in (".topbar", ".output-pane", ".shell-pane", ".settings"):
+        for surface in (
+            ".topbar",
+            ".output-pane",
+            ".shell-pane",
+            ".settings",
+            ".modules",
+            ".setup-panel",
+            ".error-panel",
+        ):
             with self.subTest(surface=surface):
                 self.assertIn(surface, listed)
 
@@ -1102,12 +1157,77 @@ class FrostedPanelAndMovementCssTests(RenderedPageFixture):
         # background entirely and the words on it lose their contrast too.
         # Match the declaration, not the name, which also occurs in the
         # comment explaining why it is there.
-        block = self.css.split("body[data-glass='true'] :is(", 1)[1]
+        block = self.css.split(self.SELECTOR, 1)[1]
         block = block[: block.index("\n}")]
         self.assertLess(
             block.index("background: var(--panel-bg)"),
             block.index("background: color-mix"),
         )
+
+    def test_every_material_is_a_real_one(self):
+        # A material that is named in the UI but not in the CSS would
+        # silently show solid panels, and the reader would have no way to
+        # tell the app from a broken one.
+        for value in ("mica", "frosted", "acrylic"):
+            with self.subTest(material=value):
+                self.assertIn(
+                    f"body[data-glass-material='{value}']",
+                    self.css,
+                )
+
+    def test_the_most_transparent_material_is_the_one_said_to_be(self):
+        # The help text promises mica is nearly solid and acrylic the most
+        # see-through. If the numbers drift the other way the description
+        # becomes a lie, and a reader who chose mica for its quietness would
+        # get the heaviest of the three.
+        def alpha_of(material):
+            match = re.search(
+                rf"body\[data-glass-material='{material}'\][^{{]*\{{(.*?)\n\}}",
+                self.css,
+                re.S,
+            )
+            self.assertIsNotNone(match, f"no block for {material}")
+            assert match is not None  # for the type checker, not the test
+            found = re.search(r"--glass-alpha:\s*(\d+)%", match.group(1))
+            self.assertIsNotNone(found, f"no alpha for {material}")
+            assert found is not None
+            return int(found.group(1))
+
+        # Higher alpha is more solid, so mica must be the most opaque.
+        self.assertGreater(alpha_of("mica"), alpha_of("frosted"))
+        self.assertGreater(alpha_of("frosted"), alpha_of("acrylic"))
+
+    def test_a_custom_tint_is_mixed_not_substituted(self):
+        # The panels are already translucent. Letting a colour replace the
+        # theme's panel colour outright would let a reader remove the very
+        # thing that keeps the text legible, so the tint is a shift within
+        # the theme's colour rather than a replacement for it.
+        block = self.css.split(self.SELECTOR, 1)[1]
+        block = block[: block.index("\n}")]
+        self.assertIn("--glass-fill: color-mix", block)
+        self.assertIn("var(--glass-tint, var(--panel-bg))", block)
+        self.assertIn("var(--panel-bg)", block)
+
+    def test_reduced_transparency_wins_over_the_materials(self):
+        # Somebody who has asked their operating system for less
+        # transparency gets none, whatever the app is set to. The
+        # !important is deliberate and is what makes this override the
+        # material rules in the one case that matters.
+        self.assertIn("prefers-reduced-transparency: reduce", self.css)
+        block = self.css.split("prefers-reduced-transparency: reduce", 1)[1]
+        block = block[: block.index("\n}")]
+        self.assertIn("backdrop-filter: none !important", block)
+        self.assertIn("background: var(--panel-bg) !important", block)
+
+    def test_the_grain_belongs_to_acrylic_only(self):
+        # Grain is what tells acrylic from a merely blurry panel, so it has
+        # to be reachable only under that material. Matched on the selector
+        # that governs the declaration, not the declaration itself.
+        rules = re.finditer(r"([^{}]*)\{([^}]*data:image/svg\+xml[^}]*)\}", self.css)
+        selectors = [match.group(1) for match in rules]
+        self.assertTrue(selectors, "the acrylic grain is missing")
+        for selector in selectors:
+            self.assertIn("data-glass-material='acrylic'", selector)
 
     def test_nothing_animates_forever(self):
         # A loop that never stops runs for as long as the window is open,
@@ -1151,35 +1271,156 @@ class FrostedPanelAndMovementCssTests(RenderedPageFixture):
         la, lb = cls._luminance(a), cls._luminance(b)
         return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
-    def test_the_frosted_panel_never_costs_contrast(self):
-        # The promise made in Settings is that turning this on does not change
-        # the contrast the reader reads by. So it is measured rather than
-        # trusted: composite the fill the stylesheet actually uses over the
-        # page background, and check every theme both for a regression and for
-        # the 4.5:1 that AA asks of text.
-        match = re.search(
-            r"background:\s*color-mix\(in srgb,\s*var\(--panel-bg\)\s*(\d+)%", self.css
-        )
-        self.assertIsNotNone(match, "the frosted fill no longer states its own opacity")
-        alpha = int(match.group(1) if match else "100") / 100
+    def _material_alpha(self, material):
+        """The opacity the stylesheet gives a material, as a fraction.
 
-        for name, variables in self._themes():
-            bg, panel = variables.get("--bg"), variables.get("--panel-bg")
-            if not bg or not panel:
-                continue
-            frosted = tuple(round(bg[i] * (1 - alpha) + panel[i] * alpha) for i in range(3))
-            for token in ("--fg", "--muted", "--error-fg"):
-                fg = variables.get(token)
-                if not fg:
+        Read from the file rather than restated here, so the number the test
+        measures is the number a reader actually gets. A material that sets
+        none falls back to the defaults in the shared rule.
+        """
+        match = re.search(
+            rf"body\[data-glass-material='{material}'\][^{{]*\{{(.*?)\n\}}", self.css, re.S
+        )
+        if match is not None:
+            found = re.search(r"--glass-alpha:\s*(\d+)%", match.group(1))
+            if found is not None:
+                return int(found.group(1)) / 100
+        shared = self.css.split(self.SELECTOR, 1)[1]
+        shared = shared[: shared.index("\n}")]
+        found = re.search(r"--glass-alpha:\s*(\d+)%", shared)
+        self.assertIsNotNone(found, f"no opacity stated for {material}")
+        assert found is not None
+        return int(found.group(1)) / 100
+
+    def test_no_material_costs_contrast(self):
+        # The promise made in Settings is that choosing a material does not
+        # change the contrast the reader reads by. So it is measured rather
+        # than trusted: composite the fill the stylesheet actually uses over
+        # the page background, and check every material in every theme, both
+        # for a regression and for the 4.5:1 that AA asks of text.
+        #
+        # Acrylic is the one to watch. It is the most see-through of the
+        # three, so it has the least colour left to sit behind the words.
+        for material in ("mica", "frosted", "acrylic"):
+            alpha = self._material_alpha(material)
+            for name, variables in self._themes():
+                bg, panel = variables.get("--bg"), variables.get("--panel-bg")
+                if not bg or not panel:
                     continue
-                solid = self._contrast(fg, panel)
-                softened = self._contrast(fg, frosted)
-                with self.subTest(theme=name, token=token):
-                    self.assertLessEqual(
-                        solid, softened + 0.01,
-                        f"frosting lowered {token} in the {name} theme",
+                fill = tuple(round(bg[i] * (1 - alpha) + panel[i] * alpha) for i in range(3))
+                for token in ("--fg", "--muted", "--error-fg"):
+                    fg = variables.get(token)
+                    if not fg:
+                        continue
+                    solid = self._contrast(fg, panel)
+                    softened = self._contrast(fg, fill)
+                    with self.subTest(material=material, theme=name, token=token):
+                        self.assertLessEqual(
+                            solid, softened + 0.01,
+                            f"{material} lowered {token} in the {name} theme",
+                        )
+                        self.assertGreaterEqual(
+                            softened, 4.5,
+                            f"{token} drops to {softened:.2f}:1 on a {material} "
+                            f"panel in {name}",
+                        )
+
+    def test_a_custom_tint_cannot_remove_the_colour_behind_the_words(self):
+        # A tint reaches CSS already pulled toward the panel by
+        # routes.panel_tint_for, which checks it against the theme's own --fg,
+        # --muted and --error-fg. So the hostile case here is not an arbitrary
+        # colour any more: it is the worst colour the reader can get painted,
+        # which is what that function returns for a tint that could not be
+        # made readable as itself.
+        #
+        # CSS then blends that painted tint with the panel, and the material
+        # blends the result with the page background. Both steps are measured
+        # here against the real theme values, because two blends that each
+        # look safe can add up to something that is not.
+        found = re.search(
+            r"--glass-fill:\s*color-mix\(in srgb,\s*var\(--glass-tint.*?\)\s*(\d+)%",
+            self.css,
+        )
+        self.assertIsNotNone(found, "the tint blend no longer states its own share")
+        assert found is not None
+        tint_share = int(found.group(1)) / 100
+        # The theme's colour always keeps the larger share, so a tint can
+        # shift the hue without taking over.
+        self.assertLess(tint_share, 0.5)
+
+        for material in ("mica", "frosted", "acrylic"):
+            alpha = self._material_alpha(material)
+            for name, variables in self._themes():
+                bg, panel = variables.get("--bg"), variables.get("--panel-bg")
+                if not bg or not panel:
+                    continue
+                theme = (
+                    routes.DEFAULT_CONFIG["theme"]
+                    if name.startswith("(")
+                    else name
+                )
+                # Hostile in the strongest sense available: the colour the
+                # theme cannot rescue at all, which is the opposite of the
+                # panel, and the most saturated thing a reader could pick.
+                for raw in ("#000000", "#ffffff", "#ff0000", "#00ff00"):
+                    painted = parse_hex(
+                        routes.panel_tint_for(theme, raw)
+                    ) if routes.panel_tint_for(theme, raw) else panel
+                    blended = tuple(
+                        round(panel[i] * (1 - tint_share) + painted[i] * tint_share)
+                        for i in range(3)
                     )
-                    self.assertGreaterEqual(
-                        softened, 4.5,
-                        f"{token} drops to {softened:.2f}:1 on a frosted panel in {name}",
+                    fill = tuple(
+                        round(bg[i] * (1 - alpha) + blended[i] * alpha)
+                        for i in range(3)
                     )
+                    for token in ("--fg", "--muted", "--error-fg"):
+                        fg = variables.get(token)
+                        if not fg:
+                            continue
+                        with self.subTest(
+                            material=material, theme=name, tint=raw, token=token
+                        ):
+                            self.assertGreaterEqual(
+                                self._contrast(fg, fill), 4.5,
+                                f"{token} drops to "
+                                f"{self._contrast(fg, fill):.2f}:1 on a "
+                                f"{material} panel in {name} with {raw}",
+                            )
+                    # The control is only worth having if it moves the panel.
+                    # Where the theme leaves no room to move it, the panel is
+                    # the correct answer and there is nothing to assert - so
+                    # that case is checked by asking whether a readable colour
+                    # was reachable at all, rather than by listing themes,
+                    # which would go stale the moment one is added.
+                    if self._readable_reachable(raw, panel, variables):
+                        self.assertGreater(
+                            max(abs(blended[i] - panel[i]) for i in range(3)), 0,
+                            f"{raw} was reachable but does nothing at all in "
+                            f"the {name} theme",
+                        )
+
+    def _readable_reachable(self, tint, panel, variables):
+        """Could this tint be made readable without becoming the panel?
+
+        Walked along the same path the tint maths uses, fading toward the
+        panel, and stopping short of it. The panel always passes, so including
+        it would make every answer look reachable.
+        """
+        from accessible_ide.utils.colour import readable_on
+
+        start = parse_hex(tint)
+        texts = [
+            variables[token]
+            for token in ("--fg", "--muted", "--error-fg")
+            if token in variables
+        ]
+        for step in range(256):
+            fraction = step / 256
+            candidate = tuple(
+                round(start[i] * (1 - fraction) + panel[i] * fraction)
+                for i in range(3)
+            )
+            if readable_on(texts, candidate) >= 4.5:
+                return True
+        return False
