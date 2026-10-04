@@ -950,22 +950,44 @@ class SetupWizardTests(RenderedPageFixture):
         # wizard covers the app they came to use - and the buttons that
         # carry them between questions are the ones most likely to be hit
         # by feel, at the bottom of the screen, in a hurry.
+        #
+        # The wizard used to carry its own ".setup-footer .btn { min-height:
+        # 44px }" because .btn was 40px and the wizard had to push it back
+        # up. .btn is 44px everywhere now, so the question is no longer
+        # "does the wizard override it" but "does anything shrink a button".
+        # A 44px answer row and a 32px button in the same dialog is still a
+        # 32px button, which is what this test is really about.
         rules = self.wizard_css()
-        for selector in (".setup-footer .btn", ".setup-choice"):
-            with self.subTest(selector=selector):
-                self.assertIn(selector, rules)
-        self.assertIn("min-height: 44px", rules)
-        # Checked where it matters: on the rules themselves, not merely
-        # somewhere in the block. A 44px answer row and a 32px button in
-        # the same dialog is still a 32px button.
-        for selector in (".setup-footer .btn", ".setup-choice"):
-            with self.subTest(rule=selector):
-                rule = re.search(
-                    re.escape(selector) + r"\s*\{([^}]*)\}", rules
-                )
-                self.assertIsNotNone(rule, f"{selector} has no rule of its own")
-                assert rule is not None  # narrow the type for checkers
-                self.assertIn("min-height: 44px", rule.group(1))
+
+        base = re.search(r"\.btn\s*\{([^}]*)\}", self.css)
+        self.assertIsNotNone(base, ".btn has no rule of its own")
+        assert base is not None  # narrow the type for checkers
+        self.assertIn(
+            "min-height: 44px",
+            base.group(1),
+            "the shared .btn rule is the only thing keeping wizard buttons "
+            "at 44px now, so it has to say so",
+        )
+
+        # Checked where it matters: on the rule itself, not merely somewhere
+        # in the block.
+        rule = re.search(re.escape(".setup-choice") + r"\s*\{([^}]*)\}", rules)
+        self.assertIsNotNone(rule, ".setup-choice has no rule of its own")
+        assert rule is not None
+        self.assertIn("min-height: 44px", rule.group(1))
+
+        # And nothing anywhere in the wizard may pull a button back under it.
+        for selector, body in re.findall(
+            r"(\.setup-footer[^{]*\.btn[^{]*)\{([^}]*)\}", rules
+        ):
+            with self.subTest(rule=selector.strip()):
+                for height in re.findall(r"min-height:\s*([\d.]+)px", body):
+                    self.assertGreaterEqual(
+                        float(height),
+                        44.0,
+                        f"{selector.strip()} makes a wizard button "
+                        f"{height}px tall, under the 44px floor",
+                    )
 
     def test_the_wizard_does_not_move_by_itself(self):
         # Nothing in a three-question screen needs to animate. A reader
@@ -1424,3 +1446,104 @@ class FrostedPanelAndMovementCssTests(RenderedPageFixture):
             if readable_on(texts, candidate) >= 4.5:
                 return True
         return False
+
+
+class ButtonStyleTests(unittest.TestCase):
+    """The buttons, as a family.
+
+    These rules exist because the buttons used to disagree with each other
+    in ways no reader could name. The base .btn set no background, colour
+    or border-colour at all, so the one bare .btn in the template rendered
+    as invisible text inside an invisible border. The primary button
+    hovered through a brightness filter, which no contrast test can
+    measure, while every other control hovered through border-color.
+    Buttons were 40px, 32px and 44px depending on where they sat, and a
+    later rule replaced the press animation with a scale, contradicting
+the comment above it that said a press was a settle and not a bounce.
+    """
+
+    def setUp(self):
+        # Comments are stripped before anything is matched. These checks
+        # read the stylesheet's rules, not its commentary, and a selector
+        # named in a comment is not a rule that applies to anything.
+        self.css = re.sub(
+            r"/\*.*?\*/", "", STYLESHEET.read_text(encoding="utf-8"), flags=re.S
+        )
+
+    def rule(self, selector):
+        match = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", self.css)
+        self.assertIsNotNone(match, f"{selector} has no rule of its own")
+        assert match is not None  # narrow the type for checkers
+        return match.group(1)
+
+    def test_the_base_button_is_visible(self):
+        # Without this, class="btn" on its own is a line of text.
+        base = self.rule(".btn")
+        for declaration in ("background:", "color:", "border:"):
+            with self.subTest(declaration=declaration):
+                self.assertIn(
+                    declaration,
+base,
+                    f".btn does not set {declaration}, so a bare .btn in "
+                    "the template has no visible box",
+                )
+
+    def test_no_button_hovers_through_a_filter(self):
+        # filter: brightness() shifts a colour by an amount the contrast
+        # arbiter cannot see, because it reads tokens rather than computed
+        # pixels. A hover state should say which token it means.
+        for selector, body in re.findall(
+            r"(\.btn[\w-]*:hover[^{]*)\{([^}]*)\}", self.css
+        ):
+            with self.subTest(selector=selector.strip()):
+                self.assertNotIn(
+                    "filter:",
+                    body,
+                    f"{selector.strip()} hovers through a filter, which the "
+                    "contrast test cannot measure",
+                )
+
+    def test_the_variants_differ_in_size_and_not_in_colour(self):
+        # A small button and a normal one should be the same control at two
+        # sizes. When each variant declared its own background and border,
+        # adding a variant meant remembering to restate them.
+        for variant in (".btn-small",):
+            with self.subTest(variant=variant):
+                body = self.rule(variant)
+                for declaration in ("background:", "color:", "border-color:"):
+                    self.assertNotIn(
+                        declaration,
+                        body,
+                        f"{variant} restates {declaration}, which the base "
+                        ".btn already sets",
+                    )
+
+    def test_buttons_share_one_elevation(self):
+        # The primary used shadow-2 on top of a 2px border, which is the
+        # thin-border-plus-wide-shadow pairing the design bar rules out,
+        # and it left one button looking lifted off the panel.
+        shadows = set()
+        for selector, body in re.findall(r"(\.btn[\w-]*)\s*\{([^}]*)\}", self.css):
+            found = re.findall(r"box-shadow:\s*([^;]+);", body)
+            if found:
+                with self.subTest(selector=selector.strip()):
+                    shadows.update(value.strip() for value in found)
+        self.assertLessEqual(
+            len(shadows), 1, f"buttons use more than one elevation: {sorted(shadows)}"
+        )
+
+    def test_a_button_settles_rather_than_scaling(self):
+        # .btn:active translates down by a pixel. A later rule used to
+        # replace that with scale(0.97), so the two rules disagreed about
+        # what a press does and the undocumented one won.
+        self.assertIn("translateY", self.rule(".btn:active"))
+        for selector, body in re.findall(
+            r"(\.btn[\w-]*:active[^{]*)\{([^}]*)\}", self.css
+        ):
+            with self.subTest(selector=selector.strip()):
+                self.assertNotIn(
+                    "scale(",
+                    body,
+                    f"{selector.strip()} scales the button on press, which "
+                    "is the bounce the .btn comment rules out",
+                )

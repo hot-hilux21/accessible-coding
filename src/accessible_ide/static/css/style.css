@@ -288,15 +288,25 @@ input[type="range"] {
 }
 
 /* ---------- Buttons ---------- */
+/* The base owns the appearance, so a button written as class="btn" still
+   looks like a control. It used to set only padding and a transparent
+   border and left the rest to the variants, which meant the one bare
+   .btn in the template rendered as invisible text with no box around it. */
 .btn {
   font-family: inherit;
   font-size: 0.95em;
   font-weight: 600;
   padding: var(--space-2) var(--space-4);
-  border: 2px solid transparent;
+  background: var(--bg);
+  color: var(--fg);
+  border: 2px solid var(--panel-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  min-height: 40px;
+  /* 44px is the height every other control in the app already uses: the
+     selects, the steppers, the TTS toggle. It used to be 40 here and the
+     setup screen had to override it back up to 44, which is the same
+     control at two heights depending on where it sits. */
+  min-height: 44px;
   box-shadow: var(--shadow-1);
   /* Press feedback is a settle, not a bounce: dyslexia users rely on
      steady, predictable chrome, so we translate rather than scale. */
@@ -306,30 +316,23 @@ input[type="range"] {
               box-shadow var(--motion-med) var(--ease);
 }
 
+.btn:hover {
+  border-color: var(--accent);
+}
+
 .btn:active {
   transform: translateY(1px);
   box-shadow: none;
 }
 
+/* One elevation for every button. The primary used shadow-2 on top of a
+   2px border, which is the thin-border-plus-wide-shadow combination the
+   design bar rules out, and it made the Run button the only control that
+   looked lifted. The accent fill is what marks it as the action. */
 .btn-primary {
   background: var(--accent);
   color: var(--accent-fg);
-  box-shadow: var(--shadow-2);
-}
-
-.btn-primary:hover {
-  filter: brightness(1.08);
-}
-
-.btn-toggle {
-  background: var(--bg);
-  color: var(--fg);
-  border-color: var(--panel-border);
-}
-
-.btn-toggle:hover {
   border-color: var(--accent);
-  color: var(--accent);
 }
 
 .btn-toggle.active,
@@ -339,17 +342,13 @@ input[type="range"] {
   border-color: var(--accent);
 }
 
+/* The smaller variant steps down in size only. It takes its colours from
+   the base like everything else, so a small button and a normal one are
+   the same control at two sizes rather than two controls. */
 .btn-small {
   font-size: 0.85em;
   padding: var(--space-1) var(--space-3);
-  min-height: 32px;
-  background: var(--bg);
-  color: var(--fg);
-  border-color: var(--panel-border);
-}
-
-.btn-small:hover {
-  border-color: var(--accent);
+  min-height: 40px;
 }
 
 /* ---------- Workspace ---------- */
@@ -1379,11 +1378,13 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 .shell-pane:not([hidden]) { animation: panel-arrive var(--motion-med) var(--ease) both; }
 .packages-row { animation: sweep-in var(--motion-fast) var(--ease) both; }
 
-.btn:active,
-.btn-toggle:active,
+/* This used to include .btn and .btn-toggle, which quietly replaced the
+   translateY(1px) that .btn:active sets with a scale. The two rules
+   disagreed about what a button does when pressed, and the one that won
+   was the one with no comment explaining it. .btn keeps its own
+   transform transition; the switch track is a slider and is not a button,
+   so it still needs both of these. */
 .switch-track:active { transform: scale(0.97); }
-.btn,
-.btn-toggle,
 .switch-track { transition: transform var(--motion-fast) var(--ease); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1553,14 +1554,13 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   margin-inline-start: auto;
 }
 
-/* The buttons are what carry the reader between the questions, so they
-   have to be as easy to hit as the answer rows above them. .btn-small is
-   32px, which is a fair size for a crowded toolbar and too small for the
-   one screen somebody meets before anything else in the app - and it would
-   be strange for the rows to be 44px and the way forward to be 32px. */
-.setup-footer .btn {
-  min-height: 44px;
-}
+/* The buttons carry the reader between the questions, so they have to be
+   as easy to hit as the answer rows above them. This used to say that .btn
+   was 40px and .btn-small was 32px, so the wizard carried its own override
+   to push them to 44. The base .btn is 44px now, which is what every other
+   control in the app uses, so the override is gone. Two rules for one
+   height is how the topbar and the setup screen drifted apart to begin
+   with. The wizard's own answer rows are still set below. */
 
 /* ---------- Package manager ----------
 
