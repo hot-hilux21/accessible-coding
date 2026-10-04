@@ -75,6 +75,30 @@ def embedded_family_name(path):
     return found.get(16) or found.get(1)
 
 
+def _group(pattern, text, what):
+    """The first capture group of a match that has to be there.
+
+    Written as a function so the tests do not repeat the None check, and
+    so a missing match fails as itself rather than as an AttributeError
+    three lines later.
+    """
+    match = re.search(pattern, text)
+    if match is None:
+        raise AssertionError(what)
+    return match.group(1)
+
+
+def _group_or_none(pattern, text):
+    """The first capture group, or None when the pattern simply is not there.
+
+    Some patterns are expected to miss. A font that does not declare a
+    weight at all is not an error here, it is just a font this check says
+    nothing about.
+    """
+    match = re.search(pattern, text)
+    return None if match is None else match.group(1)
+
+
 class BundledFontTests(unittest.TestCase):
     def test_every_font_file_is_really_a_font(self):
         fonts = [
@@ -285,6 +309,198 @@ class FontLicensingTests(unittest.TestCase):
             with self.subTest(licence=path.name):
                 self.assertGreater(path.stat().st_size, 500)
                 self.assertIn("Copyright", path.read_text(encoding="utf-8", errors="ignore"))
+
+
+class DefaultFontTests(unittest.TestCase):
+    """What the app shows a reader who has not chosen anything.
+
+    The default has to be a bundled font, or the hosted site and a Linux
+    build quietly render in something else while the Windows build looks
+    right. It also has to be the same family in the stylesheet, in
+    app.js and here, because those three are read independently and a
+    mismatch shows as one font on the panel and another on the editor.
+    """
+
+    STYLESHEET = REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+    APP_JS = REPO_ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
+
+    def _css(self):
+        # Comments are stripped first. The token definitions explain what they
+        # used to be, and a test should read the rules, not the prose.
+        return re.sub(r"/\*.*?\*/", "", self.STYLESHEET.read_text(encoding="utf-8"), flags=re.S)
+
+    def test_the_default_font_is_bundled(self):
+        # A default that is not bundled is a default that renders as
+        # something else on the hosted site.
+        default = routes.DEFAULT_CONFIG["font"]
+        self.assertIn(
+            default,
+            routes.FONTS,
+            f"the default font {default!r} is not in the FONTS table",
+        )
+        self.assertTrue(
+            routes.FONTS[default]["bundled"],
+            f"the default font {default!r} is not bundled, so it cannot be "
+            "relied on to render on the hosted site",
+        )
+
+    def test_the_stylesheet_and_app_js_agree_on_the_default(self):
+        default = routes.DEFAULT_CONFIG["font"]
+        token = _group(
+            r"--font-family:\s*([^;]+);",
+            self._css(),
+            "no --font-family token in style.css",
+        )
+        self.assertIn(
+            f'"{default}"',
+            token,
+            f"--font-family starts with {token.strip()!r}, so the first "
+            f"paint does not use the default font {default!r}",
+        )
+
+        app_js = self.APP_JS.read_text(encoding="utf-8")
+        families = _group(
+            r"DEFAULT_FONT_FAMILY\s*=\s*'([^']+)'",
+            app_js,
+            "no DEFAULT_FONT_FAMILY in app.js",
+        )
+        self.assertIn(f'"{default}"', families)
+
+    def _faces(self):
+        """Every @font-face in the template, as (family, font-weight).
+
+        Each weight is paired with the family declared above it rather than
+        by slicing the block out with a non-greedy brace match. That approach
+        stops at the first closing brace, which here is the one inside
+        Jinja's url('{{ ... }}'), so every block came back truncated just
+        after its src line and reported no weight at all.
+        """
+        template = TEMPLATE.read_text(encoding="utf-8")
+        pattern = re.compile(
+            r"font-family:\s*'([^']+)'|font-weight:\s*([^;]+);", flags=re.S
+        )
+        faces = []
+        family = None
+        for match in pattern.finditer(template):
+            declared, weight = match.group(1), match.group(2)
+            if declared is not None:
+                family = declared
+            elif family is not None:
+                faces.append((family, weight.strip()))
+        return faces
+
+    def test_a_single_weight_font_is_not_the_default(self):
+        # Atkinson Hyperlegible and OpenDyslexic ship Regular and Bold only,
+        # declared as font-weight: normal and font-weight: bold. style.css
+        # asks for weight 600 in several places, so as the default face the
+        # browser has to synthesise that weight and the whole UI renders at
+        # a smeared in-between one. A variable font declares a range like
+        # "100 900", which is a real axis and is safe to lead with.
+        faces = self._faces()
+        self.assertTrue(faces, "no @font-face blocks found in the template")
+
+        fixed = set()
+        for family, weight in faces:
+            is_range = bool(re.fullmatch(r"\d+\s+\d+", weight))
+            if not is_range and weight not in ("normal", "bold"):
+                continue  # a keyword this test does not reason about
+            if not is_range:
+                fixed.add(family)
+
+        self.assertNotIn(
+            routes.DEFAULT_CONFIG["font"],
+            fixed,
+            f"the default font {routes.DEFAULT_CONFIG['font']!r} is one of "
+            f"{sorted(fixed)}, which declare fixed weights rather than a "
+            "variable axis, so the weight 600 the stylesheets ask for has "
+            "to be faked by the browser",
+        )
+
+    def test_the_check_above_can_actually_see_a_fixed_weight_font(self):
+        # A guard that cannot fail is not a guard. Atkinson Hyperlegible
+        # and OpenDyslexic are fixed; Lexend and Nunito are variable. If
+        # this fails then test_a_single_weight_font_is_not_the_default is
+        # comparing against an empty set and passing for the wrong reason.
+        faces = self._faces()
+        families = {family for family, _ in faces}
+        self.assertIn("Atkinson Hyperlegible", families)
+        self.assertIn("Nunito", families)
+
+        def is_variable(family):
+            return any(
+                family == declared and bool(re.fullmatch(r"\d+\s+\d+", weight))
+                for declared, weight in faces
+            )
+
+        self.assertFalse(
+            is_variable("Atkinson Hyperlegible"),
+            "Atkinson Hyperlegible should declare fixed weights",
+        )
+        self.assertTrue(
+            is_variable("Nunito"),
+            "Nunito should declare a variable weight range",
+        )
+
+
+class MonospaceTests(unittest.TestCase):
+    """The code areas that are not the editor.
+
+    These were "Courier New", hardcoded in seven separate rules. Courier
+    New is a screen face from the 1980s, thin and widely spaced, and it
+    was the first thing on the page that read as unfinished. They now go
+    through one token.
+    """
+
+    STYLESHEET = REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+
+    def _rules(self):
+        css = re.sub(
+            r"/\*.*?\*/", "", self.STYLESHEET.read_text(encoding="utf-8"), flags=re.S
+        )
+        return re.findall(r"font-family:\s*([^;]+);", css)
+
+    def test_there_is_a_monospace_token(self):
+        css = self._css_token_text()
+        self.assertIn("--font-mono:", css, "no --font-mono token in style.css")
+        value = _group(
+            r"--font-mono:\s*([^;]+);",
+            css,
+            "the --font-mono token is declared but has no value",
+        )
+        self.assertTrue(
+            value.strip().endswith("monospace"),
+            "the monospace stack must end in the generic, or a missing "
+            f"font gives the reader no monospace at all: {value!r}",
+        )
+
+    def _css_token_text(self):
+        return re.sub(
+            r"/\*.*?\*/", "", self.STYLESHEET.read_text(encoding="utf-8"), flags=re.S
+        )
+
+    def test_no_rule_hardcodes_a_specific_monospace(self):
+        # Every monospace rule should read the token. A hardcoded name here
+        # is how the seven Courier New rules happened in the first place.
+        for value in self._rules():
+            value = value.strip()
+            if value == "var(--font-mono)":
+                continue
+            if "monospace" not in value:
+                continue  # a proportional stack, fine
+            self.assertIn(
+                "var(--font-mono)",
+                value,
+                f"monospace rule {value!r} bypasses the --font-mono token",
+            )
+
+    def test_courier_new_is_no_longer_used_in_the_stylesheets(self):
+        css = self._css_token_text()
+        self.assertNotIn(
+            "Courier New",
+            css,
+            "Courier New is back in a rule. It is a Microsoft font and a "
+            "1980s screen face; the monospace token should be used instead.",
+        )
 
 
 if __name__ == "__main__":

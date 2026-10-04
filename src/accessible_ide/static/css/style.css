@@ -26,7 +26,20 @@
   --error-fg: #ffb3b3;
   --error-line: rgba(255, 107, 107, 0.16);
   --focus-ring: #ffd93d;
-  --font-family: "Atkinson Hyperlegible", sans-serif;
+  /* The default face. Nunito is a bundled variable font, which matters for
+     more than looks: the alternatives here ship only Regular and Bold, so
+     the weight 600 the buttons ask for would have to be synthesised by the
+     browser and the whole UI would render at a smeared in-between weight.
+     Nunito carries a real 100-900 axis, so every weight below is genuine.
+     Atkinson stays second so a reader who already picked it still gets it
+     back before the generic is reached. */
+  --font-family: "Nunito", "Atkinson Hyperlegible", "Mukta", "Almarai", sans-serif;
+  /* Code areas that are not the editor. This was "Courier New" hardcoded in
+     seven places, which is a 1980s screen face: thin strokes, wide gaps, and
+     the first thing on the page that reads as unfinished. Consolas ships with
+     every copy of Windows, so the installer and the hosted site both get a
+     real monospace with nothing downloaded. */
+  --font-mono: "Consolas", "Cascadia Mono", ui-monospace, "Mukta", "Almarai", monospace;
   --font-size: 16px;
   --line-height: 1.6;
   --letter-spacing: 0.5px;
@@ -445,7 +458,7 @@ body[data-focus-mode="lines"] .CodeMirror-line.CodeMirror-activeline-background 
   margin: 0;
   padding: var(--space-3) var(--space-4);
   overflow: auto;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 0.95em;
   white-space: pre-wrap;
   word-break: break-word;
@@ -510,7 +523,7 @@ body[data-focus-mode="lines"] .CodeMirror-line.CodeMirror-activeline-background 
 .shell-input {
   margin: var(--space-1) var(--space-4);
   padding: var(--space-2);
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 0.95em;
   line-height: var(--line-height, 1.5);
   letter-spacing: var(--letter-spacing, normal);
@@ -544,7 +557,7 @@ body[data-focus-mode="lines"] .CodeMirror-line.CodeMirror-activeline-background 
   margin: 0;
   padding: var(--space-3) var(--space-4);
   overflow: auto;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 0.95em;
   line-height: var(--line-height, 1.5);
   letter-spacing: var(--letter-spacing, normal);
@@ -902,7 +915,7 @@ body[data-contrast="high"][data-theme="pastel"] {
 }
 
 .hex-input {
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   letter-spacing: normal;
   min-width: 0;
 }
@@ -970,7 +983,7 @@ body[data-contrast="high"][data-theme="pastel"] {
 
 .swatch-name {
   font-size: 0.75em;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   color: var(--muted);
   letter-spacing: normal;
 }
@@ -996,7 +1009,7 @@ body[data-contrast="high"][data-theme="pastel"] {
   min-width: 4.5ch;
   padding: var(--space-1) var(--space-2);
   text-align: center;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 0.95em;
   color: var(--muted);
   background: var(--panel-bg);
@@ -1710,7 +1723,7 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 }
 
 .packages-row-name {
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-weight: bold;
   overflow-wrap: anywhere;
 }

@@ -118,7 +118,7 @@ SETUP_STEPS = ('language', 'font', 'tour')
 SETUP_TOTAL_STEPS = len(SETUP_STEPS)
 
 DEFAULT_CONFIG = {
-    'font': 'Atkinson Hyperlegible',
+    'font': 'Nunito',
     'font_size': 16,
     'locale': i18n.DEFAULT_LOCALE,
     # The first-run setup screen shows until this is true. It is a flag

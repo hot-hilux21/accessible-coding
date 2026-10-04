@@ -293,7 +293,7 @@
   // as data-family, so there is only ever one copy of them. An earlier
   // version kept a second list in this file, which is how OpenDyslexic
   // could be listed but not actually load.
-  var DEFAULT_FONT_FAMILY = '"Atkinson Hyperlegible", sans-serif';
+  var DEFAULT_FONT_FAMILY = '"Nunito", "Atkinson Hyperlegible", "Mukta", "Almarai", sans-serif';
 
   function fontFamilyFor(fontKey) {
     var option = fontSelect && fontSelect.querySelector(
@@ -2149,7 +2149,7 @@
   // editor would paint in the old colour for a frame.
   customCodeColor = body.getAttribute('data-code-color') || '';
   applyTheme(body.getAttribute('data-theme') || 'high-contrast');
-  applyFont(body.getAttribute('data-font') || 'Atkinson Hyperlegible');
+  applyFont(body.getAttribute('data-font') || 'Nunito');
   applyFontSize(parseInt(body.getAttribute('data-font-size') || '16', 10));
   applyLineHeight(body.getAttribute('data-line-height') || '1.6');
   applyLetterSpacing(body.getAttribute('data-letter-spacing') || '0.5');

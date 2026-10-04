@@ -409,7 +409,7 @@ const SETUP_FONT_RADIOS = FONT_OPTIONS.map((option) => {
   return makeElement(`setup-font-${value}`, {
     name: 'setup-font',
     'data-family': option.__attributes['data-family'],
-  }, { value, checked: value === 'Atkinson Hyperlegible' });
+  }, { value, checked: value === 'Nunito' });
 });
 
 const SETUP_LOCALE_RADIOS = ['en', 'hi', 'fr', 'es', 'ar'].map((code) =>
