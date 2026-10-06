@@ -119,6 +119,7 @@
   var setupNext = document.getElementById('setup-next');
   var setupSkip = document.getElementById('setup-skip');
   var btnSetupAgain = document.getElementById('btn-setup-again');
+  var btnResetConfig = document.getElementById('btn-reset-config');
 
   var body = document.body;
   var ttsEnabled = btnTts.getAttribute('aria-checked') === 'true';
@@ -293,7 +294,7 @@
   // as data-family, so there is only ever one copy of them. An earlier
   // version kept a second list in this file, which is how OpenDyslexic
   // could be listed but not actually load.
-  var DEFAULT_FONT_FAMILY = '"Nunito", "Atkinson Hyperlegible", "Mukta", "Almarai", sans-serif';
+  var DEFAULT_FONT_FAMILY = '"OpenDyslexic3", "OpenDyslexic", "Atkinson Hyperlegible", "Nunito", "Mukta", "Almarai", sans-serif';
 
   function fontFamilyFor(fontKey) {
     var option = fontSelect && fontSelect.querySelector(
@@ -757,6 +758,60 @@
         }
       });
     });
+  }
+
+  // Reset every setting to the defaults. Two clicks on purpose: the first
+  // arms the button, the second does it, so a reader who pressed it by
+  // accident has a visible way out. The button disarms itself after a few
+  // seconds so it cannot stay dangerous. Reloading is the point, exactly
+  // as it is for the language picker and the setup screen: the whole page
+  // is drawn by the server from the saved config, so a reload is the only
+  // way every control and every panel agrees with what was just reset.
+  if (btnResetConfig) {
+    var resetArmed = false;
+    var resetTimer = null;
+    btnResetConfig.addEventListener('click', function () {
+      if (!resetArmed) {
+        resetArmed = true;
+        btnResetConfig.textContent = t('settings.reset_confirm');
+        btnResetConfig.classList.add('is-armed');
+        resetTimer = setTimeout(function () {
+          resetArmed = false;
+          btnResetConfig.textContent = t('settings.reset_config');
+          btnResetConfig.classList.remove('is-armed');
+        }, 6000);
+        return;
+      }
+      clearTimeout(resetTimer);
+      btnResetConfig.disabled = true;
+      fetch('/api/config/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_code: accessCode, locale: META.locale })
+      })
+        .then(function (res) {
+          return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+        })
+        .then(function (result) {
+          if (result.ok) {
+            window.location.reload();
+            return;
+          }
+          resetFailed();
+        })
+        .catch(resetFailed);
+    });
+
+    function resetFailed() {
+      btnResetConfig.disabled = false;
+      btnResetConfig.textContent = t('settings.reset_config');
+      btnResetConfig.classList.remove('is-armed');
+      resetArmed = false;
+      if (settingsStatus) {
+        settingsStatus.textContent = t('settings.not_saved');
+        settingsStatus.classList.add('is-error');
+      }
+    }
   }
 
   // ---------- TTS ----------
@@ -2149,7 +2204,7 @@
   // editor would paint in the old colour for a frame.
   customCodeColor = body.getAttribute('data-code-color') || '';
   applyTheme(body.getAttribute('data-theme') || 'high-contrast');
-  applyFont(body.getAttribute('data-font') || 'Nunito');
+  applyFont(body.getAttribute('data-font') || 'OpenDyslexic');
   applyFontSize(parseInt(body.getAttribute('data-font-size') || '16', 10));
   applyLineHeight(body.getAttribute('data-line-height') || '1.6');
   applyLetterSpacing(body.getAttribute('data-letter-spacing') || '0.5');

@@ -36,7 +36,7 @@ Jump to any section:
 
 - **Editor** — CodeMirror Python editor with syntax highlighting
 - **Execution** — built-in Python runner (10-second safety timeout)
-- **Fonts** — Nunito by default, plus OpenDyslexic, Atkinson Hyperlegible and Lexend for dyslexia-friendly reading. Calibri, Arial, Comic Sans and Courier New come from your own computer.
+- **Fonts** — OpenDyslexic by default, plus Atkinson Hyperlegible, Lexend and Nunito for dyslexia-friendly reading. Calibri, Arial, Comic Sans and Courier New come from your own computer.
 - **Focus mode** — hide the gutter, or blur every line except the one you are on
 - **Themes** — high contrast, dark, pastel, and light
 - **Text-to-speech** — reads your code and errors aloud
@@ -118,7 +118,7 @@ accessible-coding/
 ├── .github/workflows/       # CI: tests + exe build on release tags
 ├── docs/                    # Documentation
 ├── src/accessible_ide/
-│   ├── assets/              # Fonts (Nunito, OpenDyslexic, Atkinson Hyperlegible, Lexend)
+│   ├── assets/              # Fonts (OpenDyslexic, Atkinson Hyperlegible, Lexend, Nunito)
 │   ├── static/              # CSS + JavaScript (CodeMirror, app logic)
 │   ├── templates/           # HTML page
 │   ├── config/              # Settings load/save
@@ -141,7 +141,7 @@ What is done in v0.1.0-beta:
 - [x] Built-in Python runner
 - [x] Local settings save/load (JSON)
 - [x] 4 preset themes (high contrast, dark, pastel, light)
-- [x] Reading font choice (Nunito by default, OpenDyslexic / Atkinson Hyperlegible / Lexend also bundled)
+- [x] Reading font choice (OpenDyslexic by default, Atkinson Hyperlegible / Lexend / Nunito also bundled)
 - [x] Focus mode (hide gutter / blur other lines)
 - [x] Error messages in plain English
 - [x] Flask web version

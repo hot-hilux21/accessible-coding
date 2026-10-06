@@ -581,6 +581,19 @@
 
           <p class="field-help" id="update-version"></p>
         </fieldset>
+
+        <fieldset class="settings-group">
+          <legend class="settings-legend">{{ t('group.reset') }}</legend>
+          <p class="settings-hint" id="reset-hint">{{ t('settings.reset_help') }}</p>
+          <div class="field">
+            <!-- Two clicks on purpose: the first arms the button, the
+                 second does it. A reader who pressed it by accident gets
+                 a visible way out instead of a surprise reload. -->
+            <button id="btn-reset-config" class="btn btn-small" type="button" aria-describedby="reset-hint">
+              {{ t('settings.reset_config') }}
+            </button>
+          </div>
+        </fieldset>
       </div>
 
       <p id="settings-status" class="settings-status" role="status" aria-live="polite"></p>

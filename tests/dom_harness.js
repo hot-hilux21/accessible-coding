@@ -62,7 +62,7 @@ const KNOWN_IDS = new Set([
   'btn-install-update',
   'font-bundled-note', 'sample-text', 'font-preview', 'font-preview-text',
   'preview-status', 'swatches', 'code-color-hex', 'code-color-picker',
-  'colour-error', 'btn-reset-colour',
+  'colour-error', 'btn-reset-colour', 'btn-reset-config',
   'language-select',
   // The package manager. Without these declared here, initPackages() takes
   // its early-return path and nothing about the panel is exercised.
@@ -133,6 +133,7 @@ const lookups = [];
 const noop = () => {};
 const reloads = [];
 let reloadsBefore = 0;
+let resetReloadsBefore = 0;
 
 // Which element has focus. Module scope, so makeElement can record it
 // while makePage - which owns the document stub - reads it back.
@@ -409,7 +410,7 @@ const SETUP_FONT_RADIOS = FONT_OPTIONS.map((option) => {
   return makeElement(`setup-font-${value}`, {
     name: 'setup-font',
     'data-family': option.__attributes['data-family'],
-  }, { value, checked: value === 'Nunito' });
+  }, { value, checked: value === 'OpenDyslexic' });
 });
 
 const SETUP_LOCALE_RADIOS = ['en', 'hi', 'fr', 'es', 'ar'].map((code) =>
@@ -732,6 +733,10 @@ let closeAttempts = 0;
 // promise has settled rather than at a guessed moment.
 let finish = () => process.exit(failed ? 1 : 0);
 const configPosts = [];
+// What the reset endpoint was asked to do, in order. Kept separate from
+// configPosts so a check can prove a reset went to its own route rather
+// than being recorded as an ordinary settings save.
+const configResets = [];
 // What the shell was asked to run, in order. Kept so a check can prove the
 // session id and the reader's own code both went out, rather than only that
 // a request happened.
@@ -893,6 +898,16 @@ function fetchStub(url, options) {
       json: () => Promise.resolve({
         installed: PACKAGE_LIST, can_install: true, directory: '/tmp/pkgs',
       }),
+    });
+  }
+  // The reset endpoint, before the catch-all /api/config branch below,
+  // because /api/config/reset contains /api/config and would otherwise be
+  // swallowed by it and recorded as a settings save.
+  if (String(url).includes('/api/config/reset')) {
+    configResets.push(parseBody(options));
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ success: true }),
     });
   }
   if (String(url).includes('/api/config') && options && options.body) {
@@ -1386,6 +1401,50 @@ function runLanguageNoopCheck() {
     }
     runMotionChecks();
   }, 10);
+}
+
+// The reset reloads the page, exactly as the language picker does: the
+// whole page is drawn by the server from the saved config, so a reload is
+// the only way every control and every panel agrees with what was reset.
+// The save is a promise, so this runs a tick after the second click.
+function runResetConfigReloadCheck() {
+  if (reloads.length !== resetReloadsBefore + 1) {
+    failed = true;
+    console.log(`FAIL the reset caused ${reloads.length - resetReloadsBefore} ` +
+                'reloads instead of one');
+  } else {
+    console.log('     the reset reloads the page');
+  }
+}
+
+// Reset every setting. The first click arms the button, the second does
+// it, and the request goes to its own route rather than being recorded
+// as an ordinary settings save. Runs in its own window, after the update
+// chain and the language checks have settled, so the reload count below
+// is exact.
+function runResetConfigChecks() {
+  const resetButton = elements.get('btn-reset-config');
+  const resetBefore = configResets.length;
+  fire('btn-reset-config', 'click');
+  if (resetButton.textContent !== CATALOGUE['settings.reset_confirm']) {
+    failed = true;
+    console.log('FAIL the first reset click did not arm the button');
+  } else if (!resetButton.classList.contains('is-armed')) {
+    failed = true;
+    console.log('FAIL the armed reset button has no is-armed class');
+  } else {
+    console.log('     the first reset click arms the button');
+  }
+  resetReloadsBefore = reloads.length;
+  fire('btn-reset-config', 'click');
+  const resets = configResets.slice(resetBefore);
+  if (resets.length !== 1) {
+    failed = true;
+    console.log('FAIL the second reset click did not call the reset route: ' +
+                JSON.stringify(configResets.slice(resetBefore)));
+  } else {
+    console.log('     the second reset click calls the reset route');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -3120,6 +3179,13 @@ setTimeout(() => {
   runStepperChecks();
   runLanguageChecks();
   setTimeout(runLanguageReloadCheck, 10);
+  // The reset needs its own window: the update chain and the language
+  // change both reload, and their promises settle after the synchronous
+  // checks above. By 30ms they have, so the reset's reload count is exact.
+  setTimeout(() => {
+    runResetConfigChecks();
+    setTimeout(runResetConfigReloadCheck, 10);
+  }, 30);
   // Last, because it asserts on the final exit and the checks above are
   // still in flight when it starts.
   setTimeout(runShellChecks, 200);

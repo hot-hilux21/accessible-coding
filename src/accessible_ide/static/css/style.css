@@ -26,14 +26,14 @@
   --error-fg: #ffb3b3;
   --error-line: rgba(255, 107, 107, 0.16);
   --focus-ring: #ffd93d;
-  /* The default face. Nunito is a bundled variable font, which matters for
-     more than looks: the alternatives here ship only Regular and Bold, so
-     the weight 600 the buttons ask for would have to be synthesised by the
-     browser and the whole UI would render at a smeared in-between weight.
-     Nunito carries a real 100-900 axis, so every weight below is genuine.
-     Atkinson stays second so a reader who already picked it still gets it
-     back before the generic is reached. */
-  --font-family: "Nunito", "Atkinson Hyperlegible", "Mukta", "Almarai", sans-serif;
+  /* The default face. OpenDyslexic is the font this app exists for, so it
+     is what a reader who has not chosen anything gets. It ships Regular
+     and Bold, and the weight 600 the buttons ask for resolves to the real
+     Bold face rather than a synthesised one: CSS takes the nearest face at
+     or above the requested weight, so a declared bold is used, not faked.
+     Atkinson and Nunito stay in the stack so a reader who picked either
+     still gets it back before the script fallbacks are reached. */
+  --font-family: "OpenDyslexic3", "OpenDyslexic", "Atkinson Hyperlegible", "Nunito", "Mukta", "Almarai", sans-serif;
   /* Code areas that are not the editor. This was "Courier New" hardcoded in
      seven places, which is a 1980s screen face: thin strokes, wide gaps, and
      the first thing on the page that reads as unfinished. Consolas ships with
@@ -349,6 +349,16 @@ input[type="range"] {
   font-size: 0.85em;
   padding: var(--space-1) var(--space-3);
   min-height: 40px;
+}
+
+/* The armed state of a two-step destructive action. The error tokens are
+   the ones the app already uses for "this needs attention", so the button
+   says in colour what its label says in words. */
+.btn.is-armed,
+.btn.is-armed:hover {
+  background: var(--error-bg);
+  color: var(--error-fg);
+  border-color: var(--error-border);
 }
 
 /* ---------- Workspace ---------- */

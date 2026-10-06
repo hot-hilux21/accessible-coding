@@ -70,8 +70,9 @@ REQUIRED_SETTINGS_IDS = (
     "swatches",
     "code-color-hex",
     "code-color-picker",
-    "colour-error",
+"colour-error",
     "btn-reset-colour",
+    "btn-reset-config",
 )
 
 

@@ -118,7 +118,7 @@ SETUP_STEPS = ('language', 'font', 'tour')
 SETUP_TOTAL_STEPS = len(SETUP_STEPS)
 
 DEFAULT_CONFIG = {
-    'font': 'Nunito',
+    'font': 'OpenDyslexic',
     'font_size': 16,
     'locale': i18n.DEFAULT_LOCALE,
     # The first-run setup screen shows until this is true. It is a flag
@@ -1165,6 +1165,30 @@ def config_api():
 
     config = load_config()
     config.update(data)
+    save_config(config)
+    return jsonify({'success': True, 'config': config})
+
+
+@main_bp.route('/api/config/reset', methods=['POST'])
+def config_reset_api():
+    """Put every setting back to the defaults.
+
+    The first-run setup screen is not a setting: somebody who has already
+    answered it does not want to be asked again just because they reset
+    their font and theme, so setup_complete is carried over rather than
+    reset with the rest. Everything else comes from DEFAULT_CONFIG, which
+    is the same source a fresh install starts from.
+    """
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+
+    # Access code gate (web version), same as the settings endpoint.
+    if not access_code_ok(data):
+        return jsonify({'success': False, 'error': t('error.access_required'), 'code_required': True}), 403
+
+    current = load_config()
+    config = DEFAULT_CONFIG.copy()
+    config['setup_complete'] = current.get('setup_complete', False)
     save_config(config)
     return jsonify({'success': True, 'config': config})
 

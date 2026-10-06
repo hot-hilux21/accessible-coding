@@ -13,6 +13,7 @@ Run with:  PYTHONPATH=src python -m unittest discover -s tests -t .
 """
 
 import html
+import json
 import pathlib
 import re
 import sys
@@ -306,6 +307,54 @@ class AccessCodeIsNotASettingTests(ConfigApiTestCase):
         response = self.post_settings(font_size=21, access_code="wrong")
         self.assertEqual(response.status_code, 403)
         self.assertFalse(routes.CONFIG_FILE.exists())
+
+
+class ConfigResetTests(ConfigApiTestCase):
+    """POST /api/config/reset puts every setting back to the defaults."""
+
+    def test_reset_returns_the_defaults(self):
+        self.post_settings(font="Nunito", font_size=20, theme="dark")
+        response = self.client.post("/api/config/reset", json={})
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertTrue(body["success"])
+        for key, value in routes.DEFAULT_CONFIG.items():
+            with self.subTest(key=key):
+                self.assertEqual(body["config"][key], value)
+
+    def test_reset_writes_the_defaults_to_disk(self):
+        self.post_settings(font="Nunito", font_size=20)
+        response = self.client.post("/api/config/reset", json={})
+        self.assertEqual(response.status_code, 200)
+        stored = json.loads(routes.CONFIG_FILE.read_text(encoding="utf-8"))
+        self.assertEqual(stored["font"], routes.DEFAULT_CONFIG["font"])
+        self.assertEqual(stored["font_size"], routes.DEFAULT_CONFIG["font_size"])
+
+    def test_reset_keeps_the_setup_screen_answered(self):
+        # The first-run screen is onboarding, not a setting. Somebody who
+        # has answered it does not want to be asked again just because they
+        # reset their font and theme.
+        self.post_settings(setup_complete=True)
+        response = self.client.post("/api/config/reset", json={})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["config"]["setup_complete"])
+
+    def test_reset_requires_the_access_code_when_one_is_set(self):
+        routes.ACCESS_CODE = "letmein"
+        response = self.client.post("/api/config/reset", json={})
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(routes.CONFIG_FILE.exists())
+
+    def test_reset_accepts_the_access_code(self):
+        routes.ACCESS_CODE = "letmein"
+        response = self.client.post(
+            "/api/config/reset", json={"access_code": "letmein"}
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_reset_is_post_only(self):
+        response = self.client.get("/api/config/reset")
+        self.assertEqual(response.status_code, 405)
 
 
 class ValidationTests(ConfigApiTestCase):

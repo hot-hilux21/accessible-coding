@@ -389,57 +389,91 @@ class DefaultFontTests(unittest.TestCase):
                 faces.append((family, weight.strip()))
         return faces
 
-    def test_a_single_weight_font_is_not_the_default(self):
-        # Atkinson Hyperlegible and OpenDyslexic ship Regular and Bold only,
-        # declared as font-weight: normal and font-weight: bold. style.css
-        # asks for weight 600 in several places, so as the default face the
-        # browser has to synthesise that weight and the whole UI renders at
-        # a smeared in-between one. A variable font declares a range like
-        # "100 900", which is a real axis and is safe to lead with.
+    def _covers_600(self, weight):
+        """Whether a declared font-weight can serve the 600 the UI asks for.
+
+        A variable range that spans 600 is a real axis. A bold face is a
+        real face: CSS resolves 600 by taking the nearest declared weight
+        at or above it, so a declared bold is used rather than faked. A
+        numeric weight of 600 or more is the same. Only a family whose
+        heaviest face is normal leaves the browser with nothing to take,
+        and that is the case this guard exists for.
+        """
+        if re.fullmatch(r"\d+\s+\d+", weight):
+            low, high = (int(part) for part in weight.split())
+            return low <= 600 <= high
+        if weight == "bold":
+            return True
+        if re.fullmatch(r"\d+", weight):
+            return int(weight) >= 600
+        return False
+
+    def test_the_default_font_can_really_render_the_weight_it_asks_for(self):
+        # style.css asks for weight 600 in several places. A family that
+        # declares only font-weight: normal has nothing at or above 600,
+        # so the browser has to synthesise a smudged fake bold and the
+        # whole UI renders at an in-between weight. A family with a real
+        # bold face is fine: the browser takes the declared bold, it does
+        # not fake it. This used to demand a variable font, which ruled
+        # out OpenDyslexic and Atkinson for a reason that was not real.
         faces = self._faces()
         self.assertTrue(faces, "no @font-face blocks found in the template")
 
-        fixed = set()
-        for family, weight in faces:
-            is_range = bool(re.fullmatch(r"\d+\s+\d+", weight))
-            if not is_range and weight not in ("normal", "bold"):
-                continue  # a keyword this test does not reason about
-            if not is_range:
-                fixed.add(family)
+        default = routes.DEFAULT_CONFIG["font"]
+        # The config key is not the family name: 'OpenDyslexic' maps to a
+        # stack whose first face is 'OpenDyslexic3'. Resolve the key through
+        # the FONTS table, then take the first family in that stack that the
+        # template actually declares, so a renamed face cannot pass by
+        # accident and a missing face cannot pass by emptiness.
+        stack = routes.FONTS[default]["family"]
+        declared = {family for family, _ in faces}
+        primary = next(
+            (name for name in re.findall(r'"([^"]+)"', stack) if name in declared),
+            None,
+        )
+        self.assertIsNotNone(
+            primary,
+            f"no @font-face block declares any family in the default stack {stack!r}",
+        )
+        weights = {weight for family, weight in faces if family == primary}
 
-        self.assertNotIn(
-            routes.DEFAULT_CONFIG["font"],
-            fixed,
-            f"the default font {routes.DEFAULT_CONFIG['font']!r} is one of "
-            f"{sorted(fixed)}, which declare fixed weights rather than a "
-            "variable axis, so the weight 600 the stylesheets ask for has "
-            "to be faked by the browser",
+        self.assertTrue(
+            any(self._covers_600(weight) for weight in weights),
+            f"the default font {default!r} declares only {sorted(weights)}, "
+            "none of which can serve the weight 600 the stylesheets ask "
+            "for, so the browser would have to synthesise it",
         )
 
     def test_the_check_above_can_actually_see_a_fixed_weight_font(self):
-        # A guard that cannot fail is not a guard. Atkinson Hyperlegible
-        # and OpenDyslexic are fixed; Lexend and Nunito are variable. If
-        # this fails then test_a_single_weight_font_is_not_the_default is
-        # comparing against an empty set and passing for the wrong reason.
+        # A guard that cannot fail is not a guard. OpenDyslexic and
+        # Atkinson declare fixed weights, Nunito and Lexend declare a
+        # variable range. If this fails then the check above is comparing
+        # against an empty set and passing for the wrong reason.
         faces = self._faces()
         families = {family for family, _ in faces}
+        self.assertIn("OpenDyslexic3", families)
         self.assertIn("Atkinson Hyperlegible", families)
         self.assertIn("Nunito", families)
 
-        def is_variable(family):
-            return any(
-                family == declared and bool(re.fullmatch(r"\d+\s+\d+", weight))
-                for declared, weight in faces
-            )
+        def weights_for(family):
+            return {weight for declared, weight in faces if declared == family}
 
-        self.assertFalse(
-            is_variable("Atkinson Hyperlegible"),
-            "Atkinson Hyperlegible should declare fixed weights",
+        self.assertEqual(weights_for("OpenDyslexic3"), {"normal", "bold"})
+        self.assertEqual(
+            weights_for("Atkinson Hyperlegible"), {"normal", "bold"}
         )
         self.assertTrue(
-            is_variable("Nunito"),
+            any(re.fullmatch(r"\d+\s+\d+", w) for w in weights_for("Nunito")),
             "Nunito should declare a variable weight range",
         )
+
+        # And the guard must reject the case it exists for: a family with
+        # only a normal face. No bundled font is that broken, so prove it
+        # against the weight matcher directly.
+        self.assertFalse(self._covers_600("normal"))
+        self.assertTrue(self._covers_600("bold"))
+        self.assertTrue(self._covers_600("100 900"))
+        self.assertTrue(self._covers_600("700"))
 
 
 class MonospaceTests(unittest.TestCase):
