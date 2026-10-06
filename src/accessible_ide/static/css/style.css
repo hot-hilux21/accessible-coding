@@ -205,32 +205,52 @@ body {
   gap: var(--space-2);
 }
 
+/* The mark is the OpenDyslexic "a" - the letterform this app exists for -
+   in the accent, on a neutral square. The accent is a mark here, not a
+   fill: the square is the same surface as the top bar, so the logo reads
+   as part of the chrome rather than a sticker on it. The "a" is large
+   text (bold, ~21px), so the accent clears 3:1 even in the pastel theme,
+   where the accent is darkest. */
 .brand-logo {
   display: grid;
   place-items: center;
   width: 38px;
   height: 38px;
-  background: var(--accent);
-  color: var(--accent-fg);
+  background: var(--panel-bg);
+  color: var(--accent);
+  border: 2px solid var(--panel-border);
   border-radius: var(--radius-sm);
-  font-size: 1.2em;
+  font-family: var(--font-family);
+  font-size: 1.35em;
+  font-weight: bold;
+  line-height: 1;
   flex-shrink: 0;
-  box-shadow: var(--shadow-1);
+}
+
+/* The mark is drawn here, not in the template: it is decoration with no
+   information the words do not carry, so it is aria-hidden and lives in
+   CSS where the i18n test cannot mistake it for untranslated text. */
+.brand-logo::before {
+  content: "a";
 }
 
 .brand-name {
   margin: 0;
-  font-size: 1.15em;
+  font-size: 1.3em;
   font-weight: bold;
   letter-spacing: normal;
 }
 
+/* The version is information, not an action, so it is muted rather than
+   accent-filled: the accent is reserved for things the reader can do.
+   Muted clears 4.5:1 on the panel surface in every theme. */
 .version-badge {
   font-size: 0.72em;
-  background: var(--accent);
-  color: var(--accent-fg);
+  background: var(--panel-bg);
+  color: var(--muted);
+  border: 1px solid var(--panel-border);
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   font-weight: bold;
   letter-spacing: normal;
 }
@@ -307,13 +327,15 @@ input[type="range"] {
      setup screen had to override it back up to 44, which is the same
      control at two heights depending on where it sits. */
   min-height: 44px;
-  box-shadow: var(--shadow-1);
+  /* Flat on purpose: the 2px border is the affordance, not a shadow.
+     A shadow on every button is the stock-UI default, and the design
+     bar rules out thin borders paired with wide shadows. Elevation is
+     reserved for the top bar and the dialogs, which sit above the page. */
   /* Press feedback is a settle, not a bounce: dyslexia users rely on
      steady, predictable chrome, so we translate rather than scale. */
   transition: transform var(--motion-fast) var(--ease),
               background var(--motion-med) var(--ease),
-              border-color var(--motion-med) var(--ease),
-              box-shadow var(--motion-med) var(--ease);
+              border-color var(--motion-med) var(--ease);
 }
 
 .btn:hover {
@@ -322,7 +344,6 @@ input[type="range"] {
 
 .btn:active {
   transform: translateY(1px);
-  box-shadow: none;
 }
 
 /* One elevation for every button. The primary used shadow-2 on top of a
