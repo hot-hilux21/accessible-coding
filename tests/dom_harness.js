@@ -66,21 +66,6 @@ const KNOWN_IDS = new Set([
   'highlight-color-hex', 'highlight-color-picker', 'highlight-error',
   'highlight-status', 'btn-reset-highlight',
   'language-select',
-  // The package manager. Without these declared here, initPackages() takes
-  // its early-return path and nothing about the panel is exercised.
-  'packages-dialog', 'packages-title', 'btn-packages', 'packages-close',
-  'packages-form', 'packages-input', 'packages-install', 'packages-list',
-  'packages-list-label', 'packages-empty', 'packages-status',
-  // The install offer that follows a failed import. Declared here so the
-  // path where the shell offers to install something is walked rather than
-  // skipped.
-  'install-offer', 'install-offer-text', 'install-offer-yes',
-  'install-offer-no',
-  // The Python shell. Declared here for the same reason as the index above:
-  // without these, the pane cannot be found and nothing about the shell is
-  // exercised, while the harness still reports success.
-  'btn-shell', 'shell-pane', 'shell-input', 'shell-output', 'shell-status',
-  'shell-run', 'shell-clear', 'shell-close',
   // The first-run setup screen. The server stops rendering it once the
   // reader has finished it, so app.js has to treat every one of these as
   // optional - the harness declares them so that path is exercised rather
@@ -657,19 +642,12 @@ function makePage(locale, shared, bodyAttrs) {
           // the stub would start with it showing, and a check about it
           // hiding would pass for the wrong reason.
           id === 'setup-back' ? { hidden: true } : {},
-          // The shell starts closed, so opening it is something a check can
-          // tell has happened. Starting it open would make every later
-          // check pass for the wrong reason.
-          id === 'shell-pane' ? { hidden: true } : {},
         );
         found.set(id, makeElement(id, attributesFor(id), props));
       }
       return found.get(id);
     },
     querySelector: () => makeElement('__query__'),
-    // The module index asks for its level filters this way, and gets the
-    // same four elements every time, so the listeners it attaches are the
-    // ones a check can fire.
     querySelectorAll: (selector) => {
       // The panel material is four radios for one setting, the same shape as
       // the wizard's language radios. Held to the same bar.
@@ -749,10 +727,6 @@ const configPosts = [];
 // configPosts so a check can prove a reset went to its own route rather
 // than being recorded as an ordinary settings save.
 const configResets = [];
-// What the shell was asked to run, in order. Kept so a check can prove the
-// session id and the reader's own code both went out, rather than only that
-// a request happened.
-const shellCommands = [];
 // Whether a settings write is accepted. Held in a variable so the refused
 // path can be walked: a stub that only ever saves would never show what the
 // app does when the answer comes back "no", which is the case where the
@@ -783,20 +757,6 @@ const updateInstallBodies = [];
 // can only prove the app ran, not that it said anything.
 const spokenUtterances = [];
 
-// Stand-in package data. A couple is enough: the point is to check how the
-// app draws and removes what it is given, and which packages really are
-// installed is covered by the Python tests.
-const PACKAGE_LIST = [
-  { name: 'toml', version: '0.10.2', module: 'toml' },
-  { name: 'Pillow', version: '10.0.0', module: 'PIL' },
-];
-
-// What the reader asked to install or remove, so a check can tell one request
-// from another.
-const packageBodies = [];
-let packagesListOk = true;
-let packageInstallOk = true;
-
 function parseBody(options) {
   try { return JSON.parse(options && options.body) || {}; } catch (e) { return {}; }
 }
@@ -810,56 +770,6 @@ const fetchMethods = [];
 function fetchStub(url, options) {
   fetchCalls.push(url);
   fetchMethods.push({ url: String(url), method: (options && options.method) || 'GET' });
-  // The shell, before the catch-all /api/config branch, because the session
-  // id it is handed has to be echoed back or a check cannot tell that one
-  // command's output reached the next.
-  if (String(url).includes('/api/shell/start')) {
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({ success: true, session: 'session-1' }),
-    });
-  }
-  if (String(url).includes('/api/shell/stop')) {
-    return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) });
-  }
-  if (String(url).includes('/api/shell/reset')) {
-    return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) });
-  }
-  if (String(url).includes('/api/shell/exec')) {
-    let sent = {};
-    try { sent = JSON.parse(options.body); } catch (e) { sent = {}; }
-    shellCommands.push(sent);
-    // Echoing what was typed is the whole contract of a shell in a test
-    // double: a check can prove the reader's own command came back rather
-    // than only that something did.
-    if (sent.code === 'boom') {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          success: true, output: '', error: 'NameError: name \'boom\' is not defined',
-        }),
-      });
-    }
-    // The one error the reader can do something about. The module name and the
-    // package that provides it both travel back, because they are often
-    // different words and the panel needs both.
-    if (sent.code === 'needpillow') {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          success: true, output: '',
-          error: 'PIL is not installed.',
-          missing_module: 'PIL', missing_package: 'Pillow',
-        }),
-      });
-    }
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        success: true, output: (sent.code || '') + '\n', error: '',
-      }),
-    });
-  }
   if (String(url).includes('/api/themes')) {
     return Promise.resolve({
       ok: true,
@@ -869,46 +779,6 @@ function fetchStub(url, options) {
         // background to work against and falls back to the page background,
         // so the checks would pass against a colour no reader ever sees.
         SANDBOX_THEMES,
-      }),
-    });
-  }
-  if (String(url).includes('/api/packages')) {
-    if (String(url).includes('/install')) {
-      packageBodies.push(parseBody(options));
-      // A failure carries a sentence the reader can act on, which is what the
-      // real route sends. A check that only looked for "some error text"
-      // would pass on a raw pip log, which is the thing being ruled out.
-      return Promise.resolve(packageInstallOk
-        ? { ok: true, json: () => Promise.resolve({ success: true, package: PACKAGE_LIST[0] }) }
-        : {
-          ok: false,
-          json: () => Promise.resolve({
-            success: false, reason: 'install_failed',
-            error: 'pip could not install nope. The name may be wrong, or the download may have failed.',
-          }),
-        });
-    }
-    if (String(url).includes('/uninstall')) {
-      packageBodies.push(parseBody(options));
-      const gone = PACKAGE_LIST.filter((p) => p.name !== parseBody(options).name);
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ success: true, removed: 1, installed: gone }),
-      });
-    }
-    if (!packagesListOk) {
-      // A server that cannot answer does not get to describe the failure in
-      // its own words, so the app has to fall back to its own sentence.
-      return Promise.resolve({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({ error: '' }),
-      });
-    }
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        installed: PACKAGE_LIST, can_install: true, directory: '/tmp/pkgs',
       }),
     });
   }
@@ -2080,15 +1950,13 @@ function runSpeechChecks() {
   runUpdateChecks();
 
   // The update promises settle in a chain, so the exit waits for the end of
-  // that chain rather than cutting it off at a guessed time. The module
-  // index runs just before the exit, because it leaves the editor holding
-  // an example and nothing after it should expect the page as it started.
+  // that chain rather than cutting it off at a guessed time.
   let finishCalled = false;
   finish = () => {
-    // The last stage runs once, whatever asks for it.
+    // The exit runs once, whatever asks for it.
     if (finishCalled) return;
     finishCalled = true;
-    runPackageChecks(() => process.exit(broke || failed ? 1 : 0));
+    process.exit(broke || failed ? 1 : 0);
   };
 }
 
@@ -2350,10 +2218,6 @@ function checkFailedDownload(status, row, closesBefore) {
 
       runSetupChecks();
       runUpdateChannelChecks();
-      // No finish() here. The shell stage is the last thing in the run and it
-      // hands over once, at the end. Calling finish from here as well started
-      // the module checks early and then a second time, which is how a
-      // silently broken check could look like a green run.
     }, 10);
   }, 10);
 }
@@ -2827,447 +2691,6 @@ function readText(node) {
   return (node.children || []).map(readText).join(' ');
 }
 
-// The package manager.
-function runPackageChecks(done) {
-  // This is the last stage in the run. If it stops part way through, node
-  // exits 0 and everything after the break is silently skipped - which is
-  // exactly what a green run used to mean. So the stage has to reach the end,
-  // or the run is a failure.
-  let settled = false;
-  const watchdog = setTimeout(() => {
-    if (settled) return;
-    failed = true;
-    console.log('FAIL the package checks never finished, so the checks after them were skipped');
-    process.exit(1);
-  }, 5000);
-  const finishStage = () => {
-    if (settled) return;
-    settled = true;
-    clearTimeout(watchdog);
-    done();
-  };
-
-  const dialog = elements.get('packages-dialog');
-  const opener = elements.get('btn-packages');
-  const form = elements.get('packages-form');
-  const input = elements.get('packages-input');
-  const list = elements.get('packages-list');
-  const status = elements.get('packages-status');
-  const empty = elements.get('packages-empty');
-
-  // Open it from its own button, rather than relying on the interaction sweep
-  // above: this check is then independent of where that sweep happened to sit,
-  // and it exercises the button a reader presses.
-  (opener.__listeners.click || []).forEach((h) => h(fakeEvent));
-
-  // Opened as a real modal, so the browser supplies the focus trap.
-  if (dialog.__open !== true) {
-    failed = true;
-    console.log('FAIL the package panel did not open as a modal');
-  } else {
-    console.log('     the package panel opens as a real modal');
-  }
-
-  // The name box takes focus, because that is where an install starts.
-  if (documentStub.activeElement !== input) {
-    failed = true;
-    console.log('FAIL the package panel did not put focus in the name box');
-  } else {
-    console.log('     it puts the reader straight in the name box');
-  }
-
-  // Listing is a read, so it is asked for with GET. The route only answers
-  // GET, and a POST here comes back 405, which the page would render as
-  // "could not open the package list" on every single open.
-  const listCalls = fetchMethods.filter((c) => c.url.includes('/api/packages')
-    && !c.url.includes('/install') && !c.url.includes('/uninstall'));
-  if (!listCalls.length) {
-    failed = true;
-    console.log('FAIL the package panel never asked the server what is installed');
-  } else if (!listCalls.every((c) => c.method === 'GET')) {
-    failed = true;
-    console.log(`FAIL the package list was asked for with ${listCalls[0].method} rather than GET`);
-  } else {
-    console.log('     it asks the server what is installed, with a GET');
-  }
-
-  setTimeout(() => {
-    const drawn = (list.children || []).filter((c) => c.tagName !== 'li-more');
-    if (drawn.length !== PACKAGE_LIST.length) {
-      failed = true;
-      console.log(`FAIL the package list drew ${drawn.length} rows, expected ${PACKAGE_LIST.length}`);
-    } else {
-      console.log(`     it draws one row for each of the ${drawn.length} installed packages`);
-    }
-
-    // Each row names the package and its version, and carries its own remove
-    // button. A screen reader reaching the button has to be told which package
-    // it removes, so the name is in the label too.
-    const first = readText(drawn[0]);
-    if (!first.includes('toml') || !first.includes('0.10.2')) {
-      failed = true;
-      console.log(`FAIL a row did not name its package and version: ${first.slice(0, 90)}`);
-    } else {
-      console.log('     a row names the package and the version installed');
-    }
-    const remove = findButtonByText(drawn[0], 'Remove');
-    if (!remove) {
-      failed = true;
-      console.log('FAIL a package row carried no remove button');
-    } else if (!/toml/.test(String(remove.getAttribute('aria-label')))) {
-      failed = true;
-      console.log(`FAIL the remove button did not name its package: ${remove.getAttribute('aria-label')}`);
-    } else {
-      console.log('     the remove button names the package it removes');
-    }
-
-    // Nothing is installed without the reader asking, so an empty name is
-    // refused in the page rather than sent to the server. The box is emptied
-    // first because the harness gives every text field a placeholder value.
-    input.value = '';
-    const beforeBlank = packageBodies.length;
-    (form.__listeners.submit || []).forEach((h) => h(eventFor(form)));
-    if (packageBodies.length !== beforeBlank) {
-      failed = true;
-      console.log('FAIL an empty name was sent to the server');
-    } else if (!/Type the name/.test(String(status.textContent))) {
-      failed = true;
-      console.log(`FAIL an empty name was not explained: "${status.textContent}"`);
-    } else {
-      console.log('     an empty name is refused before it reaches the network');
-    }
-
-    // A typed name is sent, and only then. This is the whole promise the
-    // panel makes, so it is checked rather than assumed.
-    input.value = 'pygame';
-    (form.__listeners.submit || []).forEach((h) => h(eventFor(form)));
-    if (!packageBodies.some((b) => b.name === 'pygame')) {
-      failed = true;
-      console.log('FAIL a typed package name was not sent to the server');
-    } else {
-      console.log('     a typed name is installed only because the reader pressed the button');
-    }
-
-    setTimeout(() => {
-      if (!/pygame is installed/.test(String(status.textContent))) {
-        failed = true;
-        console.log(`FAIL the install was not confirmed in words: "${status.textContent}"`);
-      } else {
-        console.log('     a finished install is confirmed in words');
-      }
-      if (String(input.value) !== '') {
-        failed = true;
-        console.log('FAIL the name box kept the name after a successful install');
-      } else {
-        console.log('     the name box is emptied, so the next install is a fresh one');
-      }
-
-      // Removing a package asks the server to remove it and reports what
-      // happened. The claim that matters is that the reader is told either way.
-      packageInstallOk = false;
-      input.value = 'nope';
-      (form.__listeners.submit || []).forEach((h) => h(eventFor(form)));
-      setTimeout(() => {
-        packageInstallOk = true;
-        if (!/could not be installed|could not install/.test(String(status.textContent))) {
-          failed = true;
-          console.log(`FAIL a failed install was not reported: "${status.textContent}"`);
-        } else {
-          console.log('     a failed install is reported rather than left silent');
-        }
-
-        const removeBtn = findButtonByText(drawn[1], 'Remove');
-        const beforeGone = packageBodies.length;
-        (removeBtn.__listeners.click || []).forEach((h) => h(fakeEvent));
-        if (packageBodies.length === beforeGone) {
-          failed = true;
-          console.log('FAIL pressing remove asked the server nothing');
-        } else if (packageBodies[packageBodies.length - 1].name !== 'Pillow') {
-          failed = true;
-          console.log(`FAIL the wrong package was removed: ${packageBodies[packageBodies.length - 1].name}`);
-        } else {
-          console.log('     a row removes the package that row names');
-        }
-
-        setTimeout(() => {
-          if (!/Pillow is removed/.test(String(status.textContent))) {
-            failed = true;
-            console.log(`FAIL the removal was not confirmed: "${status.textContent}"`);
-          } else {
-            console.log('     a finished removal is confirmed in words');
-          }
-
-          // A list that could not be loaded is not an empty list. Telling a
-          // reader "nothing installed" when the server is the thing that
-          // failed sends them hunting for a mistake that is not there.
-          packagesListOk = false;
-          const realError = console.error;
-          console.error = () => {};
-          // Close first. Opening a panel that is already open does nothing, by
-          // design, so the button alone would never ask again.
-          (elements.get('packages-close').__listeners.click || [])
-            .forEach((h) => h(fakeEvent));
-          (opener.__listeners.click || []).forEach((h) => h(fakeEvent));
-          setTimeout(() => {
-            console.error = realError;
-            const text = String(status.textContent);
-            if (!/could not be loaded/.test(text)) {
-              failed = true;
-              console.log('FAIL a failed load is not reported as a failure: ' + text);
-            } else if (/Nothing has been added/.test(text)) {
-              failed = true;
-              console.log('FAIL a failed load still claims nothing is installed');
-            } else {
-              console.log('     a list that would not load says so, and does not pretend it is empty');
-            }
-            packagesListOk = true;
-
-            // And the install offer, driven the way a reader reaches it: a
-            // command in the shell that fails on a missing module. The module
-            // name and the package name are different words, and both have to
-            // be on screen, because the reader has to learn the package name
-            // to install it.
-            const shellBtn = elements.get('btn-shell');
-            const shellInput = elements.get('shell-input');
-            const offer = elements.get('install-offer');
-            const offerText = elements.get('install-offer-text');
-            (shellBtn.__listeners.click || []).forEach((h) => h(fakeEvent));
-
-            setTimeout(() => {
-              shellInput.value = 'needpillow';
-              (elements.get('shell-run').__listeners.click || []).forEach((h) => h(fakeEvent));
-
-              setTimeout(() => {
-                if (offer.hidden !== false) {
-                  failed = true;
-                  console.log('FAIL a missing module did not bring up the install offer');
-                } else if (!/PIL/.test(String(offerText.textContent))) {
-                  failed = true;
-                  console.log(`FAIL the offer did not name the missing module: ${offerText.textContent}`);
-                } else if (!/Pillow/.test(String(offerText.textContent))) {
-                  failed = true;
-                  console.log(`FAIL the offer did not name the package to install: ${offerText.textContent}`);
-                } else {
-                  console.log('     a missing import is named, with the package that provides it');
-                }
-
-                // Declining has to actually take it away, and has to install
-                // nothing on the way out.
-                const beforeDecline = packageBodies.length;
-                (elements.get('install-offer-no').__listeners.click || [])
-                  .forEach((h) => h(fakeEvent));
-                if (offer.hidden !== true) {
-                  failed = true;
-                  console.log('FAIL declining the offer left it on screen');
-                } else if (packageBodies.length !== beforeDecline) {
-                  failed = true;
-                  console.log('FAIL declining the offer installed something');
-                } else {
-                  console.log('     declining installs nothing and clears the offer');
-                }
-
-                // Accepting does not install on the spot either. It opens the
-                // panel with the name already in the box, so there is one more
-                // thing the reader can read and press.
-                (elements.get('shell-run').__listeners.click || []).forEach((h) => h(fakeEvent));
-                setTimeout(() => {
-                  (elements.get('install-offer-yes').__listeners.click || [])
-                    .forEach((h) => h(fakeEvent));
-                  const beforeAccept = packageBodies.length;
-                  if (input.value !== 'Pillow') {
-                    failed = true;
-                    console.log(`FAIL accepting did not put the package name in the box: "${input.value}"`);
-                  } else if (packageBodies.length !== beforeAccept) {
-                    failed = true;
-                    console.log('FAIL accepting the offer installed without a second press');
-                  } else {
-                    console.log('     accepting opens the panel with the name ready, and installs nothing yet');
-                  }
-
-                  // Checked last, because it can only be judged once the install and the
-                  // removal have actually been driven through the panel. Both
-                  // change the machine, so neither may ever be a GET: that is
-                  // what stops a link, a prefetch, or a browser retry from
-                  // quietly adding or deleting something.
-                  const changing = fetchMethods.filter((c) => c.url.includes('/api/packages/install')
-                    || c.url.includes('/api/packages/uninstall'));
-                  if (!changing.length) {
-                    failed = true;
-                    console.log('FAIL nothing was ever installed or removed');
-                  } else if (changing.some((c) => c.method === 'GET')) {
-                    failed = true;
-                    console.log('FAIL a change to the machine was made with a GET');
-                  } else {
-                    console.log('     installing and removing are asked for with POST, never GET');
-                  }
-
-                  // Printed only if the stage reached its end, so a truncation
-                  // shows up as a missing line rather than as a run that
-                  // quietly passed.
-                  console.log('packages: the panel opened, installed, removed, and offered on a failed import');
-                  finishStage();
-                }, 20);
-              }, 20);
-            }, 20);
-          }, 20);
-        }, 20);
-      }, 20);
-    }, 20);
-  }, 20);
-}
-
-// Depth-first search for a button whose text is exactly this, so the check
-// does not depend on the order the row was built in.
-function findButtonByText(node, text) {
-  for (const child of (node && node.children) || []) {
-    if ((child.className || '').includes('btn')
-        && readText(child).trim() === text) {
-      return child;
-    }
-    const deeper = findButtonByText(child, text);
-    if (deeper) return deeper;
-  }
-  return null;
-}
-
-// The Python shell, end to end: closed, opened, a command run, the answer
-// kept on screen, a failure explained, and a close that hands the process
-// back rather than leaving it running for nobody.
-function runShellChecks() {
-  const btn = elements.get('btn-shell');
-  const pane = elements.get('shell-pane');
-  const input = elements.get('shell-input');
-  const out = elements.get('shell-output');
-  const status = elements.get('shell-status');
-  const run = elements.get('shell-run');
-  const clear = elements.get('shell-clear');
-  const close = elements.get('shell-close');
-
-  // Closed to begin with. A pane that started open would let every later
-  // check pass without the reader ever opening it.
-  if (!pane.hidden) {
-    failed = true;
-    console.log('FAIL the shell started open instead of closed');
-  } else {
-    console.log('     the shell starts closed, so it costs nothing until it is asked for');
-  }
-
-  (btn.__listeners.click || []).forEach((h) => h(fakeEvent));
-  if (pane.hidden) {
-    failed = true;
-    console.log('FAIL the shell did not open');
-  } else {
-    console.log('     it opens from its own button');
-  }
-  // The button says whether it is open, so somebody reading with a screen
-  // reader is not left guessing.
-  if (btn.getAttribute('aria-expanded') !== 'true') {
-    failed = true;
-    console.log('FAIL the shell button did not say it was open');
-  } else {
-    console.log('     the button says the shell is open');
-  }
-
-  setTimeout(() => {
-    // A session has to be opened before anything can be run in it.
-    if (!fetchCalls.some((u) => u.includes('/api/shell/start'))) {
-      failed = true;
-      console.log('FAIL the shell never asked for a session');
-    } else {
-      console.log('     it asks the server for a session, and the id is kept for later commands');
-    }
-
-    input.value = 'answer = 6 * 7';
-    (run.__listeners.click || []).forEach((h) => h(fakeEvent));
-
-    setTimeout(() => {
-      const sent = shellCommands[shellCommands.length - 1];
-      if (!sent) {
-        failed = true;
-        console.log('FAIL nothing was sent to the shell');
-      } else if (sent.session !== 'session-1') {
-        failed = true;
-        console.log(`FAIL the command did not carry its session id: ${sent.session}`);
-      } else if (sent.code !== 'answer = 6 * 7') {
-        failed = true;
-        console.log(`FAIL the wrong code was sent: ${sent.code}`);
-      } else {
-        console.log('     a command is sent with the reader\'s own code and the session id');
-      }
-
-      if (!/answer = 6 \* 7/.test(String(out.textContent))) {
-        failed = true;
-        console.log(`FAIL the shell's answer never reached the screen: "${out.textContent}"`);
-      } else {
-        console.log('     the answer is shown');
-      }
-
-      // A second command must not wipe the first answer off the screen. A
-      // shell you cannot look back in is a log, not a shell.
-      input.value = 'print(answer)';
-      (run.__listeners.click || []).forEach((h) => h(fakeEvent));
-      setTimeout(() => {
-        if (!/answer = 6 \* 7/.test(String(out.textContent))) {
-          failed = true;
-          console.log('FAIL the next command wiped the previous answer off the screen');
-        } else {
-          console.log('     a second command keeps what came before it on screen');
-        }
-
-        // A failure is said in words, not left as an empty box.
-        input.value = 'boom';
-        (run.__listeners.click || []).forEach((h) => h(fakeEvent));
-        setTimeout(() => {
-          if (!/boom/.test(String(out.textContent))) {
-            failed = true;
-            console.log(`FAIL a failed command was not explained: "${out.textContent}"`);
-          } else {
-            console.log('     a failed command is explained on screen, not swallowed');
-          }
-
-          // Clearing wipes the namespace and the transcript together, so
-          // the two never disagree about what is still defined.
-          (clear.__listeners.click || []).forEach((h) => h(fakeEvent));
-          setTimeout(() => {
-            if (!fetchCalls.some((u) => u.includes('/api/shell/reset'))) {
-              failed = true;
-              console.log('FAIL clearing did not tell the server to forget the namespace');
-            } else if (String(out.textContent) !== '') {
-              failed = true;
-              console.log(`FAIL clearing left the old answers on screen: "${out.textContent}"`);
-            } else {
-              console.log('     clearing forgets both the definitions and the transcript');
-            }
-
-            // Closing gives the process back. A shell left running after the
-            // reader walks away is a python.exe nobody is looking after.
-            (close.__listeners.click || []).forEach((h) => h(fakeEvent));
-            if (!pane.hidden) {
-              failed = true;
-              console.log('FAIL the shell did not close');
-            } else if (!fetchCalls.some((u) => u.includes('/api/shell/stop'))) {
-              failed = true;
-              console.log('FAIL closing left the shell process running');
-            } else if (btn.getAttribute('aria-expanded') !== 'false') {
-              failed = true;
-              console.log('FAIL the button still said the shell was open');
-            } else {
-              console.log('     closing hands the process back and clears the button');
-            }
-
-            console.log('shell: 9 checks');
-            // Hand over to the module checks rather than exiting here. This
-            // used to reassign finish() first, which quietly replaced the
-            // module stage with a plain exit - so the checks after the shell
-            // never ran and the run still reported success.
-            finish();
-          }, 10);
-        }, 10);
-      }, 10);
-    }, 10);
-  }, 10);
-}
-
 setTimeout(() => {
   runPanelChecks();
   runStepperChecks();
@@ -3280,7 +2703,4 @@ setTimeout(() => {
     runResetConfigChecks();
     setTimeout(runResetConfigReloadCheck, 10);
   }, 30);
-  // Last, because it asserts on the final exit and the checks above are
-  // still in flight when it starts.
-  setTimeout(runShellChecks, 200);
 }, 50);

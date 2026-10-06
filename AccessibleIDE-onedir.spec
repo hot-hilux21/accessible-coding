@@ -18,11 +18,6 @@ datas = [
     ('src/accessible_ide/templates', 'accessible_ide/templates'),
     ('src/accessible_ide/assets', 'accessible_ide/assets'),
     ('src/accessible_ide/i18n', 'accessible_ide/i18n'),
-    # The shell's child process, as a file rather than as a module. The
-    # frozen exe runs it with --run-script, which needs a real path on disk,
-    # so listing it as data is what puts it there. shell.bootstrap_path()
-    # looks for exactly this location.
-    ('src/accessible_ide/shell_bootstrap.py', 'accessible_ide/shell_bootstrap.py'),
 ]
 
 a = Analysis(

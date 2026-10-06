@@ -1182,9 +1182,7 @@ class FrostedPanelAndMovementCssTests(RenderedPageFixture):
         for surface in (
             ".topbar",
             ".output-pane",
-            ".shell-pane",
             ".settings",
-            ".pkg",
             ".setup-panel",
             ".error-panel",
         ):

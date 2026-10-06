@@ -496,109 +496,6 @@ body[data-focus-mode="lines"] .CodeMirror-line.CodeMirror-activeline-background 
   letter-spacing: normal;
 }
 
-/* ---------- The Python shell ---------- */
-/* Sits under the output, which is where somebody who has just run something
-   and wants to try a variation of it will look next. Hidden by default
-   because a page that has not asked for a shell should not pay for one. */
-.shell-pane {
-  border-top: 1px solid var(--panel-border);
-  background: var(--panel-bg);
-  max-height: 45%;
-  display: flex;
-  flex-direction: column;
-  min-height: 220px;
-  box-shadow: inset 0 1px 0 var(--panel-border);
-}
-
-.shell-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.shell-header-buttons {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.shell-title {
-  margin: 0;
-  font-size: 0.9em;
-  font-weight: bold;
-  color: var(--muted);
-  letter-spacing: normal;
-}
-
-/* One sentence of guidance, in the reader's language, above the box. The
-   shell is the one place in the app where what to type is not obvious. */
-.shell-intro {
-  margin: 0;
-  padding: var(--space-2) var(--space-4);
-  font-size: 0.9em;
-  line-height: 1.5;
-  color: var(--muted);
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.shell-label {
-  padding: var(--space-2) var(--space-4) 0;
-  font-size: 0.9em;
-  color: var(--muted);
-}
-
-/* The monospace and the line height come from the reader's settings like
-   everywhere else, so the shell is as readable as the editor. */
-.shell-input {
-  margin: var(--space-1) var(--space-4);
-  padding: var(--space-2);
-  font-family: var(--font-mono);
-  font-size: 0.95em;
-  line-height: var(--line-height, 1.5);
-  letter-spacing: var(--letter-spacing, normal);
-  color: var(--fg);
-  background: var(--bg);
-  border: 2px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  resize: vertical;
-}
-
-.shell-input:focus {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.shell-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-4) var(--space-2);
-}
-
-.shell-status {
-  font-size: 0.85em;
-  color: var(--muted);
-}
-
-.shell-output {
-  flex: 1;
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  overflow: auto;
-  font-family: var(--font-mono);
-  font-size: 0.95em;
-  line-height: var(--line-height, 1.5);
-  letter-spacing: var(--letter-spacing, normal);
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--fg);
-  /* New output is appended constantly, and scroll anchoring would yank the
-     view while somebody is reading further up the transcript. */
-  overflow-anchor: none;
-}
-
 /* ---------- Error panel ---------- */
 .error-panel {
   margin: 0 var(--space-4) var(--space-3);
@@ -1289,8 +1186,8 @@ body[data-reduce-motion='true'] *::after {
    picked up by a broad descendant rule, so the list stays
    auditable. If you add a surface here, check that nothing which
    needs to be read sits directly on it. */
-body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
-                                           .error-panel, .settings, .pkg,
+body:not([data-glass-material='off']) :is(.topbar, .output-pane,
+                                           .error-panel, .settings,
                                            .setup-panel) {
   /* Defaults, and what a material that names no values falls back to. */
   --glass-alpha: 72%;
@@ -1316,8 +1213,8 @@ body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
 /* Each material only sets the three numbers that make it different, so
    the surface list above stays the single place that decides what is
    allowed to go translucent. */
-body[data-glass-material='mica'] :is(.topbar, .output-pane, .shell-pane,
-                                        .error-panel, .settings, .pkg,
+body[data-glass-material='mica'] :is(.topbar, .output-pane,
+                                        .error-panel, .settings,
                                         .setup-panel) {
   /* Quiet and almost solid. Mica tints itself with whatever is behind
      it; there is no wallpaper behind a window, so it borrows the
@@ -1327,8 +1224,8 @@ body[data-glass-material='mica'] :is(.topbar, .output-pane, .shell-pane,
   --glass-sat: 112%;
 }
 
-body[data-glass-material='frosted'] :is(.topbar, .output-pane, .shell-pane,
-                                          .error-panel, .settings, .pkg,
+body[data-glass-material='frosted'] :is(.topbar, .output-pane,
+                                          .error-panel, .settings,
                                           .setup-panel) {
   /* An even frost, no grain. The middle of the three. */
   --glass-alpha: 72%;
@@ -1336,8 +1233,8 @@ body[data-glass-material='frosted'] :is(.topbar, .output-pane, .shell-pane,
   --glass-sat: 150%;
 }
 
-body[data-glass-material='acrylic'] :is(.topbar, .output-pane, .shell-pane,
-                                          .error-panel, .settings, .pkg,
+body[data-glass-material='acrylic'] :is(.topbar, .output-pane,
+                                          .error-panel, .settings,
                                           .setup-panel) {
   /* Heaviest, and the most see-through of the three. The grain below
      is what separates it from a merely blurry panel. */
@@ -1348,11 +1245,11 @@ body[data-glass-material='acrylic'] :is(.topbar, .output-pane, .shell-pane,
 
 /* Grain, on the surfaces large enough for it to read. Kept off the
    panes: a texture over scrolling output is noise for its own sake. */
-body[data-glass-material='acrylic'] :is(.topbar, .settings, .pkg, .setup-panel) {
+body[data-glass-material='acrylic'] :is(.topbar, .settings, .setup-panel) {
   position: relative;
 }
 
-body[data-glass-material='acrylic'] :is(.topbar, .settings, .pkg, .setup-panel)::before {
+body[data-glass-material='acrylic'] :is(.topbar, .settings, .setup-panel)::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1364,7 +1261,7 @@ body[data-glass-material='acrylic'] :is(.topbar, .settings, .pkg, .setup-panel):
 
 /* Dialogs sit over the page rather than inside the layout, so a thin
    fill needs its edge restated or the boundary disappears. */
-body:not([data-glass-material='off']) :is(.settings, .pkg, .setup-panel) {
+body:not([data-glass-material='off']) :is(.settings, .setup-panel) {
   box-shadow: var(--shadow-3), 0 0 0 1px var(--panel-border);
 }
 
@@ -1373,15 +1270,15 @@ body:not([data-glass-material='off']) :is(.settings, .pkg, .setup-panel) {
    same reasoning as the reduced-motion block above: this has to win
    against the material rules, and in exactly the case where it matters. */
 @media (prefers-reduced-transparency: reduce) {
-  body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
-                                              .error-panel, .settings, .pkg,
+  body:not([data-glass-material='off']) :is(.topbar, .output-pane,
+                                              .error-panel, .settings,
                                               .setup-panel) {
     background: var(--panel-bg) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
 
-  body[data-glass-material='acrylic'] :is(.topbar, .settings, .pkg, .setup-panel)::before {
+  body[data-glass-material='acrylic'] :is(.topbar, .settings, .setup-panel)::before {
     content: none !important;
   }
 }
@@ -1406,8 +1303,6 @@ body:not([data-glass-material='off']) :is(.settings, .pkg, .setup-panel) {
 
 dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 .error-panel:not([hidden]) { animation: panel-arrive var(--motion-med) var(--ease) both; }
-.shell-pane:not([hidden]) { animation: panel-arrive var(--motion-med) var(--ease) both; }
-.packages-row { animation: sweep-in var(--motion-fast) var(--ease) both; }
 
 /* This used to include .btn and .btn-toggle, which quietly replaced the
    translateY(1px) that .btn:active sets with a scale. The two rules
@@ -1419,8 +1314,7 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 .switch-track { transition: transform var(--motion-fast) var(--ease); }
 
 @media (prefers-reduced-motion: reduce) {
-  body[data-reduce-motion='unset'] dialog[open],
-  body[data-reduce-motion='unset'] .packages-row {
+  body[data-reduce-motion='unset'] dialog[open] {
     animation: none !important;
   }
 }
@@ -1592,225 +1486,3 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
    control in the app uses, so the override is gone. Two rules for one
    height is how the topbar and the setup screen drifted apart to begin
    with. The wizard's own answer rows are still set below. */
-
-/* ---------- Package manager ----------
-
-   A native <dialog> for the same reason as the settings panel: focus
-   trapping, Escape and the inert page behind come from the browser.
-
-   The dialog is narrower than the module index was, on purpose. A package
-   list is one name and one button per row; the width went to reading module
-   descriptions that this panel no longer has. */
-
-.pkg {
-  width: min(720px, calc(100vw - 2 * var(--space-4)));
-  max-height: calc(100vh - 2 * var(--space-4));
-  padding: 0;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--fg);
-  box-shadow: var(--shadow-3);
-  overflow: hidden;
-}
-
-.pkg::backdrop {
-  background: rgba(0, 0, 0, 0.6);
-}
-
-.pkg-inner {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 2 * var(--space-4));
-}
-
-.pkg-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--panel-border);
-  background: var(--panel-bg);
-}
-
-.pkg-title {
-  margin: 0;
-  font-size: 1.25em;
-  font-weight: bold;
-  letter-spacing: normal;
-}
-
-.pkg-intro,
-.pkg-help {
-  margin: 0;
-  color: var(--muted);
-  letter-spacing: normal;
-}
-
-.pkg-intro {
-  padding: var(--space-4) var(--space-4) 0;
-}
-
-.pkg-help {
-  margin-top: var(--space-1);
-  font-size: 0.9em;
-}
-
-/* The name box and its button sit on one line on a wide screen and stack on a
-   narrow one. The button stays a real button at full size rather than
-   shrinking to fit, because it is the thing the reader came here to press. */
-.pkg-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  align-items: flex-start;
-  padding: var(--space-4);
-}
-
-.pkg-search {
-  flex: 1 1 240px;
-  min-width: 0;
-}
-
-.pkg-controls > .btn {
-  flex: 0 0 auto;
-  margin-top: calc(var(--space-5) + 1px);
-}
-
-.pkg-label {
-  display: block;
-  margin-bottom: var(--space-1);
-  font-size: 0.9em;
-  font-weight: bold;
-  color: var(--muted);
-  letter-spacing: normal;
-}
-
-.pkg-input {
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  font: inherit;
-  font-size: 1.05em;
-  letter-spacing: normal;
-  color: var(--fg);
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  min-height: 44px;
-}
-
-.pkg-status {
-  margin: 0;
-  padding: 0 var(--space-4) var(--space-2);
-  color: var(--muted);
-  font-size: 0.9em;
-  letter-spacing: normal;
-  min-height: 1.4em;
-}
-
-.pkg-body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  padding: 0 var(--space-4) var(--space-4);
-}
-
-.pkg-results-wrap {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  max-height: 46vh;
-}
-
-.pkg-results {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.pkg-empty {
-  margin: 0;
-  padding: var(--space-4);
-  color: var(--muted);
-  letter-spacing: normal;
-}
-
-/* One row per package: name and version, then the remove button pushed to
-   the end. A bottom border rather than a card per row, because a screen
-   reader walking a list of boxes is reading far more markup than the list
-   actually needs. */
-.packages-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.packages-row:last-child {
-  border-bottom: none;
-}
-
-.packages-row-name {
-  font-family: var(--font-mono);
-  font-weight: bold;
-  overflow-wrap: anywhere;
-}
-
-
-.packages-row-actions {
-  margin-left: auto;
-  display: flex;
-  gap: var(--space-2);
-}
-
-/* ---------- The install offer ----------
-
-   Sits below the shell rather than in a dialog. The reader has just typed
-   something and been told it did not work, and a modal in front of them
-   interrupts the thought they were in the middle of. */
-
-.install-offer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  background: var(--panel-bg);
-  letter-spacing: normal;
-}
-
-.install-offer[hidden] {
-  display: none;
-}
-
-.install-offer-text {
-  margin: 0;
-  flex: 1 1 240px;
-  min-width: 0;
-}
-
-.install-offer-actions {
-  display: flex;
-  gap: var(--space-2);
-}
-
-@media (max-width: 700px) {
-  .pkg-controls > .btn {
-    margin-top: 0;
-    width: 100%;
-  }
-
-  .packages-row-actions {
-    margin-left: 0;
-    width: 100%;
-  }
-
-  .packages-row-actions .btn {
-    width: 100%;
-  }
-}

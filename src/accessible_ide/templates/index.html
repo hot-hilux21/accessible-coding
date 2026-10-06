@@ -123,20 +123,6 @@
       <input type="file" id="file-input" accept=".py,.txt" class="visually-hidden">
 
       <div class="tool-group">
-        <button id="btn-packages" class="btn btn-toggle" aria-haspopup="dialog"
-                title="{{ t('packages.title') }}">
-          <span aria-hidden="true">&#128230;</span> {{ t('packages.title') }}
-        </button>
-      </div>
-
-      <div class="tool-group">
-        <button id="btn-shell" class="btn btn-toggle" aria-expanded="false"
-                aria-controls="shell-pane" title="{{ t('shell.title') }}">
-          <span aria-hidden="true">&#9642;</span> {{ t('shell.title') }}
-        </button>
-      </div>
-
-      <div class="tool-group">
         <button id="btn-settings" class="btn btn-toggle" aria-haspopup="dialog"
                 title="{{ t('nav.settings_title') }}">
           <span aria-hidden="true">&#9881;</span> {{ t('nav.settings') }}
@@ -160,41 +146,6 @@
         <h3 class="error-title">&#9888; {{ t('error.title') }}</h3>
         <p id="error-message" class="error-message"></p>
       </div>
-    </section>
-
-    <!-- The Python shell.
-
-         Below the output rather than behind a button, because it is the
-         thing a reader reaches for when they want to try things rather than
-         hand something in to be run. It stays closed until it is opened, so
-         it costs a page that has not asked for it nothing.
-
-         The output is aria-live="polite" and not role="alert": a shell
-         prints as it goes, and an alert would interrupt on every line. -->
-    <section id="shell-pane" class="shell-pane" aria-labelledby="shell-heading" hidden>
-      <div class="shell-header">
-        <h2 id="shell-heading" class="shell-title">{{ t('shell.title') }}</h2>
-        <div class="shell-header-buttons">
-          <button id="shell-clear" class="btn btn-small"
-                  title="{{ t('shell.clear_title') }}">{{ t('shell.clear') }}</button>
-          <button id="shell-close" class="btn btn-small">{{ t('shell.close') }}</button>
-        </div>
-      </div>
-
-      <p class="shell-intro">{{ t('shell.intro') }}</p>
-
-      <label for="shell-input" class="shell-label">{{ t('shell.input_label') }}</label>
-      <textarea id="shell-input" class="shell-input" rows="3" spellcheck="false"
-                aria-describedby="shell-status"></textarea>
-
-      <div class="shell-actions">
-        <button id="shell-run" class="btn btn-primary"
-                title="{{ t('shell.run_title') }}">{{ t('shell.run') }}</button>
-        <span id="shell-status" class="shell-status" role="status">{{ t('shell.status_waiting') }}</span>
-      </div>
-
-      <h3 class="shell-output-label visually-hidden">{{ t('shell.output_label') }}</h3>
-      <pre id="shell-output" class="shell-output" aria-live="polite" tabindex="0"></pre>
     </section>
   </main>
 
@@ -737,74 +688,6 @@
     </div>
   </dialog>
   {% endif %}
-
-  <!-- The package manager.
-
-       A native dialog element rather than a div with role="dialog",
-       because the browser then handles the focus trap, Escape, and the
-       inertness of the page behind it. Getting that right by hand is
-       where hand-rolled modals go wrong.
-
-       Two jobs in one panel. Installing is a name typed into a box,
-       because that is the only thing a beginner can be expected to know.
-       Removing is a button on each row, so a package that has gone bad
-       can be got rid of without remembering or looking up its name.
-
-       The status line is polite, not an alert. An install takes seconds
-       and announcing it as urgent interrupts whatever the reader was
-       doing to say "done" before they know what was finished.
-  -->
-  <dialog id="packages-dialog" class="pkg" aria-labelledby="packages-title">
-    <div class="pkg-inner">
-      <div class="pkg-head">
-        <h2 id="packages-title" class="pkg-title">{{ t('packages.title') }}</h2>
-        <button id="packages-close" class="btn btn-small" type="button">{{ t('packages.close') }}</button>
-      </div>
-
-      <p class="pkg-intro">{{ t('packages.intro') }}</p>
-
-      <form id="packages-form" class="pkg-controls">
-        <div class="pkg-search">
-          <label for="packages-input" class="pkg-label">{{ t('packages.name_label') }}</label>
-          <input type="text" id="packages-input" class="pkg-input"
-                 autocomplete="off" spellcheck="false"
-                 aria-describedby="packages-name-help">
-          <p id="packages-name-help" class="pkg-help">{{ t('packages.name_help') }}</p>
-        </div>
-        <button type="submit" id="packages-install" class="btn">
-          {{ t('packages.install') }}
-        </button>
-      </form>
-
-      <p id="packages-status" class="pkg-status" role="status" aria-live="polite"></p>
-
-      <div class="pkg-body">
-        <div class="pkg-results-wrap">
-          <ul id="packages-list" class="pkg-results"
-              aria-labelledby="packages-list-label"></ul>
-          <span id="packages-list-label" class="visually-hidden">{{ t('packages.list_label') }}</span>
-          <p id="packages-empty" class="pkg-empty" hidden>
-            {{ t('packages.none') }}
-          </p>
-        </div>
-      </div>
-    </div>
-  </dialog>
-
-  <!-- The install offer, shown under the shell when an import fails.
-
-       Not a dialog and not an alert: the reader has just typed something and
-       got an error, and putting a modal in front of them interrupts the
-       thought. A short sentence with one button, in the same place as the
-       rest of the shell's output, so it is read in the order it happened.
-  -->
-  <div id="install-offer" class="install-offer" role="status" aria-live="polite" hidden>
-    <p id="install-offer-text" class="install-offer-text"></p>
-    <div class="install-offer-actions">
-      <button id="install-offer-yes" type="button" class="btn">{{ t('packages.install') }}</button>
-      <button id="install-offer-no" type="button" class="btn btn-small">{{ t('packages.not_now') }}</button>
-    </div>
-  </div>
 
   <!-- The active catalogue is embedded rather than fetched. The page is
        already in the reader's language before this script runs, and a

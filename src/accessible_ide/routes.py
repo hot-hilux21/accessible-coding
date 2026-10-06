@@ -14,10 +14,7 @@ import threading
 from pathlib import Path
 
 from . import i18n
-from . import packages
 from .utils import colour
-from .shell import ShellError, ShellTimeout
-from .shell import registry as shell_registry
 
 main_bp = Blueprint('main', __name__)
 
@@ -62,23 +59,6 @@ SANDBOX = on_public_web()
 RATE_LIMIT = {}
 RATE_MAX = 10          # requests per window
 RATE_WINDOW = 60       # seconds
-
-# The shell is metered separately, and more generously.
-#
-# RATE_MAX suits the runner, which is one request per deliberate click. A
-# shell is one request per line the reader types, and the whole point of it is
-# trying things: someone working out how a loop behaves will pass nine
-# commands inside a minute and then be told to wait while their shell still
-# looks perfectly open. Being throttled for using the thing you opened reads
-# as the shell being broken, which is the opposite of what it is.
-#
-# Keyed on the session rather than the address, so one reader exploring cannot
-# lock out everybody else behind the same IP - which on the hosted copy is
-# every visitor behind one proxy. The session id is unguessable and there are
-# at most MAX_SESSIONS of them, and the hosted sandbox still refuses os,
-# subprocess and sockets, so a higher ceiling here is a smaller risk than the
-# throttle causing is.
-SHELL_RATE_MAX = 120
 
 # Modules that are blocked in the sandboxed web runner
 BLOCKED_IMPORTS = [
@@ -712,19 +692,8 @@ def index():
 
 
 def _runner_env():
-    """The environment for a one-shot run, with the packages folder added.
-
-    Prepended to PYTHONPATH so a package the reader installed wins over one of
-    the same name that happens to be elsewhere on the path. The existing value
-    is kept, not replaced: something else on the machine may be relying on it.
-    """
-    env = os.environ.copy()
-    target = packages.python_path()
-    if target and os.path.isdir(target):
-        existing = env.get('PYTHONPATH', '')
-        env['PYTHONPATH'] = (target + os.pathsep + existing
-                             if existing else target)
-    return env
+    """The environment for a one-shot run."""
+    return os.environ.copy()
 
 
 @main_bp.route('/api/run', methods=['POST'])
@@ -778,11 +747,6 @@ def run_code():
             text=True,
             timeout=10,
             cwd=tempfile.gettempdir(),
-            # The reader's installed packages, so a program that imports
-            # something they added works from the Run button as well as from
-            # the shell. PYTHONPATH rather than the app's own variable here,
-            # because this child runs a file through the interpreter directly
-            # and never goes near shell_bootstrap.
             env=_runner_env(),
         )
         
@@ -791,20 +755,14 @@ def run_code():
         error_line = None
         
         if error:
-            missing = ''
-            if 'ModuleNotFoundError' in error:
-                missing = packages.missing_module(error)
             error, error_line = translate_error(error, t)
             return jsonify({
                 'output': output,
                 'error': error,
                 'error_line': error_line,
-                'missing_module': missing,
-                'missing_package': packages.package_for_module(missing) if missing else '',
             })
 
-        return jsonify({'output': output, 'error': '', 'error_line': None,
-                        'missing_module': '', 'missing_package': ''})
+        return jsonify({'output': output, 'error': '', 'error_line': None})
     
     except subprocess.TimeoutExpired:
         return jsonify({'output': '', 'error': t('error.timeout'), 'error_line': None})
@@ -816,181 +774,6 @@ def run_code():
             os.unlink(temp_file)
         except Exception:
             pass
-
-
-# The Python shell.
-#
-# A different shape from /api/run on purpose. The runner answers "run this
-# file", writes it out and throws it away. A shell has to remember: what you
-# imported is still imported, what you defined is still defined. So this
-# keeps a child process per reader and talks to it over a pipe. That needs
-# more than a route, which is why the machinery lives in shell.py and this is
-# only the part the browser talks to.
-#
-# Every gate the runner has is here too, in the same order. The shell runs
-# code, so anything that was true of /api/run is true of this, and a gate
-# that was added to one and not the other would be a way around it.
-
-@main_bp.route('/api/shell/start', methods=['POST'])
-def shell_start():
-    data = request.get_json(silent=True) or {}
-    t = translator_for(request_locale(data))
-
-    if not access_code_ok(data):
-        return jsonify({
-            'success': False,
-            'error': t('error.access_code_run'),
-            'code_required': True,
-        }), 403
-
-    if rate_limited(client_ip()):
-        return jsonify({
-            'success': False,
-            'error': t('error.too_many_requests'),
-        }), 429
-
-    # The id is minted here, not accepted from the reader, so nobody can
-    # arrive at somebody else's shell by guessing one.
-    return jsonify({'success': True, 'session': shell_registry.start()})
-
-
-@main_bp.route('/api/shell/exec', methods=['POST'])
-def shell_exec():
-    data = request.get_json(silent=True) or {}
-    t = translator_for(request_locale(data))
-    code = data.get('code', '')
-
-    if not access_code_ok(data):
-        return jsonify({
-            'success': False,
-            'output': '',
-            'error': t('error.access_code_run'),
-            'error_line': None,
-            'code_required': True,
-        }), 403
-
-    if rate_limited('shell:' + str(data.get('session') or client_ip()),
-                    SHELL_RATE_MAX):
-        return jsonify({
-            'success': False,
-            'output': '',
-            'error': t('error.too_many_requests'),
-            'error_line': None,
-        }), 429
-
-    if not code.strip():
-        return jsonify({
-            'success': True,
-            'output': '',
-            'error': t('shell.no_code'),
-            'error_line': None,
-        })
-
-    ok, sandbox_message = check_sandbox(code, t)
-    if not ok:
-        return jsonify({
-            'success': True,
-            'output': '',
-            'error': sandbox_message,
-            'error_line': None,
-        })
-
-    session = shell_registry.get(data.get('session'))
-    if session is None:
-        return jsonify({
-            'success': False,
-            'output': '',
-            'error': t('shell.no_session'),
-            'error_line': None,
-        })
-
-    try:
-        result = session.exec(code)
-    except ShellTimeout:
-        # The child has already been killed. The next command starts a new
-        # one, so this costs the reader their session and nothing else.
-        return jsonify({
-            'success': True,
-            'output': '',
-            'error': t('shell.timeout'),
-            'error_line': None,
-        })
-    except ShellError as exc:
-        # Either the child was gone already and has been replaced, or it
-        # could not be read. Both are worth a sentence rather than a stack.
-        key = 'shell.restarted' if 'restarted' in str(exc) else 'shell.closed'
-        return jsonify({
-            'success': True,
-            'output': '',
-            'error': t(key),
-            'error_line': None,
-        })
-
-    error = result.get('error', '')
-    error_line = None
-    missing = ''
-    if error:
-        # A missing module is the one error with something the reader can do
-        # about it, so the name travels back with the message. The page turns
-        # it into an offer to install, and nothing is installed until they
-        # press the button.
-        if result.get('error_type') == 'ModuleNotFoundError':
-            missing = packages.missing_module(error)
-        error, error_line = translate_error(error, t)
-
-    return jsonify({
-        'success': True,
-        'output': result.get('output', ''),
-        'error': error,
-        'error_line': error_line,
-        # Empty when the error was not a missing module. package is the name to
-        # install, which is not always the name imported (PIL is Pillow).
-        'missing_module': missing,
-        'missing_package': packages.package_for_module(missing) if missing else '',
-    })
-
-
-@main_bp.route('/api/shell/reset', methods=['POST'])
-def shell_reset():
-    data = request.get_json(silent=True) or {}
-    t = translator_for(request_locale(data))
-
-    if not access_code_ok(data):
-        return jsonify({
-            'success': False,
-            'error': t('error.access_code_run'),
-            'code_required': True,
-        }), 403
-
-    session = shell_registry.get(data.get('session'))
-    if session is None:
-        return jsonify({'success': False, 'error': t('shell.no_session')})
-
-    try:
-        session.reset()
-    except ShellError as exc:
-        key = 'shell.restarted' if 'restarted' in str(exc) else 'shell.closed'
-        return jsonify({'success': False, 'error': t(key)})
-
-    return jsonify({'success': True})
-
-
-@main_bp.route('/api/shell/stop', methods=['POST'])
-def shell_stop():
-    data = request.get_json(silent=True) or {}
-    t = translator_for(request_locale(data))
-
-    if not access_code_ok(data):
-        return jsonify({
-            'success': False,
-            'error': t('error.access_code_run'),
-            'code_required': True,
-        }), 403
-
-    # Stopping a session that is already gone is the outcome the reader
-    # asked for, not a failure, so it is reported as done either way.
-    shell_registry.drop(data.get('session'))
-    return jsonify({'success': True})
 
 
 # Allowed config keys and their expected types
@@ -1346,142 +1129,6 @@ def themes_api():
 @main_bp.route('/api/fonts')
 def fonts_api():
     return jsonify(FONTS)
-
-
-# The package manager. Reading and changing what the reader has added to their
-# own copy of Python.
-#
-# Three rules hold across all three routes.
-#
-# Installing is never automatic. The shell reports a missing module and this
-# offers to install it; nothing is downloaded until the reader presses the
-# button. See packages.py for why that limit is deliberate.
-#
-# The hosted copy cannot install. It runs for many readers at once on one
-# machine, so a per-reader package folder is not meaningful and a server that
-# installs whatever it is asked to is a much larger hole than one on somebody's
-# own laptop. It says so rather than pretending.
-#
-# Failures come back as a reason code, not as pip's output. pip speaks in
-# resolver jargon; the reader gets a sentence and the detail goes to the log.
-@main_bp.route('/api/packages')
-def packages_api():
-    # Asked with GET because listing changes nothing. It carries no sentence
-    # back, so there is no locale to honour here; the panel reads the failure
-    # wording from the two routes that do fail.
-    return jsonify({
-        'installed': [p.as_dict() for p in packages.installed()],
-        'can_install': packages.pip_available() and not SANDBOX,
-        'directory': str(packages.packages_dir()),
-    })
-
-
-@main_bp.route('/api/packages/install', methods=['POST'])
-def packages_install():
-    data = request.get_json(silent=True) or {}
-    t = translator_for(request_locale(data))
-
-    # The same two gates as /api/run, in the same order. Installing is a bigger
-    # thing to allow than running a file: it changes what is on the machine.
-    # A route that skipped them would be a way round both.
-    if not access_code_ok(data):
-        return jsonify({
-            'success': False,
-            'error': t('error.access_code_run'),
-            'code_required': True,
-        }), 403
-
-    if rate_limited(client_ip()):
-        return jsonify({
-            'success': False,
-            'error': t('error.too_many_requests'),
-        }), 429
-
-    if SANDBOX:
-        return jsonify({
-            'success': False,
-            'error': t('packages.not_here'),
-        }), 403
-
-    name = data.get('name', '')
-    try:
-        package = packages.install(name)
-    except packages.PackageError as exc:
-        # 400 for a name that was never going to work, 502 for one that might
-        # have. The reader sees the same sentence either way.
-        status = 400 if exc.reason == 'bad_name' else 502
-        return jsonify({
-            'success': False,
-            'reason': exc.reason,
-            'error': t(f'packages.{exc.reason}'),
-        }), status
-
-    # The shell holds its own copy of everything it has imported, so a newly
-    # installed package is not visible to the running session until it is
-    # restarted. The id is handed back so the page can do that rather than
-    # leaving the reader to press a button and see nothing happen.
-    session_id = data.get('session') or ''
-    if session_id and shell_registry.get(session_id):
-        try:
-            shell_registry.get(session_id).reset()
-        except ShellError:
-            # The reset failing is not a failed install. The package is on disk;
-            # the next command respawns the child anyway.
-            pass
-
-    return jsonify({'success': True, 'package': package.as_dict()})
-
-
-@main_bp.route('/api/packages/uninstall', methods=['POST'])
-def packages_uninstall():
-    data = request.get_json(silent=True) or {}
-    t = translator_for(request_locale(data))
-
-    # The same gates as install, for the same reason: this one deletes things.
-    if not access_code_ok(data):
-        return jsonify({
-            'success': False,
-            'error': t('error.access_code_run'),
-            'code_required': True,
-        }), 403
-
-    if rate_limited(client_ip()):
-        return jsonify({
-            'success': False,
-            'error': t('error.too_many_requests'),
-        }), 429
-
-    if SANDBOX:
-        return jsonify({
-            'success': False,
-            'error': t('packages.not_here'),
-        }), 403
-
-    name = data.get('name', '')
-    try:
-        removed = packages.uninstall(name)
-    except packages.PackageError as exc:
-        return jsonify({
-            'success': False,
-            'reason': exc.reason,
-            'error': t(f'packages.{exc.reason}'),
-        }), 400 if exc.reason == 'bad_name' else 502
-
-    # Same reason as the install: a module already imported stays in memory
-    # until the child is new. Restarting is what makes the removal real rather
-    # than only reported.
-    session_id = data.get('session') or ''
-    if session_id and shell_registry.get(session_id):
-        try:
-            shell_registry.get(session_id).reset()
-        except ShellError:
-            pass
-
-    return jsonify({
-        'success': True,
-        'removed': removed,
-        'installed': [p.as_dict() for p in packages.installed()],
-    })
 
 
 # Python's mimetypes has no entry for .ttf on Windows, so fonts were
