@@ -222,6 +222,8 @@
   "try.error_not_hex": "Eso no es un color. Usa # seguido de 3 o 6 letras o números, como #ffd93d.",
   "try.hex_help": "Empieza por #, luego 3 o 6 letras o números, como #ffd93d. Déjalo vacío para volver al color del tema.",
   "try.hex_label": "Código de color",
+  "try.highlight_help": "El color detrás de la línea en la que trabajas. Déjalo vacío para usar el color del tema.",
+  "try.highlight_label": "Color de resaltado",
   "try.hint": "Mira cómo quedan tu fuente y tu color antes de decidirte. Todo se guarda al momento.",
   "try.nudge_help": "Si un color costara de leer sobre tu tema, la aplicación lo ajusta hasta que se vuelva a leer bien.",
   "try.picker_label": "Elegir un color con el selector de color",

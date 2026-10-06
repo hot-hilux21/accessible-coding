@@ -201,6 +201,27 @@ class SyntaxContrastTests(unittest.TestCase):
                         f"{theme}.{key}: extra high contrast made it worse",
                     )
 
+    def test_highlight_keeps_text_readable(self):
+        # The highlight sits behind the code, so the theme's own text must
+        # still clear AA on it. A highlight that hides the text is the bug
+        # this test exists to catch: the old active-line colour was the
+        # selection colour at 20% opacity, which on the dark themes was
+        # effectively black.
+        for theme, palette in self.themes.items():
+            with self.subTest(theme=theme):
+                self.assertIn(
+                    "highlight",
+                    palette,
+                    f"{theme} has no highlight colour",
+                )
+                ratio = contrast_ratio(palette["fg"], palette["highlight"])
+                self.assertGreaterEqual(
+                    ratio + EPSILON,
+                    AA_NORMAL_TEXT,
+                    f"{theme}: text ({palette['fg']}) on the highlight "
+                    f"({palette['highlight']}) is only {ratio:.2f}:1",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

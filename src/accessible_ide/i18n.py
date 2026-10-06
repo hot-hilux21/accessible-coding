@@ -60,6 +60,7 @@ CONFIG_LABELS = {
     "font": "reading.font",
     "font_size": "reading.font_size",
     "code_color": "try.colour_label",
+    "highlight_color": "try.highlight_label",
     "locale": "language.label",
     "line_height": "reading.line_height",
     "letter_spacing": "reading.letter_spacing",

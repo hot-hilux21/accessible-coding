@@ -136,6 +136,10 @@ DEFAULT_CONFIG = {
     # Empty means "use whatever the chosen theme says". Setting it to a
     # hex colour overrides the theme's foreground for code text only.
     'code_color': '',
+    # Empty means "use whatever the chosen theme says". Setting it to a
+    # hex colour overrides the theme's highlight for the line the reader
+    # is working on.
+    'highlight_color': '',
     'line_height': 1.6,
     'letter_spacing': 0.5,
     'theme': 'high-contrast',
@@ -203,6 +207,11 @@ THEMES = {
         'bg': '#0b0b0b',
         'fg': '#ffffff',
         'selection': '#4d4300',
+        # The line the reader is working on. It is a tint of the
+        # background, not a strong colour: a strong colour behind the
+        # text is how a highlight hides the text, which is the one thing
+        # it must never do. Measured by test_contrast.py.
+        'highlight': '#1e1e1e',
         'cursor': '#ffd93d',
         'gutter_bg': '#161616',
         'gutter_fg': '#a8a8a8',
@@ -220,6 +229,7 @@ THEMES = {
         'bg': '#17181c',
         'fg': '#e6e6e6',
         'selection': '#234a6b',
+        'highlight': '#23262c',
         'cursor': '#6bc1ff',
         'gutter_bg': '#1f2126',
         'gutter_fg': '#98a0a8',
@@ -237,6 +247,7 @@ THEMES = {
         'bg': '#fbf6ec',
         'fg': '#453f3a',
         'selection': '#e3d2ab',
+        'highlight': '#f1ead9',
         'cursor': '#b07d2c',
         'gutter_bg': '#f2ecdf',
         'gutter_fg': '#6b6258',
@@ -254,6 +265,7 @@ THEMES = {
         'bg': '#fcfcfc',
         'fg': '#2b2b2b',
         'selection': '#bcd6f2',
+        'highlight': '#ececec',
         'cursor': '#0057b8',
         'gutter_bg': '#f2f2f2',
         'gutter_fg': '#565656',
@@ -986,6 +998,7 @@ CONFIG_TYPES = {
     'font': str,
     'font_size': int,
     'code_color': str,
+    'highlight_color': str,
     'locale': str,
     'setup_complete': bool,
     'setup_step': int,
@@ -1060,7 +1073,7 @@ CONFIG_MAX_LENGTHS = {
 # as well as the empty, broken and "transparent" values that would
 # quietly make the code unreadable. A hex colour is the one colour
 # format that cannot carry a second declaration.
-CONFIG_HEX_COLORS = {'code_color', 'glass_tint'}
+CONFIG_HEX_COLORS = {'code_color', 'glass_tint', 'highlight_color'}
 
 # Only the 3- and 6-digit forms. The 4- and 8-digit forms (with alpha)
 # are left out on purpose: alpha is how a colour silently becomes

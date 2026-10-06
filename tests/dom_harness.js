@@ -63,6 +63,8 @@ const KNOWN_IDS = new Set([
   'font-bundled-note', 'sample-text', 'font-preview', 'font-preview-text',
   'preview-status', 'swatches', 'code-color-hex', 'code-color-picker',
   'colour-error', 'btn-reset-colour', 'btn-reset-config',
+  'highlight-color-hex', 'highlight-color-picker', 'highlight-error',
+  'highlight-status', 'btn-reset-highlight',
   'language-select',
   // The package manager. Without these declared here, initPackages() takes
   // its early-return path and nothing about the panel is exercised.
@@ -187,6 +189,7 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
     'data-font': 'OpenDyslexic',
     'data-font-size': '16',
     'data-code-color': '',
+    'data-highlight-color': '',
     'data-line-height': '1.6',
     'data-letter-spacing': '0.5',
     'data-blur-intensity': '0.5',
@@ -437,10 +440,14 @@ const PANEL_INFO = {
 const SANDBOX_THEMES = {
   'high-contrast': {
     name: 'High Contrast', bg: '#0b0b0b', fg: '#ffffff', gutter_bg: '#161616',
+    selection: '#4d4300', highlight: '#1e1e1e',
   },
-  dark: { name: 'Dark', bg: '#17181c', fg: '#e6e6e6', gutter_bg: '#1f2126' },
-  pastel: { name: 'Pastel', bg: '#fbf6ec', fg: '#453f3a', gutter_bg: '#f2ecdf' },
-  light: { name: 'Light', bg: '#fcfcfc', fg: '#2b2b2b', gutter_bg: '#f2f2f2' },
+  dark: { name: 'Dark', bg: '#17181c', fg: '#e6e6e6', gutter_bg: '#1f2126',
+    selection: '#234a6b', highlight: '#23262c' },
+  pastel: { name: 'Pastel', bg: '#fbf6ec', fg: '#453f3a', gutter_bg: '#f2ecdf',
+    selection: '#e3d2ab', highlight: '#f1ead9' },
+  light: { name: 'Light', bg: '#fcfcfc', fg: '#2b2b2b', gutter_bg: '#f2f2f2',
+    selection: '#bcd6f2', highlight: '#ececec' },
 };
 
 // The four materials, in the order the template renders them. "off" starts
@@ -499,7 +506,12 @@ const editorInstance = {
 };
 
 function CodeMirror() { return editorInstance; }
-CodeMirror.defineStyle = noop;
+// The theme app.js defines is captured rather than discarded, so a check
+// can read back the active-line highlight and measure it against the
+// theme's text. A noop here would report success while the highlight was
+// never applied.
+const definedStyles = {};
+CodeMirror.defineStyle = (name, style) => { definedStyles[name] = style; };
 CodeMirror.defineMode = noop;
 CodeMirror.defineMIME = noop;
 CodeMirror.commands = {};
@@ -1128,6 +1140,9 @@ const interactions = [
   ['code-color-hex', 'input'], ['code-color-hex', 'change'],
   ['code-color-picker', 'input'], ['code-color-picker', 'change'],
   ['btn-reset-colour', 'click'],
+  ['highlight-color-hex', 'input'], ['highlight-color-hex', 'change'],
+  ['highlight-color-picker', 'input'], ['highlight-color-picker', 'change'],
+  ['btn-reset-highlight', 'click'],
   // language-select is deliberately absent: it is fired below with a real
   // language code, because the reload it triggers has to be counted.
 ];
@@ -1330,6 +1345,85 @@ function runPanelChecks() {
     console.log('FAIL reset did not clear the hex field');
   }
   console.log('     "Use theme colour" clears the custom colour');
+
+  // The highlight behind the active line must never hide the text. The
+  // default comes from the theme; a custom colour is faded toward the
+  // background until the theme's text clears AA on it. The applied colour
+  // is read back from the CodeMirror theme app.js defined, so a highlight
+  // that was never applied fails here rather than passing silently.
+  const highlightHex = elements.get('highlight-color-hex');
+  const highlightErrorEl = elements.get('highlight-error');
+  const themeKey = elements.get('theme-select').value || 'high-contrast';
+  const themeFg = SANDBOX_THEMES[themeKey].fg;
+  const activeLine = definedStyles['accessible-theme']
+    && definedStyles['accessible-theme']['activeline-background'];
+
+  if (!activeLine || !activeLine['background-color']) {
+    failed = true;
+    console.log('FAIL the active-line highlight was never applied to the editor theme');
+  } else {
+    const ratio = contrastRatio(themeFg, activeLine['background-color']);
+    if (ratio < 4.5) {
+      failed = true;
+      console.log(`FAIL the default highlight ${activeLine['background-color']} ` +
+                  `hides ${themeFg} text (${ratio.toFixed(2)}:1)`);
+    }
+  }
+
+  // A custom highlight is recorded, applied, and kept readable. The three
+  // candidates cover the directions the fade can go: a light colour on a
+  // dark theme, a dark colour, and a colour that is already readable.
+  for (const candidate of ['#ffd93d', '#1a1a1a', '#fefefe']) {
+    highlightHex.value = candidate;
+    fire('highlight-color-hex', 'input');
+    if (bodyNow['data-highlight-color'] !== candidate) {
+      failed = true;
+      console.log(`FAIL ${candidate} was not recorded on the body`);
+    }
+    const applied = definedStyles['accessible-theme']
+      && definedStyles['accessible-theme']['activeline-background']
+      && definedStyles['accessible-theme']['activeline-background']['background-color'];
+    const ratio = contrastRatio(themeFg, applied);
+    if (ratio < 4.5) {
+      failed = true;
+      console.log(`FAIL ${candidate} resolved to ${applied}, which hides ` +
+                  `${themeFg} text (${ratio.toFixed(2)}:1)`);
+    }
+  }
+  console.log('     the active-line highlight keeps the theme text readable');
+
+  // A part-typed highlight colour must not be nagged about mid-typing.
+  highlightHex.value = '#ff';
+  fire('highlight-color-hex', 'input');
+  if (highlightErrorEl.hidden !== true) {
+    failed = true;
+    console.log('FAIL a part-typed highlight colour showed an error while typing');
+  }
+
+  // Leaving the field with nonsense explains the problem and refuses it.
+  highlightHex.value = 'nonsense';
+  fire('highlight-color-hex', 'change');
+  if (highlightErrorEl.hidden !== false || !highlightErrorEl.textContent) {
+    failed = true;
+    console.log('FAIL leaving the highlight field with nonsense did not explain the problem');
+  }
+  if (bodyNow['data-highlight-color'] === 'nonsense') {
+    failed = true;
+    console.log('FAIL nonsense was saved as the highlight colour');
+  }
+  console.log('     a highlight colour that is not a hex code is explained, and never saved');
+
+  // Reset goes back to the theme highlight.
+  fire('btn-reset-highlight', 'click');
+  if (bodyNow['data-highlight-color'] !== '') {
+    failed = true;
+    console.log(`FAIL reset left data-highlight-color as "${bodyNow['data-highlight-color']}"`);
+  }
+  if (highlightHex.value !== '') {
+    failed = true;
+    console.log('FAIL reset did not clear the highlight hex field');
+  }
+  console.log('     "Use theme colour" clears the custom highlight');
 }
 
 // ---------------------------------------------------------------------------

@@ -89,7 +89,7 @@
     }
   </style>
 </head>
-<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-code-color="{{ config.code_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}"{% if glass_tint %} style="--glass-tint: {{ glass_tint }};"{% endif %}>
+<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-code-color="{{ config.code_color }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}"{% if glass_tint %} style="--glass-tint: {{ glass_tint }};"{% endif %}>
 
   <a class="skip-link" href="#editor">{{ t('app.skip_to_editor') }}</a>
 
@@ -368,6 +368,26 @@
 
           <div class="field">
             <button id="btn-reset-colour" class="btn btn-small" type="button">{{ t('try.reset') }}</button>
+            <p class="field-help">{{ t('try.nudge_help') }}</p>
+          </div>
+
+          <div class="field">
+            <label for="highlight-color-hex">{{ t('try.highlight_label') }}</label>
+            <div class="field-row">
+              <input type="color" id="highlight-color-picker" value="{{ config.highlight_color or '#ffffff' }}"
+                     aria-label="{{ t('try.picker_label') }}">
+              <input type="text" id="highlight-color-hex" class="hex-input" spellcheck="false" autocomplete="off"
+                     inputmode="text" maxlength="7" placeholder="#1e1e1e"
+                     value="{{ config.highlight_color }}"
+                     aria-describedby="highlight-help highlight-error">
+            </div>
+            <p class="field-help" id="highlight-help">{{ t('try.highlight_help') }}</p>
+            <p class="field-error" id="highlight-error" role="alert" hidden></p>
+            <p class="preview-status" id="highlight-status" hidden></p>
+          </div>
+
+          <div class="field">
+            <button id="btn-reset-highlight" class="btn btn-small" type="button">{{ t('try.reset') }}</button>
             <p class="field-help">{{ t('try.nudge_help') }}</p>
           </div>
         </fieldset>

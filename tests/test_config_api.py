@@ -563,6 +563,60 @@ class CodeColorTests(ConfigApiTestCase):
             self.assertNotIn(jargon, message)
 
 
+class HighlightColourTests(ConfigApiTestCase):
+    """The chosen colour for the line the reader is working on."""
+
+    def test_a_colour_round_trips(self):
+        self.assertEqual(self.post_settings(highlight_color="#1e1e1e").status_code, 200)
+        self.assertEqual(self.get_settings()["highlight_color"], "#1e1e1e")
+
+    def test_empty_means_use_the_theme_colour(self):
+        self.post_settings(highlight_color="#1e1e1e")
+        self.assertEqual(self.post_settings(highlight_color="").status_code, 200)
+        self.assertEqual(self.get_settings()["highlight_color"], "")
+
+    def test_short_hex_form_is_accepted(self):
+        self.assertEqual(self.post_settings(highlight_color="#f0a").status_code, 200)
+        self.assertEqual(self.get_settings()["highlight_color"], "#f0a")
+
+    def test_capital_letters_are_accepted(self):
+        self.assertEqual(self.post_settings(highlight_color="#1E1E1E").status_code, 200)
+
+    def test_anything_that_is_not_a_hex_colour_is_rejected(self):
+        # Same rule as the code colour: this is written into a style
+        # attribute, so anything carrying a second CSS declaration is
+        # refused outright.
+        cases = [
+            "red",
+            "#ff",
+            "#ffff",
+            "#ffffffff",
+            "#gggggg",
+            "1e1e1e",
+            "#1e1e1e; background: url(evil)",
+            "rgb(30,30,30)",
+            " ",
+        ]
+        for value in cases:
+            with self.subTest(highlight_color=value):
+                response = self.post_settings(highlight_color=value)
+                self.assertEqual(response.status_code, 400, f"{value!r} was accepted")
+                self.assertEqual(self.get_settings()["highlight_color"], "")
+
+    def test_a_non_string_colour_is_rejected(self):
+        for value in [123, None, ["#1e1e1e"], {"hex": "#1e1e1e"}, True]:
+            with self.subTest(highlight_color=value):
+                self.assertEqual(self.post_settings(highlight_color=value).status_code, 400)
+
+    def test_the_error_explains_itself_in_plain_english(self):
+        response = self.post_settings(highlight_color="purple")
+        message = response.get_json().get("error", "")
+        self.assertIn("#", message)
+        self.assertIn("colour", message.lower())
+        for jargon in ("hex", "regex", "null", "NaN", "invalid"):
+            self.assertNotIn(jargon, message)
+
+
 class ReduceMotionTests(ConfigApiTestCase):
     """The reduce-motion switch.
 

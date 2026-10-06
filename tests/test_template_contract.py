@@ -70,8 +70,13 @@ REQUIRED_SETTINGS_IDS = (
     "swatches",
     "code-color-hex",
     "code-color-picker",
-"colour-error",
+    "colour-error",
     "btn-reset-colour",
+    "highlight-color-hex",
+    "highlight-color-picker",
+    "highlight-error",
+    "highlight-status",
+    "btn-reset-highlight",
     "btn-reset-config",
 )
 
@@ -626,7 +631,8 @@ class TryItOutPanelTests(RenderedPageFixture):
         dialog = self.html.split('<dialog id="settings-dialog"', 1)[1]
         dialog = dialog.split("</dialog>", 1)[0]
         for element_id in ("swatches", "code-color-hex", "font-preview",
-                           "btn-reset-colour", "sample-text"):
+                           "btn-reset-colour", "sample-text",
+                           "highlight-color-hex", "btn-reset-highlight"):
             with self.subTest(element=element_id):
                 self.assertIn(f'id="{element_id}"', dialog)
 
@@ -666,6 +672,16 @@ class TryItOutPanelTests(RenderedPageFixture):
         self.assertRegex(self.html, r'id="colour-error"[^>]*role="alert"')
         # The error starts hidden; app.js reveals it.
         self.assertRegex(self.html, r'id="colour-error"[^>]*hidden')
+
+    def test_the_highlight_field_explains_itself_and_reports_problems(self):
+        self.assertIn('for="highlight-color-hex"', self.html)
+        self.assertIn('aria-describedby="highlight-help highlight-error"', self.html)
+        self.assertRegex(self.html, r'id="highlight-error"[^>]*role="alert"')
+        self.assertRegex(self.html, r'id="highlight-error"[^>]*hidden')
+        # The status line that says when the app has adjusted the colour
+        # starts hidden too, and is revealed only when there is something
+        # to say.
+        self.assertRegex(self.html, r'id="highlight-status"[^>]*hidden')
 
     def test_the_preview_is_described_for_a_screen_reader(self):
         self.assertIn('aria-labelledby="preview-label"', self.html)

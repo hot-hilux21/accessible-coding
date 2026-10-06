@@ -223,6 +223,8 @@
   "try.error_not_hex": "That is not a colour. Use # followed by 3 or 6 letters or digits, like #ffd93d.",
   "try.hex_help": "Starts with a #, then 3 or 6 letters or digits, like #ffd93d. Leave it empty to go back to the theme colour.",
   "try.hex_label": "Colour code",
+  "try.highlight_help": "The colour behind the line you are working on. Leave it empty to use the theme colour.",
+  "try.highlight_label": "Highlight colour",
   "try.hint": "See how your font and colour look before you keep them. Everything here is saved straight away.",
   "try.nudge_help": "If a colour would be hard to read on your theme, the app nudges it until it is easy to read again.",
   "try.picker_label": "Pick a colour with the colour picker",

@@ -108,6 +108,11 @@
   var codeColorPicker = document.getElementById('code-color-picker');
   var colourError = document.getElementById('colour-error');
   var btnResetColour = document.getElementById('btn-reset-colour');
+  var highlightColorHex = document.getElementById('highlight-color-hex');
+  var highlightColorPicker = document.getElementById('highlight-color-picker');
+  var highlightError = document.getElementById('highlight-error');
+  var highlightStatus = document.getElementById('highlight-status');
+  var btnResetHighlight = document.getElementById('btn-reset-highlight');
   var languageSelect = document.getElementById('language-select');
   // The first-run setup screen. These are null once the reader has
   // finished it, because the server stops rendering it - so every use
@@ -254,10 +259,26 @@
   // it.
   var customCodeColor = '';
 
+  // The user's own colour for the line they are working on. Empty means
+  // "use the theme". The highlight sits behind the code, so the rule is
+  // the opposite of the text colour: instead of pushing the colour away
+  // from the background until it is readable, a highlight that would
+  // swallow the text is faded toward the background until the theme's
+  // text clears AA on it. Either way the reader's hue is kept.
+  var customHighlightColor = '';
+
   function codeTextColor(palette) {
     if (!customCodeColor) return contrastAdjust(palette.fg);
     return contrastAdjust(
       ensureReadable(customCodeColor, palette.bg, 4.5));
+  }
+
+  function highlightColour(palette) {
+    if (customHighlightColor) {
+      return ensureHighlightReadable(
+        customHighlightColor, palette.bg, palette.fg);
+    }
+    return palette.highlight || palette.selection + '33';
   }
 
   function applyTheme(themeKey) {
@@ -270,7 +291,7 @@
       'gutter': { 'background-color': c.gutter_bg, 'color': c.gutter_fg },
       'cursor': { 'border-left': '2px solid ' + c.cursor },
       'selected': { 'background-color': c.selection },
-      'activeline-background': { 'background-color': c.selection + '33' },
+      'activeline-background': { 'background-color': highlightColour(c) },
       'keyword': { 'color': contrastAdjust(c.keyword), 'font-weight': 'bold' },
       'string': { 'color': contrastAdjust(c.string) },
       'comment': { 'color': contrastAdjust(c.comment), 'font-style': 'italic' },
@@ -372,6 +393,29 @@
       if (contrastRatio(moved, bg) >= target) return rgbToHex(moved);
     }
     return backgroundIsDark ? '#ffffff' : '#000000';
+  }
+
+  // A highlight sits behind the text, so the direction is the reverse of
+  // ensureReadable: a colour that would swallow the theme's text is faded
+  // toward the background until the text clears AA on it. The background
+  // is the safe anchor because the theme's own text already clears 4.5:1
+  // against it, and contrast is monotonic along the fade, so the first
+  // stop that passes is the lightest touch that works.
+  function ensureHighlightReadable(hex, backgroundHex, textHex) {
+    var rgb = hexToRgb(hex);
+    var bg = hexToRgb(backgroundHex);
+    var text = hexToRgb(textHex);
+    if (!rgb || !bg || !text) return hex;
+    if (contrastRatio(text, rgb) >= 4.5) return rgbToHex(rgb);
+    for (var i = 0; i < 20; i++) {
+      rgb = {
+        r: Math.round(rgb.r + (bg.r - rgb.r) * 0.1),
+        g: Math.round(rgb.g + (bg.g - rgb.g) * 0.1),
+        b: Math.round(rgb.b + (bg.b - rgb.b) * 0.1)
+      };
+      if (contrastRatio(text, rgb) >= 4.5) return rgbToHex(rgb);
+    }
+    return rgbToHex(bg);
   }
 
   function applyFont(fontKey, familyOverride) {
@@ -1797,6 +1841,98 @@
     });
   }
 
+  // ---------- Highlight colour ----------
+  // The same shape as the code colour above, with one difference: the
+  // highlight is a background, so the nudge fades it toward the theme's
+  // background until the theme's text clears AA on it, instead of moving
+  // the colour away from the background. The reader's hue is kept either
+  // way, and the status line says when the app has adjusted their choice.
+
+  function setHighlightColor(hex, persist) {
+    customHighlightColor = hex || '';
+    body.setAttribute('data-highlight-color', customHighlightColor);
+    applyTheme(themeSelect.value);
+    updateHighlightStatus();
+    if (persist) saveConfig({ highlight_color: customHighlightColor });
+  }
+
+  function showHighlightError(message) {
+    if (!highlightError) return;
+    highlightError.textContent = message || '';
+    highlightError.hidden = !message;
+    if (highlightColorHex) {
+      highlightColorHex.setAttribute('aria-invalid', message ? 'true' : 'false');
+    }
+  }
+
+  function updateHighlightStatus() {
+    if (!highlightStatus) return;
+    if (!customHighlightColor) {
+      highlightStatus.hidden = true;
+      highlightStatus.textContent = '';
+      return;
+    }
+    var palette = themePalette[themeSelect.value] || themePalette;
+    var shown = ensureHighlightReadable(
+      customHighlightColor, palette.bg, palette.fg);
+    var nudged = shown.toLowerCase() !== customHighlightColor.toLowerCase();
+    highlightStatus.textContent = nudged
+      ? t('try.status_nudged', shown)
+      : '';
+    highlightStatus.hidden = !nudged;
+  }
+
+  function onHighlightHexInput() {
+    var value = (highlightColorHex.value || '').trim();
+    if (value === '') {
+      showHighlightError('');
+      setHighlightColor('', false);
+      return;
+    }
+    if (!/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)) return;
+    showHighlightError('');
+    if (highlightColorPicker) highlightColorPicker.value = expandHex(value);
+    setHighlightColor(value, false);
+  }
+
+  if (highlightColorHex) {
+    highlightColorHex.addEventListener('input', onHighlightHexInput);
+    highlightColorHex.addEventListener('change', function () {
+      var value = (highlightColorHex.value || '').trim();
+      if (/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)) {
+        showHighlightError('');
+        setHighlightColor(value, true);
+      } else if (value === '') {
+        showHighlightError('');
+        setHighlightColor('', true);
+      } else {
+        showHighlightError(t('try.error_not_hex'));
+      }
+    });
+  }
+
+  if (highlightColorPicker) {
+    highlightColorPicker.addEventListener('input', function () {
+      if (highlightColorHex) highlightColorHex.value = highlightColorPicker.value;
+      showHighlightError('');
+      setHighlightColor(highlightColorPicker.value, false);
+    });
+    highlightColorPicker.addEventListener('change', function () {
+      if (highlightColorHex) highlightColorHex.value = highlightColorPicker.value;
+      showHighlightError('');
+      setHighlightColor(highlightColorPicker.value, true);
+    });
+  }
+
+  if (btnResetHighlight) {
+    btnResetHighlight.addEventListener('click', function () {
+      if (highlightColorHex) highlightColorHex.value = '';
+      showHighlightError('');
+      setHighlightColor('', true);
+      if (highlightColorHex) highlightColorHex.focus();
+    });
+  }
+
   if (sampleText) {
     sampleText.addEventListener('input', updatePreview);
   }
@@ -2203,6 +2339,7 @@
   // A saved colour has to be in place before the theme is built, or the
   // editor would paint in the old colour for a frame.
   customCodeColor = body.getAttribute('data-code-color') || '';
+  customHighlightColor = body.getAttribute('data-highlight-color') || '';
   applyTheme(body.getAttribute('data-theme') || 'high-contrast');
   applyFont(body.getAttribute('data-font') || 'OpenDyslexic');
   applyFontSize(parseInt(body.getAttribute('data-font-size') || '16', 10));

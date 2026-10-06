@@ -222,6 +222,8 @@
   "try.error_not_hex": "Ce n'est pas une couleur. Utilisez # suivi de 3 ou 6 lettres ou chiffres, comme #ffd93d.",
   "try.hex_help": "Commence par un #, puis 3 ou 6 lettres ou chiffres, comme #ffd93d. Laissez vide pour revenir à la couleur du thème.",
   "try.hex_label": "Code couleur",
+  "try.highlight_help": "La couleur derrière la ligne sur laquelle vous travaillez. Laissez vide pour utiliser la couleur du thème.",
+  "try.highlight_label": "Couleur de surlignage",
   "try.hint": "Voyez à quoi ressemblent votre police et votre couleur avant de les garder. Tout est enregistré immédiatement.",
   "try.nudge_help": "Si une couleur serait difficile à lire sur votre thème, l'application l'ajuste jusqu'à ce qu'elle soit de nouveau facile à lire.",
   "try.picker_label": "Choisir une couleur avec le sélecteur de couleur",
