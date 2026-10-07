@@ -67,11 +67,6 @@ REQUIRED_SETTINGS_IDS = (
     "font-preview",
     "font-preview-text",
     "preview-status",
-    "swatches",
-    "code-color-hex",
-    "code-color-picker",
-    "colour-error",
-    "btn-reset-colour",
     "highlight-color-hex",
     "highlight-color-picker",
     "highlight-error",
@@ -630,8 +625,7 @@ class TryItOutPanelTests(RenderedPageFixture):
         # and the rest of the page is inert while it is open.
         dialog = self.html.split('<dialog id="settings-dialog"', 1)[1]
         dialog = dialog.split("</dialog>", 1)[0]
-        for element_id in ("swatches", "code-color-hex", "font-preview",
-                           "btn-reset-colour", "sample-text",
+        for element_id in ("font-preview", "sample-text",
                            "highlight-color-hex", "btn-reset-highlight"):
             with self.subTest(element=element_id):
                 self.assertIn(f'id="{element_id}"', dialog)
@@ -647,31 +641,6 @@ class TryItOutPanelTests(RenderedPageFixture):
             with self.subTest(option=option[:60]):
                 self.assertRegex(option, r'data-family="[^"]+"')
                 self.assertRegex(option, r'data-bundled="(true|false)"')
-
-    def test_the_swatches_are_a_labelled_radio_group(self):
-        # Real radios, so arrow keys, Tab and a screen reader all work
-        # without any extra scripting.
-        self.assertIn('role="radiogroup"', self.html)
-        self.assertIn('aria-labelledby="swatch-label"', self.html)
-        self.assertIn('id="swatch-label"', self.html)
-
-        radios = re.findall(r'<input type="radio" name="colour-swatch"[^>]*>', self.html)
-        self.assertGreaterEqual(len(radios), 8)
-        for radio in radios:
-            self.assertRegex(radio, r'value="#[0-9a-fA-F]{6}"')
-            # The chip carries the colour; the text below it names it, so
-            # the swatch is not identified by colour alone.
-            self.assertIn("swatch-chip", self.html)
-            self.assertIn("swatch-name", self.html)
-
-    def test_the_colour_field_explains_itself_and_reports_problems(self):
-        self.assertIn('for="code-color-hex"', self.html)
-        self.assertIn('aria-describedby="colour-help colour-error"', self.html)
-        # role="alert" is what makes a screen reader say the problem out
-        # loud rather than leaving it sitting there visually.
-        self.assertRegex(self.html, r'id="colour-error"[^>]*role="alert"')
-        # The error starts hidden; app.js reveals it.
-        self.assertRegex(self.html, r'id="colour-error"[^>]*hidden')
 
     def test_the_highlight_field_explains_itself_and_reports_problems(self):
         self.assertIn('for="highlight-color-hex"', self.html)
@@ -697,22 +666,22 @@ class TryItOutPanelTests(RenderedPageFixture):
         self.assertRegex(
             self.html, r'<input type="color"[^>]*aria-label="[^"]+"')
 
-    def test_the_colour_is_remembered_across_reloads(self):
+    def test_the_highlight_is_remembered_across_reloads(self):
         # The saved colour has to reach the page on load, or a reader who
         # picks a colour and closes the app loses it. Checked on the
         # rendered page, where Jinja has already substituted the value.
         body = re.search(r"<body[^>]*>", self.html)
         self.assertIsNotNone(body)
         assert body is not None  # narrow the type for checkers
-        self.assertIn("data-code-color=", body.group(0))
-        self.assertIn("code_color", routes.DEFAULT_CONFIG)
-        self.assertIn("code_color", routes.CONFIG_TYPES)
+        self.assertIn("data-highlight-color=", body.group(0))
+        self.assertIn("highlight_color", routes.DEFAULT_CONFIG)
+        self.assertIn("highlight_color", routes.CONFIG_TYPES)
 
-    def test_app_js_restores_the_saved_colour_and_font(self):
+    def test_app_js_restores_the_saved_highlight_and_font(self):
         # Both have to be read back from the page on init, or the first
         # paint would show the theme colour and the wrong font for a frame.
-        self.assertIn("data-code-color", self.js)
-        self.assertIn("customCodeColor = body.getAttribute('data-code-color')", self.js)
+        self.assertIn("data-highlight-color", self.js)
+        self.assertIn("customHighlightColor = body.getAttribute('data-highlight-color')", self.js)
         self.assertIn("data-family", self.js)
 
 

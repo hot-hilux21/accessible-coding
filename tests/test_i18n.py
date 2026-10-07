@@ -85,8 +85,8 @@ class Translator(unittest.TestCase):
     def test_formats_positional_arguments(self):
         t = i18n.make_translator("en")
         self.assertEqual(
-            t("try.status_custom", "Lexend", "#ffd93d"),
-            "Showing Lexend in #ffd93d.",
+            t("setup.step_of", 2, 5),
+            "Step 2 of 5",
         )
 
     def test_substitutes_every_occurrence(self):

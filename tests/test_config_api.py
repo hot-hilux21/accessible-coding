@@ -509,60 +509,6 @@ class LocaleTests(ConfigApiTestCase):
                     self.assertIn(key, i18n.load_catalogue(locale))
 
 
-class CodeColorTests(ConfigApiTestCase):
-    """The chosen code text colour."""
-
-    def test_a_colour_round_trips(self):
-        self.assertEqual(self.post_settings(code_color="#ffd93d").status_code, 200)
-        self.assertEqual(self.get_settings()["code_color"], "#ffd93d")
-
-    def test_empty_means_use_the_theme_colour(self):
-        self.post_settings(code_color="#ffd93d")
-        self.assertEqual(self.post_settings(code_color="").status_code, 200)
-        self.assertEqual(self.get_settings()["code_color"], "")
-
-    def test_short_hex_form_is_accepted(self):
-        self.assertEqual(self.post_settings(code_color="#f0a").status_code, 200)
-        self.assertEqual(self.get_settings()["code_color"], "#f0a")
-
-    def test_capital_letters_are_accepted(self):
-        self.assertEqual(self.post_settings(code_color="#FFD93D").status_code, 200)
-
-    def test_anything_that_is_not_a_hex_colour_is_rejected(self):
-        # This setting is written into a style attribute, so anything
-        # carrying a second CSS declaration has to be refused outright.
-        cases = [
-            "red",              # a named colour, not a hex code
-            "#ff",              # too short
-            "#ffff",            # 4 digits: alpha, which hides text
-            "#ffffffff",        # 8 digits: the same, with more opacity
-            "#gggggg",          # not hex digits
-            "ffd93d",           # missing the #
-            "#ffd93d; background: url(evil)",   # style injection
-            "rgb(255,0,0)",     # another format
-            " ",                # whitespace is not a colour
-        ]
-        for value in cases:
-            with self.subTest(code_color=value):
-                response = self.post_settings(code_color=value)
-                self.assertEqual(response.status_code, 400, f"{value!r} was accepted")
-                self.assertEqual(self.get_settings()["code_color"], "")
-
-    def test_a_non_string_colour_is_rejected(self):
-        for value in [123, None, ["#ffffff"], {"hex": "#ffffff"}, True]:
-            with self.subTest(code_color=value):
-                self.assertEqual(self.post_settings(code_color=value).status_code, 400)
-
-    def test_the_error_explains_itself_in_plain_english(self):
-        response = self.post_settings(code_color="purple")
-        message = response.get_json().get("error", "")
-        self.assertIn("#", message)
-        self.assertIn("colour", message.lower())
-        # Jargon the reader would not know is exactly what this avoids.
-        for jargon in ("hex", "regex", "null", "NaN", "invalid"):
-            self.assertNotIn(jargon, message)
-
-
 class HighlightColourTests(ConfigApiTestCase):
     """The chosen colour for the line the reader is working on."""
 
@@ -583,7 +529,7 @@ class HighlightColourTests(ConfigApiTestCase):
         self.assertEqual(self.post_settings(highlight_color="#1E1E1E").status_code, 200)
 
     def test_anything_that_is_not_a_hex_colour_is_rejected(self):
-        # Same rule as the code colour: this is written into a style
+        # Same rule as the highlight colour: this is written into a style
         # attribute, so anything carrying a second CSS declaration is
         # refused outright.
         cases = [
@@ -690,7 +636,7 @@ class PanelMaterialSettingTests(ConfigApiTestCase):
                 self.assertEqual(self.get_settings()["glass_material"], value)
 
     def test_a_colour_round_trips_in_both_accepted_lengths(self):
-        # The 3-digit form is accepted on the same rule as the code-colour
+        # The 3-digit form is accepted on the same rule as the highlight
         # field: "#abc" and "#aabbcc" mean the same colour, and refusing the
         # short one would be a rule nobody could guess.
         for value in ("#223344", "#fff", "#223344"):

@@ -61,8 +61,7 @@ const KNOWN_IDS = new Set([
   'update-install-row', 'update-install-label', 'update-install-help',
   'btn-install-update',
   'font-bundled-note', 'sample-text', 'font-preview', 'font-preview-text',
-  'preview-status', 'swatches', 'code-color-hex', 'code-color-picker',
-  'colour-error', 'btn-reset-colour', 'btn-reset-config',
+  'preview-status', 'btn-reset-config',
   'highlight-color-hex', 'highlight-color-picker', 'highlight-error',
   'highlight-status', 'btn-reset-highlight',
   'language-select',
@@ -84,12 +83,6 @@ const KNOWN_IDS = new Set([
   // rather than quietly skipped.
   'panel-info',
 ]);
-
-// The swatch colours, mirroring the list rendered into the panel.
-const FONT_COLOURS = [
-  '#ffd93d', '#93e6a8', '#8ad4e8', '#8fc0f5', '#c9a8f0',
-  '#ff9a9a', '#e3c583', '#b4b4b4', '#ffffff', '#000000',
-];
 
 const numericIds = new Set([
   'font-size', 'line-height', 'letter-spacing', 'blur-intensity', 'tts-rate',
@@ -173,7 +166,6 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
     'data-theme': 'high-contrast',
     'data-font': 'OpenDyslexic',
     'data-font-size': '16',
-    'data-code-color': '',
     'data-highlight-color': '',
     'data-line-height': '1.6',
     'data-letter-spacing': '0.5',
@@ -1009,9 +1001,6 @@ const interactions = [
   ['btn-settings', 'click'], ['btn-settings-close', 'click'],
   ['settings-dialog', 'cancel'],
   ['sample-text', 'input'],
-  ['code-color-hex', 'input'], ['code-color-hex', 'change'],
-  ['code-color-picker', 'input'], ['code-color-picker', 'change'],
-  ['btn-reset-colour', 'click'],
   ['highlight-color-hex', 'input'], ['highlight-color-hex', 'change'],
   ['highlight-color-picker', 'input'], ['highlight-color-picker', 'change'],
   ['btn-reset-highlight', 'click'],
@@ -1059,9 +1048,9 @@ console.log('     looked up ' + new Set(lookups).size + ' ids; ' + missing.lengt
 
 // ---------------------------------------------------------------------------
 // The "Try it out" panel. These are the checks that matter most: the whole
-// point of letting someone choose a colour is that the code stays readable,
-// so the resolved colour is measured against the preview background rather
-// than assumed to be fine.
+// point of the panel is that what the reader sees stays readable, so the
+// resolved colours are measured against the preview background rather than
+// assumed to be fine.
 //
 // This runs after a tick because the theme palette arrives from /api/themes,
 // and until it does there is no background to measure against.
@@ -1116,9 +1105,6 @@ function fireElement(el, type, event = fakeEvent) {
 
 function runPanelChecks() {
   const preview = elements.get('font-preview');
-  const hexInput = elements.get('code-color-hex');
-  const errorText = elements.get('colour-error');
-  const swatchGroup = elements.get('swatches');
   const bodyNow = documentStub.body.__attributes;
 
   if (!preview.style.backgroundColor) {
@@ -1127,84 +1113,24 @@ function runPanelChecks() {
     return;
   }
 
-  // Every swatch, and a few colours a reader might invent, must land on
-  // the preview as a colour that clears WCAG AA against that background.
-  const candidates = [...FONT_COLOURS, '#1a1a1a', '#fefefe', '#808080'];
-
-  for (const candidate of candidates) {
-    hexInput.value = candidate;
-    fire('code-color-hex', 'input');
-
-    const shown = preview.style.color;
-    const background = preview.style.backgroundColor;
-    if (!shown || !/^#[0-9a-f]{6}$/i.test(shown)) {
-      failed = true;
-      console.log(`FAIL choosing ${candidate} left the preview colour as ${shown}`);
-      continue;
-    }
+  // The preview shows the theme's own text colour on the editor's
+  // background, so it cannot drift from what the editor will show. The
+  // theme colours are contrast-checked on the server; this measures the
+  // resolved pair the reader actually sees.
+  const shown = preview.style.color;
+  const background = preview.style.backgroundColor;
+  if (!shown || !/^#[0-9a-f]{6}$/i.test(shown)) {
+    failed = true;
+    console.log(`FAIL the preview colour was never applied (${shown})`);
+  } else {
     const ratio = contrastRatio(shown, background);
     if (ratio < 4.5) {
       failed = true;
-      console.log(`FAIL ${candidate} resolved to ${shown} on ${background}, ` +
-                  `which is only ${ratio.toFixed(2)}:1`);
-    }
-    if (bodyNow['data-code-color'] !== candidate) {
-      failed = true;
-      console.log(`FAIL ${candidate} was not recorded on the body`);
+      console.log(`FAIL the theme text ${shown} on ${background} is only ${ratio.toFixed(2)}:1`);
+    } else {
+      console.log(`     the theme text clears 4.5:1 on the preview background`);
     }
   }
-  console.log(`     all ${candidates.length} chosen colours clear 4.5:1 on the preview background`);
-
-  // A half-typed colour must not be nagged about, and must not be stored.
-  // Typing "#ff" on the way to "#ffd93d" is normal, and an error box
-  // appearing on the first keystroke would be discouraging.
-  hexInput.value = '#ff';
-  fire('code-color-hex', 'input');
-  if (errorText.hidden !== true) {
-    failed = true;
-    console.log('FAIL a part-typed colour showed an error while the reader was still typing');
-  }
-
-  hexInput.value = 'nonsense';
-  fire('code-color-hex', 'input');
-  if (errorText.hidden !== true) {
-    failed = true;
-    console.log('FAIL nonsense nagged the reader mid-typing');
-  }
-  console.log('     part-typed colours are left alone, with no error shown');
-
-  // Leaving the field is where a real mistake is reported - and refused.
-  fire('code-color-hex', 'change');
-  if (errorText.hidden !== false || !errorText.textContent) {
-    failed = true;
-    console.log('FAIL leaving the field with nonsense did not explain the problem');
-  }
-  if (bodyNow['data-code-color'] === 'nonsense') {
-    failed = true;
-    console.log('FAIL nonsense was saved to the config');
-  }
-
-  hexInput.value = 'red';
-  fire('code-color-hex', 'change');
-  if (bodyNow['data-code-color'] === 'red') {
-    failed = true;
-    console.log('FAIL a named colour was saved to the config');
-  }
-  console.log('     a colour that is not a hex code is explained, and never saved');
-
-  // A swatch click records the colour and clears the error.
-  hexInput.value = '';
-  swatchGroup.__listeners.change.forEach((handler) =>
-    handler({ target: { name: 'colour-swatch', value: '#8fc0f5' } }));
-  if (bodyNow['data-code-color'] !== '#8fc0f5') {
-    failed = true;
-    console.log(`FAIL swatch click saved ${bodyNow['data-code-color']} instead of #8fc0f5`);
-  }
-  if (errorText.hidden !== true) {
-    failed = true;
-    console.log('FAIL picking a swatch did not clear the earlier error');
-  }
-  console.log('     swatches record the colour and clear the error');
 
   // The sample text the reader typed is what the preview shows.
   const sample = elements.get('sample-text');
@@ -1218,18 +1144,6 @@ function runPanelChecks() {
   } else {
     console.log('     the preview follows the sample text');
   }
-
-  // Reset goes back to the theme colour.
-  fire('btn-reset-colour', 'click');
-  if (bodyNow['data-code-color'] !== '') {
-    failed = true;
-    console.log(`FAIL reset left data-code-color as "${bodyNow['data-code-color']}"`);
-  }
-  if (hexInput.value !== '') {
-    failed = true;
-    console.log('FAIL reset did not clear the hex field');
-  }
-  console.log('     "Use theme colour" clears the custom colour');
 
   // The highlight behind the active line must never hide the text. The
   // default comes from the theme; a custom colour is faded toward the

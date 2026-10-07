@@ -55,11 +55,10 @@ class MissingTranslationError(KeyError):
 # Config keys to the label the reader already sees in Settings. Validation
 # messages quote the setting that was rejected, so pointing at the visible
 # label keeps the whole sentence in one language -- and stops the error
-# naming "code_color" at someone who only ever saw "Code text colour".
+# naming a config key at someone who only ever saw the setting's label.
 CONFIG_LABELS = {
     "font": "reading.font",
     "font_size": "reading.font_size",
-    "code_color": "try.colour_label",
     "highlight_color": "try.highlight_label",
     "locale": "language.label",
     "line_height": "reading.line_height",

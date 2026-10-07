@@ -114,9 +114,6 @@ DEFAULT_CONFIG = {
     # reader back to the first step.
     'setup_step': 1,
     # Empty means "use whatever the chosen theme says". Setting it to a
-    # hex colour overrides the theme's foreground for code text only.
-    'code_color': '',
-    # Empty means "use whatever the chosen theme says". Setting it to a
     # hex colour overrides the theme's highlight for the line the reader
     # is working on.
     'highlight_color': '',
@@ -780,7 +777,6 @@ def run_code():
 CONFIG_TYPES = {
     'font': str,
     'font_size': int,
-    'code_color': str,
     'highlight_color': str,
     'locale': str,
     'setup_complete': bool,
@@ -856,7 +852,7 @@ CONFIG_MAX_LENGTHS = {
 # as well as the empty, broken and "transparent" values that would
 # quietly make the code unreadable. A hex colour is the one colour
 # format that cannot carry a second declaration.
-CONFIG_HEX_COLORS = {'code_color', 'glass_tint', 'highlight_color'}
+CONFIG_HEX_COLORS = {'glass_tint', 'highlight_color'}
 
 # Only the 3- and 6-digit forms. The 4- and 8-digit forms (with alpha)
 # are left out on purpose: alpha is how a colour silently becomes

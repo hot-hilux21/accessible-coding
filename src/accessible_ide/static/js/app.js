@@ -103,11 +103,6 @@
   var fontPreview = document.getElementById('font-preview');
   var fontPreviewText = document.getElementById('font-preview-text');
   var previewStatus = document.getElementById('preview-status');
-  var swatches = document.getElementById('swatches');
-  var codeColorHex = document.getElementById('code-color-hex');
-  var codeColorPicker = document.getElementById('code-color-picker');
-  var colourError = document.getElementById('colour-error');
-  var btnResetColour = document.getElementById('btn-reset-colour');
   var highlightColorHex = document.getElementById('highlight-color-hex');
   var highlightColorPicker = document.getElementById('highlight-color-picker');
   var highlightError = document.getElementById('highlight-error');
@@ -252,26 +247,13 @@
     }
   };
 
-  // The user's own colour for code text. Empty means "use the theme".
-  // Only the base text colour is overridden: the syntax colours stay as
-  // the theme set them, because those are contrast-checked on the server
-  // and a reader who needs the structure of highlighted code should keep
-  // it.
-  var customCodeColor = '';
-
   // The user's own colour for the line they are working on. Empty means
   // "use the theme". The highlight sits behind the code, so the rule is
-  // the opposite of the text colour: instead of pushing the colour away
+  // the opposite of a text colour: instead of pushing the colour away
   // from the background until it is readable, a highlight that would
   // swallow the text is faded toward the background until the theme's
   // text clears AA on it. Either way the reader's hue is kept.
   var customHighlightColor = '';
-
-  function codeTextColor(palette) {
-    if (!customCodeColor) return contrastAdjust(palette.fg);
-    return contrastAdjust(
-      ensureReadable(customCodeColor, palette.bg, 4.5));
-  }
 
   function highlightColour(palette) {
     if (customHighlightColor) {
@@ -297,7 +279,7 @@
     // generated. The style element is reused, so a theme or colour change
     // rewrites the rules rather than stacking new ones.
     var rules = [
-      '.cm-s-accessible-theme { background: ' + c.bg + '; color: ' + codeTextColor(c) + '; }',
+      '.cm-s-accessible-theme { background: ' + c.bg + '; color: ' + contrastAdjust(c.fg) + ' }',
       '.cm-s-accessible-theme .CodeMirror-gutters { background-color: ' + c.gutter_bg + '; color: ' + c.gutter_fg + '; }',
       '.cm-s-accessible-theme .CodeMirror-linenumber { color: ' + c.gutter_fg + '; }',
       '.cm-s-accessible-theme .CodeMirror-cursor { border-left: 2px solid ' + c.cursor + '; }',
@@ -1627,7 +1609,7 @@
     });
   }
 
-  // Same rule as the code-colour field above, and for the same reason: an
+  // Same rule as the highlight-colour field, and for the same reason: an
   // unfinished colour is not applied and not complained about until the
   // reader leaves the field. A red box appearing after the first keystroke
   // of "#223344" would be discouraging, and they cannot have made a
@@ -1733,7 +1715,7 @@
   function updatePreview() {
     if (!fontPreview) return;
     var palette = themePalette[themeSelect.value] || themePalette;
-    var shown = codeTextColor(palette);
+    var shown = contrastAdjust(palette.fg);
     var option = fontSelect.options[fontSelect.selectedIndex];
     var name = option ? option.textContent : t('try.your_font');
     var sample = sampleText && sampleText.value ? sampleText.value : ' ';
@@ -1748,51 +1730,8 @@
     if (fontPreviewText) fontPreviewText.textContent = sample;
 
     if (previewStatus) {
-      var nudged = customCodeColor
-        && shown.toLowerCase() !== customCodeColor.toLowerCase();
-      var text = customCodeColor
-        ? t('try.status_custom', name, customCodeColor)
-        : t('try.status_theme', name);
-      if (nudged) {
-        text += ' ' + t('try.status_nudged', shown);
-      }
-      previewStatus.textContent = text;
+      previewStatus.textContent = t('try.status_theme', name);
     }
-  }
-
-  function setCodeColor(hex, persist) {
-    customCodeColor = hex || '';
-    body.setAttribute('data-code-color', customCodeColor);
-    applyTheme(themeSelect.value);
-    updatePreview();
-    if (persist) saveConfig({ code_color: customCodeColor });
-  }
-
-  function showColourError(message) {
-    if (!colourError) return;
-    colourError.textContent = message || '';
-    colourError.hidden = !message;
-    if (codeColorHex) {
-      codeColorHex.setAttribute('aria-invalid', message ? 'true' : 'false');
-    }
-  }
-
-  // Applied on every keystroke so the preview is instant. An unfinished
-  // colour is simply not applied and is never nagged about mid-typing -
-  // a red error box appearing after the first keystroke of "#ffd93d" is
-  // discouraging, and the reader cannot have made a mistake they have not
-  // finished expressing. The complaint waits until they leave the field.
-  function onHexInput() {
-    var value = (codeColorHex.value || '').trim();
-    if (value === '') {
-      showColourError('');
-      setCodeColor('', false);
-      return;
-    }
-    if (!/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)) return;
-    showColourError('');
-    if (codeColorPicker) codeColorPicker.value = expandHex(value);
-    setCodeColor(value, false);
   }
 
   function expandHex(value) {
@@ -1801,65 +1740,12 @@
       : '#' + value[1] + value[1] + value[2] + value[2] + value[3] + value[3];
   }
 
-  if (swatches) {
-    swatches.addEventListener('change', function (event) {
-      if (event.target.name !== 'colour-swatch') return;
-      if (codeColorHex) codeColorHex.value = event.target.value;
-      showColourError('');
-      setCodeColor(event.target.value, true);
-    });
-  }
-
-  if (codeColorHex) {
-    codeColorHex.addEventListener('input', onHexInput);
-    codeColorHex.addEventListener('change', function () {
-      var value = (codeColorHex.value || '').trim();
-      if (/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)) {
-        showColourError('');
-        setCodeColor(value, true);
-      } else if (value === '') {
-        showColourError('');
-        setCodeColor('', true);
-      } else {
-        showColourError(t('try.error_not_hex'));
-      }
-    });
-  }
-
-  if (codeColorPicker) {
-    codeColorPicker.addEventListener('input', function () {
-      if (codeColorHex) codeColorHex.value = codeColorPicker.value;
-      showColourError('');
-      setCodeColor(codeColorPicker.value, false);
-    });
-    codeColorPicker.addEventListener('change', function () {
-      if (codeColorHex) codeColorHex.value = codeColorPicker.value;
-      showColourError('');
-      setCodeColor(codeColorPicker.value, true);
-    });
-  }
-
-  if (btnResetColour) {
-    btnResetColour.addEventListener('click', function () {
-      if (codeColorHex) codeColorHex.value = '';
-      var radios = swatches
-        ? swatches.querySelectorAll('input[name="colour-swatch"]')
-        : [];
-      Array.prototype.forEach.call(radios, function (radio) {
-        radio.checked = false;
-      });
-      showColourError('');
-      setCodeColor('', true);
-      if (codeColorHex) codeColorHex.focus();
-    });
-  }
-
   // ---------- Highlight colour ----------
-  // The same shape as the code colour above, with one difference: the
-  // highlight is a background, so the nudge fades it toward the theme's
-  // background until the theme's text clears AA on it, instead of moving
-  // the colour away from the background. The reader's hue is kept either
-  // way, and the status line says when the app has adjusted their choice.
+  // The highlight is a background, so the nudge fades it toward the
+  // theme's background until the theme's text clears AA on it, instead
+  // of moving a text colour away from the background. The reader's hue
+  // is kept either way, and the status line says when the app has
+  // adjusted their choice.
 
   function setHighlightColor(hex, persist) {
     customHighlightColor = hex || '';
@@ -2351,7 +2237,6 @@
   applyContrast(contrastMode);
   // A saved colour has to be in place before the theme is built, or the
   // editor would paint in the old colour for a frame.
-  customCodeColor = body.getAttribute('data-code-color') || '';
   customHighlightColor = body.getAttribute('data-highlight-color') || '';
   applyTheme(body.getAttribute('data-theme') || 'high-contrast');
   applyFont(body.getAttribute('data-font') || 'OpenDyslexic');
@@ -2364,16 +2249,6 @@
   syncBlurField();
   updateFontNote();
   updatePreview();
-
-  // The swatch matching a saved colour is ticked on load, so the panel
-  // does not contradict the colour actually in use.
-  if (customCodeColor && swatches) {
-    var saved = customCodeColor.toLowerCase();
-    var radios = swatches.querySelectorAll('input[name="colour-swatch"]');
-    Array.prototype.forEach.call(radios, function (radio) {
-      if (radio.value.toLowerCase() === saved) radio.checked = true;
-    });
-  }
 
   speechRate = parseFloat(body.getAttribute('data-tts-rate') || ttsRate.value || '0.9');
   speechVoiceName = body.getAttribute('data-tts-voice') || '';
