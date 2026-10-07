@@ -491,12 +491,11 @@ const editorInstance = {
 };
 
 function CodeMirror() { return editorInstance; }
-// The theme app.js defines is captured rather than discarded, so a check
-// can read back the active-line highlight and measure it against the
-// theme's text. A noop here would report success while the highlight was
-// never applied.
-const definedStyles = {};
-CodeMirror.defineStyle = (name, style) => { definedStyles[name] = style; };
+// The theme app.js applies is written into a <style> element in the head
+// (the bundled CodeMirror build has no defineTheme/defineStyle API), so a
+// check reads the active-line highlight back out of that element and
+// measures it against the theme's text. A noop here would report success
+// while the highlight was never applied.
 CodeMirror.defineMode = noop;
 CodeMirror.defineMIME = noop;
 CodeMirror.commands = {};
@@ -591,6 +590,9 @@ function makePage(locale, shared, bodyAttrs) {
 
   const doc = {
     body: makeElement('body', attrs),
+    // The theme app.js applies is written into a <style> element in the
+    // head, so the head exists and collects it like a real document's.
+    head: makeElement('head'),
 
     documentElement: makeElement('html'),
     // The Settings button has focus when it is pressed, which is the case
@@ -1080,6 +1082,19 @@ function contrastRatio(first, second) {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
+// The active-line highlight colour app.js wrote into the theme <style>
+// element, or null if the theme was never applied. Reading it back from
+// the element is what makes "the highlight was never applied" fail here
+// instead of passing silently.
+function activeLineHighlight() {
+  const styleEl = documentStub.head.children.find((el) => el.id === 'cm-theme-style');
+  if (!styleEl) return null;
+  const match = styleEl.textContent.match(
+    /\.cm-s-accessible-theme \.CodeMirror-activeline-background \{ background-color: ([^;]+); \}/
+  );
+  return match ? match[1] : null;
+}
+
 function fire(id, type, event = fakeEvent) {
   const el = elements.get(id);
   if (!el) return null;
@@ -1225,17 +1240,16 @@ function runPanelChecks() {
   const highlightErrorEl = elements.get('highlight-error');
   const themeKey = elements.get('theme-select').value || 'high-contrast';
   const themeFg = SANDBOX_THEMES[themeKey].fg;
-  const activeLine = definedStyles['accessible-theme']
-    && definedStyles['accessible-theme']['activeline-background'];
+  const activeLine = activeLineHighlight();
 
-  if (!activeLine || !activeLine['background-color']) {
+  if (!activeLine) {
     failed = true;
     console.log('FAIL the active-line highlight was never applied to the editor theme');
   } else {
-    const ratio = contrastRatio(themeFg, activeLine['background-color']);
+    const ratio = contrastRatio(themeFg, activeLine);
     if (ratio < 4.5) {
       failed = true;
-      console.log(`FAIL the default highlight ${activeLine['background-color']} ` +
+      console.log(`FAIL the default highlight ${activeLine} ` +
                   `hides ${themeFg} text (${ratio.toFixed(2)}:1)`);
     }
   }
@@ -1250,9 +1264,7 @@ function runPanelChecks() {
       failed = true;
       console.log(`FAIL ${candidate} was not recorded on the body`);
     }
-    const applied = definedStyles['accessible-theme']
-      && definedStyles['accessible-theme']['activeline-background']
-      && definedStyles['accessible-theme']['activeline-background']['background-color'];
+    const applied = activeLineHighlight();
     const ratio = contrastRatio(themeFg, applied);
     if (ratio < 4.5) {
       failed = true;

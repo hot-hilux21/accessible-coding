@@ -281,31 +281,48 @@
     return palette.highlight || palette.selection + '33';
   }
 
+  // The <style> element the theme is written into. Created once and
+  // reused, so a theme or colour change rewrites the rules rather than
+  // stacking new ones.
+  var themeStyleEl = null;
+
   function applyTheme(themeKey) {
     var c = themePalette[themeKey] || themePalette;
     if (!c.bg) return;
-    CodeMirror.defineStyle('accessible-theme', {
-      'background': c.bg,
-      'color': codeTextColor(c),
-      'gutters': { 'background-color': c.gutter_bg, 'color': c.gutter_fg, 'border': 'none' },
-      'gutter': { 'background-color': c.gutter_bg, 'color': c.gutter_fg },
-      'cursor': { 'border-left': '2px solid ' + c.cursor },
-      'selected': { 'background-color': c.selection },
-      'activeline-background': { 'background-color': highlightColour(c) },
-      'keyword': { 'color': contrastAdjust(c.keyword), 'font-weight': 'bold' },
-      'string': { 'color': contrastAdjust(c.string) },
-      'comment': { 'color': contrastAdjust(c.comment), 'font-style': 'italic' },
-      'number': { 'color': contrastAdjust(c.number) },
-      'def': { 'color': contrastAdjust(c.function) },
-      'variable-2': { 'color': contrastAdjust(c.variable) },
-      'variable-3': { 'color': contrastAdjust(c.function) },
-      'operator': { 'color': contrastAdjust(c.operator) },
-      'punctuation': { 'color': contrastAdjust(c.punctuation) },
-      'bracket': { 'color': contrastAdjust(c.punctuation) },
-      'builtin': { 'color': contrastAdjust(c.function) },
-      'atom': { 'color': contrastAdjust(c.number) },
-      'meta': { 'color': contrastAdjust(c.comment) }
-    });
+    // The bundled CodeMirror build applies the theme class (cm-s-*) but
+    // ships without the defineTheme/defineStyle API, so the theme is
+    // written as CSS rules instead of being registered with CodeMirror.
+    // The rules target the class CodeMirror puts on the wrapper when the
+    // theme option is set, which is exactly what defineTheme would have
+    // generated. The style element is reused, so a theme or colour change
+    // rewrites the rules rather than stacking new ones.
+    var rules = [
+      '.cm-s-accessible-theme { background: ' + c.bg + '; color: ' + codeTextColor(c) + '; }',
+      '.cm-s-accessible-theme .CodeMirror-gutters { background-color: ' + c.gutter_bg + '; color: ' + c.gutter_fg + '; }',
+      '.cm-s-accessible-theme .CodeMirror-linenumber { color: ' + c.gutter_fg + '; }',
+      '.cm-s-accessible-theme .CodeMirror-cursor { border-left: 2px solid ' + c.cursor + '; }',
+      '.cm-s-accessible-theme .CodeMirror-selected { background-color: ' + c.selection + '; }',
+      '.cm-s-accessible-theme .CodeMirror-activeline-background { background-color: ' + highlightColour(c) + '; }',
+      '.cm-s-accessible-theme .cm-keyword { color: ' + contrastAdjust(c.keyword) + '; font-weight: bold; }',
+      '.cm-s-accessible-theme .cm-string { color: ' + contrastAdjust(c.string) + '; }',
+      '.cm-s-accessible-theme .cm-comment { color: ' + contrastAdjust(c.comment) + '; font-style: italic; }',
+      '.cm-s-accessible-theme .cm-number { color: ' + contrastAdjust(c.number) + '; }',
+      '.cm-s-accessible-theme .cm-def { color: ' + contrastAdjust(c.function) + '; }',
+      '.cm-s-accessible-theme .cm-variable-2 { color: ' + contrastAdjust(c.variable) + '; }',
+      '.cm-s-accessible-theme .cm-variable-3 { color: ' + contrastAdjust(c.function) + '; }',
+      '.cm-s-accessible-theme .cm-operator { color: ' + contrastAdjust(c.operator) + '; }',
+      '.cm-s-accessible-theme .cm-punctuation { color: ' + contrastAdjust(c.punctuation) + '; }',
+      '.cm-s-accessible-theme .cm-bracket { color: ' + contrastAdjust(c.punctuation) + '; }',
+      '.cm-s-accessible-theme .cm-builtin { color: ' + contrastAdjust(c.function) + '; }',
+      '.cm-s-accessible-theme .cm-atom { color: ' + contrastAdjust(c.number) + '; }',
+      '.cm-s-accessible-theme .cm-meta { color: ' + contrastAdjust(c.comment) + '; }'
+    ].join('\n');
+    if (!themeStyleEl) {
+      themeStyleEl = document.createElement('style');
+      themeStyleEl.id = 'cm-theme-style';
+      document.head.appendChild(themeStyleEl);
+    }
+    themeStyleEl.textContent = rules;
     editor.setOption('theme', 'accessible-theme');
     updatePreview();
   }
