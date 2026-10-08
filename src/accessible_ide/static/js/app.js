@@ -2288,7 +2288,9 @@
         var height = rightColumn && rightColumn.getBoundingClientRect ?
           rightColumn.getBoundingClientRect().height : 0;
         if (height > 0) {
-          shellHeightPct = clampPct(startHeight + ((ev.clientY - startY) / height) * 100);
+          // The divider is the shell's top edge, so dragging it down makes
+          // the shell shorter. The delta is subtracted for that reason.
+          shellHeightPct = clampPct(startHeight - ((ev.clientY - startY) / height) * 100);
           moved = true;
         }
       }
@@ -2338,8 +2340,10 @@
     dividerShell.addEventListener('pointerdown', function (e) { startPaneDrag(e, 'horizontal'); });
     dividerShell.addEventListener('keydown', function (e) {
       var step = e.shiftKey ? 10 : 5;
-      if (e.key === 'ArrowUp') { e.preventDefault(); nudgePane('horizontal', -step); }
-      else if (e.key === 'ArrowDown') { e.preventDefault(); nudgePane('horizontal', step); }
+      // The divider is the shell's top edge: ArrowUp moves it up and makes
+      // the shell taller, ArrowDown moves it down and makes it shorter.
+      if (e.key === 'ArrowUp') { e.preventDefault(); nudgePane('horizontal', step); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); nudgePane('horizontal', -step); }
       else if (e.key === 'Home') { e.preventDefault(); nudgePane('horizontal', -100); }
       else if (e.key === 'End') { e.preventDefault(); nudgePane('horizontal', 100); }
     });

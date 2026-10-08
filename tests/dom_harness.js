@@ -2854,17 +2854,38 @@ function runShellChecks() {
     console.log('     opening the shell brings its divider with it');
   }
 
-  // The shell divider resizes the shell, not the editor: ArrowDown grows
-  // the shell by one step, and the height reaches the stylesheet.
+  // The shell divider resizes the shell, not the editor. The divider is the
+  // shell's top edge, so ArrowDown moves it down and makes the shell
+  // shorter, and ArrowUp moves it up and makes it taller.
   fire('divider-shell', 'keydown', { key: 'ArrowDown', preventDefault: noop, stopPropagation: noop });
-  if (shellDivider.getAttribute('aria-valuenow') !== '45') {
+  if (shellDivider.getAttribute('aria-valuenow') !== '35') {
     failed = true;
-    console.log(`FAIL ArrowDown did not grow the shell: ${shellDivider.getAttribute('aria-valuenow')}`);
-  } else if (rightColumn.style['--shell-height'] !== '45%') {
+    console.log(`FAIL ArrowDown did not shrink the shell: ${shellDivider.getAttribute('aria-valuenow')}`);
+  } else if (rightColumn.style['--shell-height'] !== '35%') {
     failed = true;
     console.log(`FAIL the shell height never reached the stylesheet: ${rightColumn.style['--shell-height']}`);
   } else {
-    console.log('     the shell divider resizes the shell');
+    console.log('     ArrowDown shrinks the shell, and the height reaches the stylesheet');
+  }
+  fire('divider-shell', 'keydown', { key: 'ArrowUp', preventDefault: noop, stopPropagation: noop });
+  if (shellDivider.getAttribute('aria-valuenow') !== '40') {
+    failed = true;
+    console.log(`FAIL ArrowUp did not grow the shell back: ${shellDivider.getAttribute('aria-valuenow')}`);
+  } else {
+    console.log('     ArrowUp grows the shell back');
+  }
+
+  // The drag path for the shell divider, in the same direction as the
+  // keyboard: dragging down shrinks the shell. The stub's right column is
+  // 100px tall, so ten pixels is ten percent.
+  fire('divider-shell', 'pointerdown', { button: 0, clientY: 300, preventDefault: noop, stopPropagation: noop });
+  fire('divider-shell', 'pointermove', { clientY: 310, preventDefault: noop, stopPropagation: noop });
+  fire('divider-shell', 'pointerup', { preventDefault: noop, stopPropagation: noop });
+  if (shellDivider.getAttribute('aria-valuenow') !== '30') {
+    failed = true;
+    console.log(`FAIL dragging the shell divider down did not shrink the shell: ${shellDivider.getAttribute('aria-valuenow')}`);
+  } else {
+    console.log('     dragging the shell divider down shrinks the shell');
   }
 
   setTimeout(() => {
@@ -2962,7 +2983,7 @@ function runShellChecks() {
               console.log('     closing the shell hides its divider again');
             }
 
-            console.log('shell: 12 checks');
+            console.log('shell: 15 checks');
             // Hand over to the module checks rather than exiting here. This
             // used to reassign finish() first, which quietly replaced the
             // module stage with a plain exit - so the checks after the shell
