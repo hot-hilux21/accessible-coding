@@ -191,6 +191,56 @@
     return toHex(tintReadableOn(parseHex(tintHex), panel, textColours.map(parseHex)));
   }
 
+  /* Two colours mixed by t (0 is all a, 1 is all b). A straight channel mix
+   * in sRGB space, the same arithmetic the tint search uses, so a derived
+   * colour and the search that checks it agree about what "toward" means.
+   * Mirrors mix_hex in utils/colour.py.
+   */
+  function mixHex(a, b, t) {
+    a = parseHex(a);
+    b = parseHex(b);
+    return toHex([
+      round(a[0] * (1 - t) + b[0] * t),
+      round(a[1] * (1 - t) + b[1] * t),
+      round(a[2] * (1 - t) + b[2] * t)
+    ]);
+  }
+
+  /* A text colour made readable on a background, keeping its hue.
+   *
+   * A colour that already clears AA is returned untouched. One that does not
+   * is mixed toward the far extreme (white on a dark background, black on a
+   * light one) until it does, and no further. Mixing toward the background
+   * would be wrong: a colour picked on the same side as the background only
+   * gets closer to it, and the search has no way out. The far extreme is the
+   * anchor because it always clears, and contrast is monotonic along the mix
+   * once the colour passes the background, so bisection lands on the exact
+   * boundary. Mirrors readable_text_on in utils/colour.py.
+   */
+  function readableTextOn(background, colour) {
+    var bg = parseHex(background);
+    colour = parseHex(colour);
+    if (contrastRatio(colour, bg) >= AA_CONTRAST) return toHex(colour);
+    var far = contrastRatio([255, 255, 255], bg) >= contrastRatio([0, 0, 0], bg)
+      ? [255, 255, 255] : [0, 0, 0];
+    var lowMix = 0.0, highMix = 1.0, best = null;
+    for (var pass = 0; pass < BISECTION_STEPS; pass += 1) {
+      var middle = (lowMix + highMix) / 2;
+      var candidate = [
+        round(colour[0] * (1 - middle) + far[0] * middle),
+        round(colour[1] * (1 - middle) + far[1] * middle),
+        round(colour[2] * (1 - middle) + far[2] * middle)
+      ];
+      if (contrastRatio(candidate, bg) >= AA_CONTRAST) {
+        best = candidate;
+        highMix = middle;
+      } else {
+        lowMix = middle;
+      }
+    }
+    return toHex(best || far);
+  }
+
   global.AccessibleTint = {
     parseHex: parseHex,
     toHex: toHex,
@@ -201,5 +251,7 @@
     readableOn: readableOn,
     tintReadableOn: tintReadableOn,
     safePanelTint: safePanelTint,
+    mixHex: mixHex,
+    readableTextOn: readableTextOn,
   };
 }(typeof globalThis !== 'undefined' ? globalThis : this));

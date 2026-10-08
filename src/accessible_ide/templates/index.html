@@ -89,7 +89,7 @@
     }
   </style>
 </head>
-<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}"{% if glass_tint %} style="--glass-tint: {{ glass_tint }};"{% endif %}>
+<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}" data-gradient="{% if config.theme_gradient %}true{% else %}false{% endif %}"{% if body_style %} style="{{ body_style }}"{% endif %}>
 
   <a class="skip-link" href="#editor">{{ t('app.skip_to_editor') }}</a>
 
@@ -326,6 +326,44 @@
               <option value="high" {% if config.contrast == 'high' %}selected{% endif %}>{{ t('colours.contrast_high') }}</option>
             </select>
             <p class="field-help" id="contrast-help">{{ t('colours.contrast_help') }}</p>
+          </div>
+
+          <div class="field field-inline">
+            <label for="theme-gradient">{{ t('theme.gradient') }}</label>
+            <button id="theme-gradient" class="btn btn-toggle {% if config.theme_gradient %}active{% endif %}"
+                    type="button" role="switch"
+                    aria-checked="{% if config.theme_gradient %}true{% else %}false{% endif %}"
+                    aria-describedby="theme-gradient-help">
+              <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+              <span id="theme-gradient-state" class="switch-text">{% if config.theme_gradient %}{{ t('switch.on') }}{% else %}{{ t('switch.off') }}{% endif %}</span>
+            </button>
+          </div>
+          <p class="field-help" id="theme-gradient-help">{{ t('theme.gradient_help') }}</p>
+
+          <!-- The theme builder. Hidden until the reader picks "Custom" in
+               the theme select; app.js shows it and wires the fields. -->
+          <div class="field" id="theme-builder" hidden>
+            <p class="field-help" id="theme-builder-help">{{ t('theme.custom_help') }}</p>
+            <div class="theme-builder-grid">
+              {% for key, label in (('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('keyword', 'theme.custom_keyword'), ('string', 'theme.custom_string'), ('comment', 'theme.custom_comment'), ('number', 'theme.custom_number'), ('function', 'theme.custom_function')) %}
+              <div class="field theme-builder-field">
+                <label for="theme-custom-{{ key }}">{{ t(label) }}</label>
+                <div class="field-row">
+                  <input type="color" id="theme-custom-{{ key }}-picker" value="{{ config['theme_custom_' + key] }}"
+                         aria-label="{{ t(label) }}">
+                  <input type="text" id="theme-custom-{{ key }}" class="hex-input" spellcheck="false" autocomplete="off"
+                         inputmode="text" maxlength="7" value="{{ config['theme_custom_' + key] }}"
+                         aria-describedby="theme-builder-help theme-custom-{{ key }}-error">
+                </div>
+                <p class="field-error" id="theme-custom-{{ key }}-error" role="alert" hidden></p>
+                <p class="preview-status" id="theme-custom-{{ key }}-status" hidden></p>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="field">
+              <button id="theme-custom-reset" class="btn btn-small" type="button">{{ t('theme.custom_reset') }}</button>
+              <p class="preview-status" id="theme-custom-saved" hidden></p>
+            </div>
           </div>
         </fieldset>
 
@@ -671,9 +709,38 @@
           </fieldset>
         </section>
 
-        <!-- ---------- Step 3: what this app does ---------- -->
-        <section id="setup-panel-tour" class="setup-panel"
+        <!-- ---------- Step 3: theme ---------- -->
+        <section id="setup-panel-theme" class="setup-panel"
                  {% if setup_step != 3 %}hidden{% endif %}>
+          <fieldset class="settings-group">
+            <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.theme_legend') }}</legend>
+            <p class="field-help" id="setup-theme-help">{{ t('setup.theme_help') }}</p>
+            <div class="setup-choices" aria-describedby="setup-theme-help">
+              {% for key, palette in themes.items() %}
+              <label class="setup-choice setup-choice-theme">
+                <input type="radio" name="setup-theme" value="{{ key }}"
+                       {% if config.theme == key %}checked{% endif %}>
+                <span class="setup-choice-text">
+                  <span class="setup-choice-name">{{ t('theme.' + key) }}</span>
+                  <!-- The swatch is drawn server-side from the same table
+                       the editor reads, so it cannot drift from the code
+                       colours. Purely decorative: aria-hidden, no text. -->
+                  <span class="setup-swatch" aria-hidden="true">
+                    {% for colour in (palette.bg, palette.fg, palette.keyword, palette.string, palette.number, palette.function) %}
+                    <span class="setup-swatch-cell" style="background: {{ colour }}"></span>
+                    {% endfor %}
+                  </span>
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+            <p class="field-help">{{ t('setup.theme_custom') }}</p>
+          </fieldset>
+        </section>
+
+        <!-- ---------- Step 4: what this app does ---------- -->
+        <section id="setup-panel-tour" class="setup-panel"
+                 {% if setup_step != 4 %}hidden{% endif %}>
           <h3 class="settings-legend setup-legend" tabindex="-1">{{ t('setup.tour_title') }}</h3>
           <ul class="setup-tour">
             <li>

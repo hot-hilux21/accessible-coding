@@ -47,6 +47,27 @@ const KNOWN_IDS = new Set([
   'blur-intensity', 'blur-intensity-label',
   'blur-field', 'theme-select', 'contrast-select', 'focus-mode',
   'reduce-motion', 'reduce-motion-state',
+  // The background gradient switch and the theme builder. The builder is
+  // hidden until the custom theme is chosen, so its fields are declared
+  // here for the same reason as the setup screen: app.js has to treat them
+  // as optional, and the harness has to exercise that path.
+  'theme-gradient', 'theme-gradient-state', 'theme-builder',
+  'theme-custom-bg', 'theme-custom-fg', 'theme-custom-keyword',
+  'theme-custom-string', 'theme-custom-comment', 'theme-custom-number',
+  'theme-custom-function',
+  'theme-custom-bg-picker', 'theme-custom-fg-picker',
+  'theme-custom-keyword-picker', 'theme-custom-string-picker',
+  'theme-custom-comment-picker', 'theme-custom-number-picker',
+  'theme-custom-function-picker',
+  'theme-custom-bg-error', 'theme-custom-fg-error',
+  'theme-custom-keyword-error', 'theme-custom-string-error',
+  'theme-custom-comment-error', 'theme-custom-number-error',
+  'theme-custom-function-error',
+  'theme-custom-bg-status', 'theme-custom-fg-status',
+  'theme-custom-keyword-status', 'theme-custom-string-status',
+  'theme-custom-comment-status', 'theme-custom-number-status',
+  'theme-custom-function-status',
+  'theme-custom-reset', 'theme-custom-saved',
   'glass-tint-picker', 'glass-tint-hex', 'glass-tint-error', 'glass-tint-reset',
   'tts-toggle', 'tts-state', 'tts-voice', 'tts-rate', 'tts-rate-label',
   'tts-voice-gender', 'tts-hover-scope', 'tts-hover-delay',
@@ -172,11 +193,25 @@ const SELECT_OPTIONS = {
   'focus-mode': ['off', 'gutter', 'lines'],
   'tts-voice-gender': ['male', 'female', 'any'],
   'tts-hover-scope': ['off', 'controls', 'all'],
-  'theme-select': ['high-contrast', 'dark'],
+  'theme-select': ['high-contrast', 'dark', 'pastel', 'light', 'ocean', 'forest', 'custom'],
   'update-channel': ['beta', 'stable'],
 };
 
 const optionsFor = (values) => values.map((v) => makeElement(v, {}, { value: v, textContent: v }));
+
+// The seven picks the theme builder starts with, mirroring the defaults in
+// routes.py. The builder's fields are hex boxes, so a stub that left them
+// at the generic "OpenDyslexic" value would make every live preview throw
+// and the checks would pass for the wrong reason.
+const THEME_CUSTOM_DEFAULTS = {
+  'theme-custom-bg': '#0b0b0b',
+  'theme-custom-fg': '#ffffff',
+  'theme-custom-keyword': '#ff9a9a',
+  'theme-custom-string': '#93e6a8',
+  'theme-custom-comment': '#b4b4b4',
+  'theme-custom-number': '#ffd93d',
+  'theme-custom-function': '#93d4ff',
+};
 
 // The attributes an element carries in the template, beyond the ones every
 // element gets. min, max and step are attributes rather than properties, so
@@ -276,11 +311,23 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
     appendChild(child) {
       el.children.push(child);
       el.options.push(child);
+      child.parentNode = el;
       return child;
     },
     removeChild(child) {
       el.children = el.children.filter((c) => c !== child);
       el.options = el.options.filter((o) => o !== child);
+      if (child.parentNode === el) {
+        child.parentNode = null;
+      }
+    },
+    // A real element removes itself from its parent. The dev-mode code
+    // removes the channel option that way, and a stub that did nothing
+    // would leave the hidden channel on offer after dev mode was off.
+    remove() {
+      if (el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
     },
     // Focus is recorded, because the index is expected to put the reader
     // in the search box and to hand focus back when it closes. It lives
@@ -297,7 +344,18 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
     showModal() { el.__open = true; },
     close() { el.__open = false; },
     getBoundingClientRect: () => ({ top: 0, left: 0, width: 100, height: 100 }),
-    querySelector: () => makeElement('__query__'),
+    // A real element answers "is there an option with this value?" by
+    // searching its own options. The dev-mode code asks exactly that of the
+    // channel list, and a stub that always answered "yes" would make the
+    // option never get added. Anything else falls back to a fresh element,
+    // which is what the older checks expect.
+    querySelector: (selector) => {
+      const optionMatch = String(selector).match(/^option\[value="([^"]+)"\]$/);
+      if (optionMatch) {
+        return (el.options || []).find((o) => o.value === optionMatch[1]) || null;
+      }
+      return makeElement('__query__');
+    },
     querySelectorAll: () => [],
     getElementsByClassName: () => [],
     // app.js walks up the tree by hand looking for the nearest control, and
@@ -422,6 +480,7 @@ function makeSetupPanel(name, visible) {
 const SETUP_PANELS = [
   makeSetupPanel('language', true),
   makeSetupPanel('font', false),
+  makeSetupPanel('theme', false),
   makeSetupPanel('tour', false),
 ];
 
@@ -467,7 +526,24 @@ const SANDBOX_THEMES = {
     selection: '#e3d2ab', highlight: '#f1ead9' },
   light: { name: 'Light', bg: '#fcfcfc', fg: '#2b2b2b', gutter_bg: '#f2f2f2',
     selection: '#bcd6f2', highlight: '#ececec' },
+  ocean: { name: 'Ocean', bg: '#0d1420', fg: '#e8eef7', gutter_bg: '#111a28',
+    selection: '#1e3a5f', highlight: '#131c2b' },
+  forest: { name: 'Forest', bg: '#0e1510', fg: '#e6efe6', gutter_bg: '#121a14',
+    selection: '#1f3d2a', highlight: '#141d16' },
+  // The reader's own theme. The server derives the full palette from the
+  // seven picks; this is the default derivation, which is what a fresh
+  // config produces.
+  custom: { name: 'Custom', bg: '#0b0b0b', fg: '#ffffff', gutter_bg: '#151515',
+    selection: '#484848', highlight: '#151515' },
 };
+
+// The theme choices in the wizard, one per theme the server offers. The
+// custom theme is among them, so a reader can pick it before the app has
+// ever been used.
+const SETUP_THEME_RADIOS = Object.keys(SANDBOX_THEMES).map((key) =>
+  makeElement(`setup-theme-${key}`, { name: 'setup-theme' },
+    { value: key, checked: key === 'high-contrast' })
+);
 
 // The four materials, in the order the template renders them. "off" starts
 // chosen, because that is the default and the safe answer.
@@ -486,6 +562,7 @@ const SETUP_DIALOG = makeElement('setup-dialog', {}, {
     if (selector === '.setup-panel') return SETUP_PANELS;
     if (selector === 'input[name="setup-locale"]') return SETUP_LOCALE_RADIOS;
     if (selector === 'input[name="setup-font"]') return SETUP_FONT_RADIOS;
+    if (selector === 'input[name="setup-theme"]') return SETUP_THEME_RADIOS;
     return [];
   },
   querySelector: (selector) => {
@@ -676,6 +753,7 @@ function makePage(locale, shared, bodyAttrs) {
           SELECT_OPTIONS[id]
             ? { value: SELECT_OPTIONS[id][0], options: optionsFor(SELECT_OPTIONS[id]) }
             : {},
+          THEME_CUSTOM_DEFAULTS[id] ? { value: THEME_CUSTOM_DEFAULTS[id] } : {},
           RANGE_INPUTS[id] ? { value: RANGE_INPUTS[id].value } : {},
           // The template draws Back hidden on the first step. Without this
           // the stub would start with it showing, and a check about it
@@ -864,13 +942,16 @@ function fetchStub(url, options) {
   if (String(url).includes('/api/themes')) {
     return Promise.resolve({
       ok: true,
-      json: () => Promise.resolve({
-        // gutter_bg is the panel colour the server also reports, and it is
-        // what a chosen tint is painted over. Without it the tint has no
-        // background to work against and falls back to the page background,
-        // so the checks would pass against a colour no reader ever sees.
-        SANDBOX_THEMES,
-      }),
+      // The server answers with the themes keyed by name at the top level
+      // (routes.py /api/themes). The stub has to match: app.js copies every
+      // top-level key into themePalette and builds the theme <select> from
+      // them, so a wrapped table would leave themePalette.custom missing and
+      // the select offering one option called "SANDBOX_THEMES".
+      // gutter_bg is the panel colour the server also reports, and it is
+      // what a chosen tint is painted over. Without it the tint has no
+      // background to work against and falls back to the page background,
+      // so the checks would pass against a colour no reader ever sees.
+      json: () => Promise.resolve(SANDBOX_THEMES),
     });
   }
   // The reset endpoint, before the catch-all /api/config branch below,
@@ -2240,6 +2321,13 @@ function checkFailedDownload(status, row, closesBefore) {
       }
 
       runSetupChecks();
+      // The dev-mode and theme-builder checks post config of their own
+      // (channel changes, theme picks). They run before the update-channel
+      // checks, whose assertions land in a deferred callback and count the
+      // posts since their own snapshot; anything posted in between would
+      // look like extra channel changes.
+      runDevModeChecks();
+      runThemeBuilderChecks();
       runUpdateChannelChecks();
     }, 10);
   }, 10);
@@ -2334,6 +2422,246 @@ function runUpdateChannelChecks() {
 }
 
 // ---------------------------------------------------------------------------
+// Developer mode. Hidden on purpose: right-clicking the Settings button (or
+// pressing Shift+F10 on it) adds the "dev" update channel. The checks below
+// are the only place the easter egg is expected to be visible.
+// ---------------------------------------------------------------------------
+function runDevModeChecks() {
+  const select = elements.get('update-channel');
+  const status = elements.get('update-status');
+  const store = mainPage.store;
+
+  const options = () => (select.options || []).map((o) => o.value);
+  const devOffered = () => options().includes('dev');
+
+  // The channel list starts without the dev channel. It is hidden on
+  // purpose, so it has to be absent until the easter egg is used.
+  if (devOffered()) {
+    failed = true;
+    console.log('FAIL the dev channel is offered before the easter egg is used');
+  } else {
+    console.log('     the dev channel stays hidden until asked for');
+  }
+
+  // Right-clicking the Settings button turns it on.
+  const before = configPosts.length;
+  fire('btn-settings', 'contextmenu');
+  if (!devOffered()) {
+    failed = true;
+    console.log('FAIL right-clicking Settings did not add the dev channel');
+  } else {
+    console.log('     right-clicking Settings adds the dev channel');
+  }
+  if (store.get('accessible_ide_dev_mode') !== '1') {
+    failed = true;
+    console.log('FAIL dev mode was not remembered: ' +
+      JSON.stringify(store.get('accessible_ide_dev_mode')));
+  }
+  if ((status.textContent || '') !== CATALOGUE['update.dev_mode_on']) {
+    failed = true;
+    console.log('FAIL turning dev mode on did not say so: ' +
+      JSON.stringify(status.textContent));
+  }
+
+  // Choosing the dev channel saves it like any other channel.
+  select.value = 'dev';
+  fire('update-channel', 'change');
+  const saved = configPosts.slice(before).filter((p) => 'update_channel' in p);
+  if (!saved.some((p) => p.update_channel === 'dev')) {
+    failed = true;
+    console.log('FAIL choosing the dev channel did not save it: ' +
+      JSON.stringify(saved));
+  } else {
+    console.log('     the dev channel is a real channel once offered');
+  }
+
+  // Shift+F10 turns it off again, and the channel falls back to beta so
+  // the reader is not left on a channel they can no longer see.
+  const beforeOff = configPosts.length;
+  fire('btn-settings', 'keydown', {
+    key: 'F10', shiftKey: true, preventDefault: noop, stopPropagation: noop,
+  });
+  if (devOffered()) {
+    failed = true;
+    console.log('FAIL turning dev mode off left the dev channel behind');
+  } else {
+    console.log('     turning dev mode off removes the channel');
+  }
+  if (store.get('accessible_ide_dev_mode') !== '0') {
+    failed = true;
+    console.log('FAIL dev mode off was not remembered');
+  }
+  if ((status.textContent || '') !== CATALOGUE['update.dev_mode_off']) {
+    failed = true;
+    console.log('FAIL turning dev mode off did not say so: ' +
+      JSON.stringify(status.textContent));
+  }
+  const reverted = configPosts.slice(beforeOff).filter((p) => 'update_channel' in p);
+  if (select.value === 'dev') {
+    failed = true;
+    console.log('FAIL the channel stayed on dev after dev mode was turned off');
+  } else if (reverted.some((p) => p.update_channel === 'beta')) {
+    console.log('     leaving dev mode falls back to beta');
+  } else {
+    failed = true;
+    console.log('FAIL leaving dev mode did not save the fallback to beta');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The theme builder and the background gradient. The builder is hidden until
+// the custom theme is chosen, edits preview live, and a change saves the
+// seven picks. The gradient is a switch that the page and the config both
+// have to hear about.
+// ---------------------------------------------------------------------------
+function runThemeBuilderChecks() {
+  const themeSelect = elements.get('theme-select');
+  const builder = elements.get('theme-builder');
+  const gradient = elements.get('theme-gradient');
+  const bodyNow = documentStub.body.__attributes;
+  const bodyStyle = documentStub.body.style;
+  const changeTheme = (key) => {
+    themeSelect.value = key;
+    themeSelect.__listeners.change.forEach((h) => h(eventFor(themeSelect)));
+  };
+
+  // The builder is hidden until the custom theme is chosen.
+  if (!builder.hidden) {
+    failed = true;
+    console.log('FAIL the theme builder is visible before the custom theme is chosen');
+  } else {
+    console.log('     the theme builder stays hidden until asked for');
+  }
+
+  // Choosing the custom theme reveals it and paints the page chrome.
+  changeTheme('custom');
+  if (builder.hidden) {
+    failed = true;
+    console.log('FAIL choosing the custom theme did not reveal the builder');
+  } else {
+    console.log('     choosing the custom theme reveals the builder');
+  }
+  const chromeKeys = ['--bg', '--fg', '--accent', '--accent-fg', '--panel-bg',
+    '--panel-border', '--muted', '--error-bg', '--error-border',
+    '--error-fg', '--error-line', '--focus-ring'];
+  const missing = chromeKeys.filter((key) => !(key in bodyStyle));
+  if (missing.length) {
+    failed = true;
+    console.log('FAIL the custom theme left the page chrome unset: ' +
+      missing.join(', '));
+  } else {
+    console.log('     the custom theme paints the page chrome');
+  }
+
+  // Editing a pick previews live and reports its contrast.
+  const bgField = elements.get('theme-custom-bg');
+  const fgField = elements.get('theme-custom-fg');
+  const fgPicker = elements.get('theme-custom-fg-picker');
+  bgField.value = '#0b0b0b';
+  fgField.value = '#ffffff';
+  fire('theme-custom-bg', 'input');
+  fire('theme-custom-fg', 'input');
+  // The status line is created by the first paint, not by the page markup,
+  // so it has to be looked up after the input events above have run.
+  const fgStatus = elements.get('theme-custom-fg-status');
+  if (fgStatus.hidden) {
+    failed = true;
+    console.log('FAIL a picked colour shows no contrast status');
+  } else if (fgStatus.textContent !== CATALOGUE['theme.custom_contrast_ok']) {
+    failed = true;
+    console.log('FAIL a readable pick is not marked readable: ' +
+      JSON.stringify(fgStatus.textContent));
+  } else {
+    console.log('     a readable pick is marked readable');
+  }
+
+  // A pick that fails AA is flagged, because the app will adjust it.
+  fgField.value = '#777777';
+  fire('theme-custom-fg', 'input');
+  if (fgStatus.textContent !== CATALOGUE['theme.custom_contrast_fail']) {
+    failed = true;
+    console.log('FAIL an unreadable pick is not flagged: ' +
+      JSON.stringify(fgStatus.textContent));
+  } else {
+    console.log('     an unreadable pick is flagged');
+  }
+
+  // The picker and the hex box are two views of one value.
+  fgPicker.value = '#123456';
+  fire('theme-custom-fg-picker', 'input');
+  if (fgField.value !== '#123456') {
+    failed = true;
+    console.log('FAIL picking a colour did not update the hex box: ' +
+      JSON.stringify(fgField.value));
+  } else {
+    console.log('     the picker and the hex box stay in step');
+  }
+
+  // A change saves the seven picks.
+  const before = configPosts.length;
+  fire('theme-custom-fg', 'change');
+  const saved = configPosts.slice(before).filter((p) => 'theme_custom_fg' in p);
+  if (saved.length !== 1 || saved[0].theme_custom_fg !== '#123456') {
+    failed = true;
+    console.log('FAIL changing a pick did not save it: ' +
+      JSON.stringify(configPosts.slice(before)));
+  } else {
+    console.log('     a changed pick is saved');
+  }
+
+  // Reset restores the defaults and saves them.
+  const beforeReset = configPosts.length;
+  fire('theme-custom-reset', 'click');
+  if (fgField.value !== '#ffffff') {
+    failed = true;
+    console.log('FAIL reset did not restore the default foreground: ' +
+      JSON.stringify(fgField.value));
+  } else {
+    console.log('     reset restores the defaults');
+  }
+  const resetSaved = configPosts.slice(beforeReset).filter((p) => 'theme_custom_fg' in p);
+  if (!resetSaved.some((p) => p.theme_custom_fg === '#ffffff')) {
+    failed = true;
+    console.log('FAIL reset did not save the defaults: ' +
+      JSON.stringify(configPosts.slice(beforeReset)));
+  }
+
+  // Leaving the custom theme hides the builder again.
+  changeTheme('high-contrast');
+  if (!builder.hidden) {
+    failed = true;
+    console.log('FAIL leaving the custom theme left the builder visible');
+  } else {
+    console.log('     leaving the custom theme hides the builder');
+  }
+
+  // The background gradient switch.
+  const gradientOn = gradient.getAttribute('aria-checked') === 'true';
+  fire('theme-gradient', 'click');
+  const nowOn = gradient.getAttribute('aria-checked') === 'true';
+  if (nowOn === gradientOn) {
+    failed = true;
+    console.log('FAIL the gradient switch did not change state');
+  } else {
+    console.log('     the gradient switch changes state');
+  }
+  if (bodyNow['data-gradient'] !== (nowOn ? 'on' : 'off')) {
+    failed = true;
+    console.log('FAIL the page was not told the gradient state: ' +
+      JSON.stringify(bodyNow['data-gradient']));
+  }
+  const gradientSaved = configPosts.filter((p) => 'theme_gradient' in p);
+  if (!gradientSaved.length ||
+      gradientSaved[gradientSaved.length - 1].theme_gradient !== nowOn) {
+    failed = true;
+    console.log('FAIL the gradient choice was not saved: ' +
+      JSON.stringify(gradientSaved));
+  } else {
+    console.log('     the gradient choice is saved');
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The first-run setup screen.
 //
 // The fiddly parts are all invisible from the markup: whether the wizard
@@ -2425,8 +2753,11 @@ function runSetupChecks() {
   }
 
   // And back again, which also puts the Back button away on the first step.
-  fire('setup-back', 'click');
-  fire('setup-back', 'click');
+  // The count comes from the panels rather than a hard-coded three, so a
+  // wizard with a different number of steps still lands on the first one.
+  for (let backPress = 0; backPress < SETUP_PANELS.length - 1; backPress += 1) {
+    fire('setup-back', 'click');
+  }
   if (shownStep() !== 1 || !back.hidden) {
     failed = true;
     console.log(`FAIL stepping back from step ${SETUP_PANELS.length} left the screen on ` +
@@ -2455,6 +2786,27 @@ function runSetupChecks() {
                 JSON.stringify(configPosts.slice(fontBefore)));
   } else {
     console.log('     a font chosen in the setup screen is saved, not just drawn');
+  }
+
+  // A theme is shown on the page too: the editor behind the wizard repaints
+  // so the reader sees the theme against real code, not just the swatches.
+  const ocean = SETUP_THEME_RADIOS.find((radio) => radio.value === 'ocean');
+  const themeBefore = configPosts.length;
+  ocean.__listeners.change.forEach((handler) =>
+    handler({ target: ocean, preventDefault: noop, stopPropagation: noop }));
+  if (documentStub.body.__attributes['data-theme'] !== 'ocean') {
+    failed = true;
+    console.log('FAIL choosing a theme in the setup screen did not apply it: ' +
+                JSON.stringify(documentStub.body.__attributes['data-theme']));
+  } else {
+    console.log('     a chosen theme is applied to the page straight away');
+  }
+  if (!configPosts.slice(themeBefore).some((p) => p.theme === 'ocean')) {
+    failed = true;
+    console.log('FAIL a theme chosen in the setup screen was not saved: ' +
+                JSON.stringify(configPosts.slice(themeBefore)));
+  } else {
+    console.log('     a theme chosen in the setup screen is saved, not just drawn');
   }
 
   // The last one to finish: send the flag, then reload so the page is drawn

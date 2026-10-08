@@ -223,5 +223,113 @@ class SyntaxContrastTests(unittest.TestCase):
                 )
 
 
+class CustomThemeContrastTests(unittest.TestCase):
+    """The reader's own theme is derived, so it has to be checked with the
+    derivation, not with a fixed table. The fixtures are the cases the
+    derivation exists for: a dark pick, a light pick, and a mid-grey
+    background where the raw picks fail and the clamp has to save them.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.routes = _load_routes()
+
+    def _palette(self, picks):
+        config = {"theme_custom_" + key: value for key, value in picks.items()}
+        return self.routes.custom_palette(config)
+
+    def _chrome(self, picks):
+        return self.routes.custom_chrome(self._palette(picks))
+
+    def test_dark_picks_meet_aa(self):
+        palette = self._palette({
+            "bg": "#0b0b0b", "fg": "#ffffff", "keyword": "#ff9a9a",
+            "string": "#93e6a8", "comment": "#b4b4b4", "number": "#ffd93d",
+            "function": "#93d4ff",
+        })
+        for key in TEXT_KEYS:
+            with self.subTest(key=key):
+                ratio = contrast_ratio(palette[key], palette["bg"])
+                self.assertGreaterEqual(
+                    ratio + EPSILON, AA_NORMAL_TEXT,
+                    f"custom.{key} ({palette[key]}) on {palette['bg']} "
+                    f"is only {ratio:.2f}:1",
+                )
+
+    def test_light_picks_meet_aa(self):
+        palette = self._palette({
+            "bg": "#fcfcfc", "fg": "#2b2b2b", "keyword": "#7a1f1f",
+            "string": "#1f5c33", "comment": "#5c5c5c", "number": "#7a5c00",
+            "function": "#1f4d7a",
+        })
+        for key in TEXT_KEYS:
+            with self.subTest(key=key):
+                ratio = contrast_ratio(palette[key], palette["bg"])
+                self.assertGreaterEqual(
+                    ratio + EPSILON, AA_NORMAL_TEXT,
+                    f"custom.{key} ({palette[key]}) on {palette['bg']} "
+                    f"is only {ratio:.2f}:1",
+                )
+
+    def test_mid_grey_background_clamps_the_picks(self):
+        # White on mid grey is 3.9:1, under AA. The derivation has to move
+        # the text toward black until it clears, and the result has to be
+        # readable on the background it was clamped for.
+        palette = self._palette({
+            "bg": "#777777", "fg": "#ffffff", "keyword": "#ffffff",
+            "string": "#ffffff", "comment": "#ffffff", "number": "#ffffff",
+            "function": "#ffffff",
+        })
+        for key in TEXT_KEYS:
+            with self.subTest(key=key):
+                ratio = contrast_ratio(palette[key], palette["bg"])
+                self.assertGreaterEqual(
+                    ratio + EPSILON, AA_NORMAL_TEXT,
+                    f"custom.{key} ({palette[key]}) on {palette['bg']} "
+                    f"is only {ratio:.2f}:1",
+                )
+
+    def test_chrome_text_meets_aa(self):
+        # The page chrome is derived too: the accent's own text, the muted
+        # panel text, and the error colours all have to clear AA on the
+        # surfaces they sit on.
+        for picks in (
+            {"bg": "#0b0b0b", "fg": "#ffffff", "keyword": "#ff9a9a",
+             "string": "#93e6a8", "comment": "#b4b4b4", "number": "#ffd93d",
+             "function": "#93d4ff"},
+            {"bg": "#fcfcfc", "fg": "#2b2b2b", "keyword": "#7a1f1f",
+             "string": "#1f5c33", "comment": "#5c5c5c", "number": "#7a5c00",
+             "function": "#1f4d7a"},
+            {"bg": "#777777", "fg": "#ffffff", "keyword": "#ffffff",
+             "string": "#ffffff", "comment": "#ffffff", "number": "#ffffff",
+             "function": "#ffffff"},
+        ):
+            chrome = self._chrome(picks)
+            with self.subTest(bg=picks["bg"]):
+                self.assertGreaterEqual(
+                    contrast_ratio(chrome["accent-fg"], chrome["accent"]) + EPSILON,
+                    AA_NORMAL_TEXT,
+                    f"accent text {chrome['accent-fg']} on "
+                    f"{chrome['accent']} is under AA",
+                )
+                self.assertGreaterEqual(
+                    contrast_ratio(chrome["muted"], chrome["panel-bg"]) + EPSILON,
+                    AA_NORMAL_TEXT,
+                    f"muted {chrome['muted']} on {chrome['panel-bg']} is under AA",
+                )
+                self.assertGreaterEqual(
+                    contrast_ratio(chrome["error-fg"], chrome["error-bg"]) + EPSILON,
+                    AA_NORMAL_TEXT,
+                    f"error text {chrome['error-fg']} on "
+                    f"{chrome['error-bg']} is under AA",
+                )
+                self.assertGreaterEqual(
+                    contrast_ratio(chrome["error-border"], chrome["error-bg"]) + EPSILON,
+                    AA_NORMAL_TEXT,
+                    f"error border {chrome['error-border']} on "
+                    f"{chrome['error-bg']} is under AA",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

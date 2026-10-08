@@ -114,7 +114,7 @@ CONFIG_FILE = CONFIG_DIR / 'config.json'
 # The first-run setup screen, one step at a time. Defined here rather than in
 # the template so the validation below, the rendered progress text and the
 # step each panel is tagged with all read the same number.
-SETUP_STEPS = ('language', 'font', 'tour')
+SETUP_STEPS = ('language', 'font', 'theme', 'tour')
 SETUP_TOTAL_STEPS = len(SETUP_STEPS)
 
 DEFAULT_CONFIG = {
@@ -159,6 +159,23 @@ DEFAULT_CONFIG = {
     # The tint for those panels. Empty means "whatever the chosen theme
     # uses", which is the safe answer and what the reset button sends.
     'glass_tint': '',
+    # The reader's own theme, built in Settings. Seven colours are picked;
+    # the rest of the palette is derived from them (see custom_palette) so
+    # the derived colours can never cost contrast. The defaults are the
+    # high-contrast theme's colours, so a reader who opens the builder and
+    # changes nothing gets the theme they were on.
+    'theme_custom_bg': '#0b0b0b',
+    'theme_custom_fg': '#ffffff',
+    'theme_custom_keyword': '#ff9a9a',
+    'theme_custom_string': '#93e6a8',
+    'theme_custom_comment': '#b4b4b4',
+    'theme_custom_number': '#ffd93d',
+    'theme_custom_function': '#93d4ff',
+    # A soft wash of colour behind the editor, painted from the theme's own
+    # colours. Subtle by design and theme-derived, so it cannot cost
+    # contrast; a reader who finds it distracting can turn it off in
+    # Settings.
+    'theme_gradient': True,
     'tts_enabled': False,
     'tts_engine': 'pyttsx3',
     'tts_voice': '',
@@ -274,8 +291,169 @@ THEMES = {
         'variable': '#2b2b2b',
         'operator': '#3d3d3d',
         'punctuation': '#4a4a4a'
+    },
+    'ocean': {
+        'name': 'Ocean',
+        'bg': '#0d1420',
+        'fg': '#e8eef7',
+        'selection': '#1e3a5f',
+        'highlight': '#131c2b',
+        'cursor': '#7fd4ff',
+        'gutter_bg': '#111a28',
+        'gutter_fg': '#9fb0c4',
+        'keyword': '#8fc7ff',
+        'string': '#a8e6c1',
+        'comment': '#8fa3b8',
+        'number': '#ffd98a',
+        'function': '#7fd4ff',
+        'variable': '#dbe6f2',
+        'operator': '#b8c8da',
+        'punctuation': '#c2d0e0'
+    },
+    'forest': {
+        'name': 'Forest',
+        'bg': '#0e1510',
+        'fg': '#e6efe6',
+        'selection': '#1f3d2a',
+        'highlight': '#141d16',
+        'cursor': '#9fe8a8',
+        'gutter_bg': '#121a14',
+        'gutter_fg': '#9cb3a0',
+        'keyword': '#a8e6a8',
+        'string': '#e6d9a8',
+        'comment': '#8fa893',
+        'number': '#e6c88a',
+        'function': '#8fd4c1',
+        'variable': '#d8e6d8',
+        'operator': '#b0c4b4',
+        'punctuation': '#bcccb8'
     }
 }
+
+# The colours a reader can pick for their own theme. The rest of the
+# palette is derived from these with rules that cannot cost contrast (see
+# custom_palette), so the builder only has to check the colours the reader
+# actually chose.
+CUSTOM_THEME_COLOURS = ('bg', 'fg', 'keyword', 'string', 'comment',
+                        'number', 'function')
+
+
+def custom_palette(config):
+    """The full 15-colour palette for the reader's own theme.
+
+    Seven colours are picked in Settings; the rest are derived so they can
+    never cost contrast. Text colours are faded toward the background until
+    they clear AA, the same rule the panel tint uses, so a reader who picks
+    a colour that is too close to the background still gets a readable
+    theme rather than a rejected one.
+    """
+    def pick(key):
+        value = config.get('theme_custom_' + key, '')
+        try:
+            return colour.parse_hex(value)
+        except ValueError:
+            return colour.parse_hex(DEFAULT_CONFIG['theme_custom_' + key])
+
+    bg = pick('bg')
+    fg = colour.readable_text_on(bg, pick('fg'))
+    keyword = colour.readable_text_on(bg, pick('keyword'))
+    string = colour.readable_text_on(bg, pick('string'))
+    comment = colour.readable_text_on(bg, pick('comment'))
+    number = colour.readable_text_on(bg, pick('number'))
+    function = colour.readable_text_on(bg, pick('function'))
+    # Selected text is the foreground on a tint of the background. The tint
+    # is faded toward the background until the foreground clears AA on it,
+    # the same way a panel tint is faded toward its panel.
+    selection = colour.to_hex(colour.tint_readable_on(
+        colour.mix_hex(bg, fg, 0.25), bg, [fg]))
+    # The line the reader is working on: a faint tint of the background,
+    # never a strong colour, so the text on it stays readable.
+    highlight = colour.mix_hex(bg, fg, 0.06)
+    cursor = fg
+    gutter_bg = colour.mix_hex(bg, fg, 0.04)
+    # The gutter text is a muted foreground, clamped against the theme
+    # background like every other text colour. The gutter is only 4% away
+    # from the background, so a colour that clears on the background clears
+    # on the gutter too, and the invariant "every text colour clears on the
+    # theme background" holds for the derived theme exactly as it does for
+    # the presets.
+    gutter_fg = colour.readable_text_on(
+        bg, colour.mix_hex(fg, bg, 0.35))
+    return {
+        'name': 'Custom',
+        'bg': colour.to_hex(bg),
+        'fg': fg,
+        'selection': selection,
+        'highlight': highlight,
+        'cursor': cursor,
+        'gutter_bg': gutter_bg,
+        'gutter_fg': gutter_fg,
+        'keyword': keyword,
+        'string': string,
+        'comment': comment,
+        'number': number,
+        'function': function,
+        'variable': fg,
+        'operator': keyword,
+        'punctuation': fg,
+    }
+
+
+def custom_chrome(palette):
+    """The page's chrome colours for the custom theme.
+
+    The palette holds the editor's colours; the page around it needs the
+    same family. Derived here so the first paint is right, and mirrored in
+    the browser (static/js/app.js) so a theme change lands without a
+    reload. Every derived colour is checked against its background the same
+    way the presets are, by tests/test_contrast.py.
+    """
+    bg = colour.parse_hex(palette['bg'])
+    fg = colour.parse_hex(palette['fg'])
+    panel = colour.parse_hex(palette['gutter_bg'])
+    accent = fg
+    # Button text: the extreme (black or white) that clears AA on the
+    # accent. A mid-grey accent clears neither, so it is faded toward the
+    # background until the extreme that clears on the background clears on
+    # it - the fade always has a known-good side, because that extreme
+    # clears on the background by construction.
+    black, white = (0, 0, 0), (255, 255, 255)
+    if colour.contrast_ratio(black, accent) >= colour.AA_CONTRAST:
+        accent_fg = '#000000'
+    elif colour.contrast_ratio(white, accent) >= colour.AA_CONTRAST:
+        accent_fg = '#ffffff'
+    else:
+        accent_fg = ('#ffffff' if colour.contrast_ratio(white, bg) >=
+                     colour.contrast_ratio(black, bg) else '#000000')
+        accent = colour.tint_readable_on(
+            colour.to_hex(accent), bg, [accent_fg])
+    # The error colours are the one family the reader does not pick, so
+    # they are derived from a fixed red and clamped against the surfaces
+    # they actually sit on. The base red is chosen by the background's
+    # side - a light red on a dark theme, a dark red on a light one - so
+    # the clamp below always has a direction that increases contrast.
+    if colour.luminance(bg) < 0.5:
+        error_fg_base, error_border_base = '#ffb3b3', '#ff6b6b'
+    else:
+        error_fg_base, error_border_base = '#8f2f1a', '#c0523f'
+    error_bg = colour.mix_hex(bg, '#ff6b6b', 0.12)
+    error_fg = colour.readable_text_on(error_bg, error_fg_base)
+    error_border = colour.readable_text_on(error_bg, error_border_base)
+    return {
+        'bg': palette['bg'],
+        'fg': palette['fg'],
+        'accent': colour.to_hex(accent),
+        'accent-fg': accent_fg,
+        'panel-bg': palette['gutter_bg'],
+        'panel-border': colour.mix_hex(bg, fg, 0.2),
+        'muted': colour.readable_text_on(panel, colour.mix_hex(fg, bg, 0.25)),
+        'error-bg': error_bg,
+        'error-border': error_border,
+        'error-fg': error_fg,
+        'error-line': 'color-mix(in srgb, var(--error-border) 16%, transparent)',
+        'focus-ring': palette['fg'],
+    }
+
 
 def _panel_colour(theme):
     """The colour a theme's panels are painted in.
@@ -309,6 +487,8 @@ PANEL_TEXT = {
 
 def _palette(theme):
     """A theme's table, falling back to the default for an unknown name."""
+    if theme == 'custom':
+        return custom_palette(load_config())
     return THEMES.get(theme) or THEMES[DEFAULT_CONFIG['theme']]
 
 
@@ -321,6 +501,13 @@ def panel_tint_for(theme, tint_hex):
     Shared with the browser through the same arithmetic in static/js/tint.js,
     so a theme change on the client lands where the server would have put it.
     """
+    if theme == 'custom':
+        palette = custom_palette(load_config())
+        chrome = custom_chrome(palette)
+        return colour.safe_panel_tint(
+            tint_hex, palette['gutter_bg'],
+            (palette['fg'], chrome['muted'], chrome['error-fg']),
+        )
     name = theme if theme in PANEL_TEXT else DEFAULT_CONFIG['theme']
     return colour.safe_panel_tint(
         tint_hex, _panel_colour(name), PANEL_TEXT[name]
@@ -653,19 +840,47 @@ def index():
     if not isinstance(step, int) or isinstance(step, bool):
         step = 1
     step = max(1, min(step, SETUP_TOTAL_STEPS))
+    theme = config.get('theme', DEFAULT_CONFIG['theme'])
+    # The custom theme is built from the config, so it is added to the
+    # table the template reads. The template indexes themes[config.theme]
+    # for the glass picker's swatch, and a missing 'custom' would be a
+    # KeyError on the first paint of a reader who chose it.
+    themes = dict(THEMES)
+    themes['custom'] = custom_palette(config)
+    chrome = custom_chrome(themes['custom']) if theme == 'custom' else None
+    glass_tint = panel_tint_for(theme, config.get('glass_tint', ''))
+    # The body's inline style. The glass tint is one variable; the custom
+    # theme's chrome is the whole set, because no stylesheet block exists
+    # for a palette the reader builds themselves.
+    body_style = ''
+    if glass_tint:
+        body_style += f'--glass-tint: {glass_tint}; '
+    if chrome:
+        body_style += ' '.join(f'--{k}: {v};' for k, v in chrome.items())
+    panel_info = {
+        name: {
+            'panel': _panel_colour(name),
+            'texts': list(PANEL_TEXT[name]),
+        }
+        for name in PANEL_TEXT
+    }
+    if chrome:
+        panel_info['custom'] = {
+            'panel': themes['custom']['gutter_bg'],
+            'texts': [themes['custom']['fg'], chrome['muted'],
+                      chrome['error-fg']],
+        }
     return render_template('index.html',
                          config=config,
-                         themes=THEMES,
+                         themes=themes,
+                         body_style=body_style,
                          # The colour the panels actually get. The stored
                          # tint is whatever the reader chose; this is that
                          # choice pulled toward the panel until the chosen
                          # theme's own panel text stays readable, so it cannot
                          # cost contrast. Computed here so the first paint is
                          # right, and again in the browser on a theme change.
-                         glass_tint=panel_tint_for(
-                             config.get('theme', DEFAULT_CONFIG['theme']),
-                             config.get('glass_tint', ''),
-                         ),
+                         glass_tint=glass_tint,
                          # The choice itself, separately from the colour above.
                          # The two are not the same value, and the page needs
                          # both: the hex field shows what the reader picked,
@@ -683,13 +898,7 @@ def index():
                          # against a fallback background is the unreadable
                          # panel this exists to prevent. A tint that ignored
                          # the text colours is the same failure.
-                         panel_info={
-                             name: {
-                                 'panel': _panel_colour(name),
-                                 'texts': list(PANEL_TEXT[name]),
-                             }
-                             for name in PANEL_TEXT
-                         },
+                         panel_info=panel_info,
                          fonts=FONTS,
                          # The version on the badge comes from the build, not
                          # from a line somebody remembered to edit. It used to
@@ -985,6 +1194,14 @@ CONFIG_TYPES = {
     'reduce_motion': bool,
     'glass_material': str,
     'glass_tint': str,
+    'theme_custom_bg': str,
+    'theme_custom_fg': str,
+    'theme_custom_keyword': str,
+    'theme_custom_string': str,
+    'theme_custom_comment': str,
+    'theme_custom_number': str,
+    'theme_custom_function': str,
+    'theme_gradient': bool,
     'tts_enabled': bool,
     'tts_engine': str,
     'tts_voice': str,
@@ -1001,11 +1218,14 @@ CONFIG_TYPES = {
 # routes that need it rather than at the top of this module. So the name is
 # written out here and a test checks the two agree, rather than importing it
 # early and changing that on purpose.
-UPDATE_CHANNELS = {'beta', 'stable'}
+UPDATE_CHANNELS = {'beta', 'stable', 'dev'}
 
 CONFIG_VALUES = {
     'font': set(FONTS.keys()),
-    'theme': set(THEMES.keys()),
+    # 'custom' is not in THEMES: it is built from the config at request
+    # time (see custom_palette), so it is offered here as a choice but
+    # never listed as a preset.
+    'theme': set(THEMES.keys()) | {'custom'},
     'focus_mode': {'off', 'gutter', 'lines'},
     'contrast': {'normal', 'high'},
     'glass_material': {'off', 'frosted', 'acrylic', 'mica'},
@@ -1047,7 +1267,12 @@ CONFIG_MAX_LENGTHS = {
 # as well as the empty, broken and "transparent" values that would
 # quietly make the code unreadable. A hex colour is the one colour
 # format that cannot carry a second declaration.
-CONFIG_HEX_COLORS = {'glass_tint', 'highlight_color'}
+CONFIG_HEX_COLORS = {
+    'glass_tint', 'highlight_color',
+    'theme_custom_bg', 'theme_custom_fg', 'theme_custom_keyword',
+    'theme_custom_string', 'theme_custom_comment', 'theme_custom_number',
+    'theme_custom_function',
+}
 
 # Only the 3- and 6-digit forms. The 4- and 8-digit forms (with alpha)
 # are left out on purpose: alpha is how a colour silently becomes
@@ -1314,7 +1539,9 @@ def update_install_api():
 
 @main_bp.route('/api/themes')
 def themes_api():
-    return jsonify(THEMES)
+    themes = dict(THEMES)
+    themes['custom'] = custom_palette(load_config())
+    return jsonify(themes)
 
 
 @main_bp.route('/api/fonts')

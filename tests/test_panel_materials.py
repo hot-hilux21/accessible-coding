@@ -418,11 +418,13 @@ class ServerAndBrowserAgreeTests(unittest.TestCase):
         code = re.sub(r"//[^\n]*", "", script)
         self.assertIn("function round(value)", code)
         self.assertIn("function clamp(value)", code)
-        # round() declared once and called once from clamp(). Counted with the
-        # declaration excluded, because "round(" also matches "Math.round(".
+        # round() declared once and called once from clamp(), three times in
+        # mixHex (one per channel) and three in readableTextOn. Counted with
+        # the declaration excluded, because "round(" also matches "Math.round(".
         self.assertEqual(
-            code.count("round(") - code.count("Math.round("), 2,
-            "round declared once and called once from clamp",
+            code.count("round(") - code.count("Math.round("), 8,
+            "round declared once and called once from clamp, three times in "
+            "mixHex and three in readableTextOn",
         )
         # clamp() declared once, then six call sites: three in parseHex (one per
         # channel), toHex, toSrgb, and the bisection.

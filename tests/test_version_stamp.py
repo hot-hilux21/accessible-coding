@@ -381,29 +381,37 @@ class ChannelPublishingTests(unittest.TestCase):
         return (REPO_ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
 
     def test_every_channel_the_app_knows_is_published_by_a_workflow(self):
-        text = self.workflow(self.RELEASE_WORKFLOW)
+        # beta and stable move on a tagged release; dev moves on every push
+        # to main. Each channel has to be written by at least one workflow,
+        # or the updater would point at an address nothing publishes.
+        release_text = self.workflow(self.RELEASE_WORKFLOW)
+        dev_text = self.workflow(self.DEV_WORKFLOW)
         for channel in updater.CHANNELS:
             with self.subTest(channel=channel):
-                self.assertIn(f"gh release upload {channel} ", text)
+                self.assertTrue(
+                    f"gh release upload {channel} " in release_text or
+                    f"gh release upload {channel} " in dev_text)
 
-    def test_the_app_never_points_at_a_release_main_branch_overwrites(self):
+    def test_only_the_dev_channel_points_at_a_release_main_branch_overwrites(self):
         # The one that was broken before: the updater read a release named
         # after the moving dev build, so every push to main quietly
-        # overwrote the address every reader was checking. The dev build has
-        # to be a release the app does not read, and it is not a channel.
-        self.assertNotIn("latest", updater.CHANNELS)
-        self.assertNotIn("dev", updater.CHANNELS)
+        # overwrote the address every reader was checking. The dev channel
+        # is that release by design, but it is opt-in: beta and stable must
+        # never point at it.
         dev_release = f"{updater.RELEASES_BASE}/download/dev/{updater.MANIFEST_NAME}"
         for channel in updater.CHANNELS:
             with self.subTest(channel=channel):
-                self.assertNotEqual(updater.manifest_url(channel), dev_release)
+                if channel == "dev":
+                    self.assertEqual(updater.manifest_url(channel), dev_release)
+                else:
+                    self.assertNotEqual(updater.manifest_url(channel), dev_release)
 
     def test_the_development_build_goes_to_dev_and_not_to_a_reader_channel(self):
         text = self.workflow(self.DEV_WORKFLOW)
         self.assertIn("gh release create dev", text)
         self.assertIn("gh release upload dev", text)
         # A dev build must not overwrite a release a reader is checking.
-        for channel in updater.CHANNELS:
+        for channel in ("beta", "stable"):
             with self.subTest(channel=channel):
                 self.assertNotIn(f"gh release upload {channel} ", text)
 

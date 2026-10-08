@@ -67,7 +67,7 @@ MANIFEST_NAME = 'version.json'
 
 RELEASES_BASE = f'https://github.com/{OWNER}/{REPO}/releases'
 
-# Two channels, and which one a reader is on.
+# Three channels, and which one a reader is on.
 #
 # "beta" is the working channel: every tagged release lands there, so a
 # reader on it gets each new version as soon as it is published. "stable" is
@@ -76,10 +76,16 @@ RELEASES_BASE = f'https://github.com/{OWNER}/{REPO}/releases'
 # reader who has never chosen should be on the channel that is actually
 # being worked on rather than one waiting for a first release.
 #
+# "dev" is every build of the main branch, published as it is made. It is
+# not offered in the settings screen: a reader reaches it by turning on
+# developer mode, so the people who see it are the ones testing the app.
+# A dev build is stamped from the newest tag plus a run number, so it always
+# sorts above the tag it was built from.
+#
 # The channel name is also the moving release tag the manifest is published
 # under, so the app needs no release-list API and no GitHub token: it reads
 # one small file at a fixed address.
-CHANNELS = ('beta', 'stable')
+CHANNELS = ('beta', 'stable', 'dev')
 DEFAULT_CHANNEL = 'beta'
 
 

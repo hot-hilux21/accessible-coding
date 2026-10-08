@@ -216,6 +216,58 @@ def tint_readable_on(tint, panel, text_colours):
     return best if best is not None else tuple(int(channel) for channel in panel)
 
 
+def mix_hex(a, b, t):
+    """``a`` and ``b`` mixed by ``t`` (0 is all ``a``, 1 is all ``b``).
+
+    A straight channel mix in sRGB space. It is not a perceptual blend, but
+    it is the same arithmetic the tint search uses, so a derived colour and
+    the search that checks it agree about what "toward" means.
+    """
+    a = parse_hex(a)
+    b = parse_hex(b)
+    return to_hex(tuple(_round(a[i] * (1 - t) + b[i] * t) for i in range(3)))
+
+
+def readable_text_on(background, colour):
+    """``colour`` made readable on ``background``, keeping its hue.
+
+    A text colour that already clears 4.5:1 is returned untouched. One that
+    does not is mixed toward the far extreme (white on a dark background,
+    black on a light one) until it does, and no further: the reader picked
+    a hue, and the app keeps as much of it as it can while keeping the
+    words readable. This is the same rule the panel tint uses, applied to a
+    single colour against a single background.
+
+    Mixing toward the background would be wrong here: a colour picked on
+    the same side as the background (near-black text on a near-black
+    background) only gets closer to it, and the search has no way out. The
+    far extreme is the anchor because it always clears, and contrast is
+    monotonic along the mix once the colour passes the background, so
+    bisection lands on the exact boundary.
+    """
+    bg = parse_hex(background)
+    colour = parse_hex(colour)
+    if contrast_ratio(colour, bg) >= AA_CONTRAST:
+        return to_hex(colour)
+    # The extreme with the higher contrast on this background. It always
+    # clears 4.5:1, so the search is bounded on a known-good side.
+    far = ((255, 255, 255) if contrast_ratio((255, 255, 255), bg) >=
+           contrast_ratio((0, 0, 0), bg) else (0, 0, 0))
+    low_mix, high_mix = 0.0, 1.0
+    best = None
+    for _ in range(_BISECTION_STEPS):
+        middle = (low_mix + high_mix) / 2
+        candidate = tuple(
+            _round(colour[i] * (1 - middle) + far[i] * middle) for i in range(3)
+        )
+        if contrast_ratio(candidate, bg) >= AA_CONTRAST:
+            best = candidate
+            high_mix = middle
+        else:
+            low_mix = middle
+    return to_hex(best if best is not None else far)
+
+
 def safe_panel_tint(tint_hex, panel_hex, text_colours=None):
     """The saved colour, or "" when the reader is following the theme.
 

@@ -258,6 +258,7 @@ class SetupWizardSettingsTests(ConfigApiTestCase):
         for name, shown in (
             ("language", False),
             ("font", False),
+            ("theme", False),
             ("tour", True),
         ):
             with self.subTest(step=name):
@@ -892,11 +893,16 @@ class HoverAndClickSpeechTests(ConfigApiTestCase):
 class ThemeApiTests(ConfigApiTestCase):
     def test_themes_endpoint_serves_the_editor_palettes(self):
         # app.js builds the CodeMirror theme from this response, so the
-        # key set here is the contract with the front end.
+        # key set here is the contract with the front end. The custom
+        # theme is built from the config rather than listed as a preset,
+        # so it is served here but is not in routes.THEMES.
         response = self.client.get("/api/themes")
         self.assertEqual(response.status_code, 200)
         themes = response.get_json()
-        self.assertEqual(sorted(themes), sorted(routes.THEMES))
+        self.assertEqual(
+            sorted(themes),
+            sorted(set(routes.THEMES) | {"custom"}),
+        )
         for name, palette in themes.items():
             with self.subTest(theme=name):
                 for key in ("name", "bg", "fg", "keyword", "string", "comment"):

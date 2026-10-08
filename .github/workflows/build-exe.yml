@@ -2,8 +2,11 @@ name: Build Exe (dev build)
 
 # Builds the Windows exe + Setup installer on every push to main and
 # publishes them to a "dev" release for testing a build before it is
-# tagged. Readers are not pointed here: they are served by the beta and
-# stable channels, which build-release.yml moves when a release is tagged.
+# tagged. Readers are not pointed here by default: they are served by the
+# beta and stable channels, which build-release.yml moves when a release is
+# tagged. A reader who turns on developer mode in the app is offered this
+# channel, so the manifest below has to point at the dev release, not at
+# "latest".
 # Download:
 #   exe:      https://github.com/hot-hilux21/accessible-coding/releases/download/dev/AccessibleIDE.exe
 #   installer: https://github.com/hot-hilux21/accessible-coding/releases/download/dev/AccessibleIDE-Setup.exe
@@ -72,10 +75,9 @@ jobs:
           # every push carries a number that is strictly newer than the one
           # before it and says which tag it was built from.
           #
-          # These builds are published to the "dev" release, which no reader
-          # is ever offered, so how a development build compares to a tagged
-          # release does not matter. The number is here to say which commit
-          # someone is testing.
+          # These builds are published to the "dev" release, which only a
+          # reader who has turned on developer mode is offered. The number
+          # is here to say which commit someone is testing.
           $lastTag = (git describe --tags --abbrev=0 2>$null)
           if (-not $lastTag) { $lastTag = "v0.0.0" }
           $base = $lastTag -replace '^v', ''
@@ -92,7 +94,7 @@ jobs:
             --version "${{ steps.stamp.outputs.version }}" `
             --file dist/AccessibleIDE.exe `
             --out dist/version.json `
-            --url "https://github.com/${{ github.repository }}/releases/download/latest/AccessibleIDE.exe" `
+            --url "https://github.com/${{ github.repository }}/releases/download/dev/AccessibleIDE.exe" `
             --notes "Automatic build of the main branch."
       - name: Upload exe artifact
         uses: actions/upload-artifact@v7
@@ -182,20 +184,20 @@ jobs:
         with:
           name: AccessibleIDE-Setup
           path: release/
-      # Named "dev", and the app never reads it. It used to be called
-      # "latest", which is where the updater looked - so every push to main
-      # quietly replaced the address readers were checking, and a
-      # development build ended up being what every update check compared
-      # against. Readers are served by the beta and stable channels in
-      # build-release.yml instead. This release is for testing a build
-      # before it is tagged.
+      # Named "dev", and only a reader who has turned on developer mode is
+      # offered it. It used to be called "latest", which is where the
+      # updater looked - so every push to main quietly replaced the address
+      # readers were checking, and a development build ended up being what
+      # every update check compared against. Readers are served by the beta
+      # and stable channels in build-release.yml instead. This release is
+      # for testing a build before it is tagged.
       - name: Update dev release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create dev \
             --title "Development build" \
-            --notes "Auto-built from the main branch. Not published to readers: the app checks the beta and stable channels." \
+            --notes "Auto-built from the main branch. Offered only to readers who have turned on developer mode." \
             --prerelease \
             --repo "${{ github.repository }}" 2>/dev/null || true
           gh release upload dev release/AccessibleIDE.exe release/AccessibleIDE-Setup.exe \

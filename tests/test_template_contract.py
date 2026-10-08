@@ -54,6 +54,11 @@ REQUIRED_SETTINGS_IDS = (
     "blur-field",
     "theme-select",
     "contrast-select",
+    "theme-gradient",
+    "theme-gradient-state",
+    "theme-builder",
+    "theme-custom-reset",
+    "theme-custom-saved",
     "focus-mode",
     "tts-toggle",
     "tts-state",
@@ -260,6 +265,7 @@ class TemplateContractTests(RenderedPageFixture):
             "data-focus-mode",
             "data-blur-intensity",
             "data-contrast",
+            "data-gradient",
             "data-tts-voice",
             "data-tts-rate",
         ):
@@ -272,6 +278,21 @@ class TemplateContractTests(RenderedPageFixture):
         # drift away from the rest of the theme.
         self.assertNotIn("THEME_COLORS", self.js)
         self.assertIn("/api/themes", self.js)
+
+    def test_the_theme_builder_has_a_field_for_every_custom_colour(self):
+        # The builder edits the seven colours the reader can pick; the rest
+        # of the palette is derived from them. Each field has a picker, a
+        # hex box, an error line and a contrast status, all named after the
+        # colour so the template loop and the JS agree.
+        for key in routes.CUSTOM_THEME_COLOURS:
+            with self.subTest(key=key):
+                self.assertIn(f'id="theme-custom-{key}"', self.html)
+                self.assertIn(f'id="theme-custom-{key}-picker"', self.html)
+                self.assertIn(f'id="theme-custom-{key}-error"', self.html)
+                self.assertIn(f'id="theme-custom-{key}-status"', self.html)
+        # The builder is hidden until the custom theme is chosen, so it
+        # cannot crowd the settings panel for everyone else.
+        self.assertIn('id="theme-builder" hidden', self.html)
 
     def test_saved_values_apply_without_a_reload(self):
         # The three settings that used to be stored but never read.
@@ -703,6 +724,7 @@ class SetupWizardTests(RenderedPageFixture):
         "setup-status",
         "setup-panel-language",
         "setup-panel-font",
+        "setup-panel-theme",
         "setup-panel-tour",
         "setup-skip",
         "setup-back",
@@ -774,7 +796,7 @@ class SetupWizardTests(RenderedPageFixture):
         )
         self.assertIsNotNone(progress)
         assert progress is not None  # narrow the type for checkers
-        self.assertIn("3", progress.group(1))
+        self.assertIn("4", progress.group(1))
         self.assertNotIn("/", progress.group(1))
         self.assertRegex(self.html, r'id="setup-progress"[^>]*role="status"')
 
@@ -791,10 +813,10 @@ class SetupWizardTests(RenderedPageFixture):
         self.assertEqual(
             shown,
             [("setup-panel-language", False), ("setup-panel-font", True),
-             ("setup-panel-tour", False)],
+             ("setup-panel-theme", False), ("setup-panel-tour", False)],
             "resuming on step 2 should show the font question and hide the rest",
         )
-        self.assertIn("Step 2 of 3", resumed)
+        self.assertIn("Step 2 of 4", resumed)
         # Back is hidden on the first step, because there is nowhere before
         # it to go, and offered from the second onwards.
         self.assertRegex(self.html, r'id="setup-back"[^>]*hidden')
@@ -976,14 +998,27 @@ class SetupWizardTests(RenderedPageFixture):
                     )
 
     def test_the_wizard_does_not_move_by_itself(self):
-        # Nothing in a three-question screen needs to animate. A reader
-        # with a visual processing difference is asked to read and click
-        # at the same time, and movement makes that harder rather than
-        # easier. The buttons do inherit a hover transition from .btn, so
-        # this is about the wizard's own rules adding none.
+        # Nothing in a four-question screen needs to animate on its own. A
+        # reader with a visual processing difference is asked to read and
+        # click at the same time, and movement makes that harder rather
+        # than easier. The one exception is the step-change fade: it runs
+        # only when the reader's own click reveals a new question, it moves
+        # opacity and transform only, and the reduced-motion rules above
+        # turn it off entirely. The buttons do inherit a hover transition
+        # from .btn, so this is about the wizard's own rules adding none.
         rules = self.wizard_css()
-        self.assertNotIn("animation", rules)
+        self.assertNotIn("infinite", rules)
         self.assertNotIn("transition", rules)
+        # The fade is the only animation, and it is tied to the panel
+        # becoming visible, so it cannot play on a panel that is already
+        # on screen.
+        animations = re.findall(r"animation:\s*([^;]+);", rules)
+        self.assertEqual(
+            animations,
+            ["setup-enter var(--motion-med) var(--ease)"],
+            "the wizard's only animation is the step-change fade",
+        )
+        self.assertIn(".setup-panel:not([hidden])", rules)
 
     def test_hidden_panels_cannot_be_revealed_by_the_page_css(self):
         # The panels are shown and hidden by attribute from app.js. The

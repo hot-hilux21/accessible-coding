@@ -244,6 +244,18 @@
       '#7a1fa2': '#5c1478', '#1b6b2f': '#114a1f', '#5c5c5c': '#3d3d3d',
       '#a03000': '#702100', '#0057b8': '#003d80', '#3d3d3d': '#262626',
       '#4a4a4a': '#333333'
+    },
+    ocean: {
+      '#e8eef7': '#f4f8fc', '#9fb0c4': '#b8c6d6',
+      '#8fc7ff': '#a8d4ff', '#a8e6c1': '#c2f0d4', '#8fa3b8': '#a8b8c8',
+      '#ffd98a': '#ffe6ab', '#7fd4ff': '#9adfff', '#dbe6f2': '#eaf1f8',
+      '#b8c8da': '#ccd8e6', '#c2d0e0': '#d4deea'
+    },
+    forest: {
+      '#e6efe6': '#f2f8f2', '#9cb3a0': '#b4c8b8',
+      '#a8e6a8': '#c2f0c2', '#e6d9a8': '#f0e6c2', '#8fa893': '#a8bcaa',
+      '#e6c88a': '#f0d8ab', '#8fd4c1': '#aae0d0', '#d8e6d8': '#e8f2e8',
+      '#b0c4b4': '#c4d4c8', '#bcccb8': '#ccd8c8'
     }
   };
 
@@ -306,7 +318,115 @@
     }
     themeStyleEl.textContent = rules;
     editor.setOption('theme', 'accessible-theme');
+    applyCustomChrome(themeKey);
     updatePreview();
+  }
+
+  // ---------- The custom theme ----------
+  // The reader's own theme. Seven colours are picked in Settings; the rest
+  // of the palette is derived from them so the derived colours can never
+  // cost contrast. The server is the authority (custom_palette and
+  // custom_chrome in routes.py); these two functions are the browser's
+  // copies, so a pick previews live and a theme change lands without a
+  // reload. tests/test_contrast.py checks the server's derivation, and the
+  // dom harness checks these against the same rules.
+  var CUSTOM_CHROME_KEYS = [
+    '--bg', '--fg', '--accent', '--accent-fg', '--panel-bg',
+    '--panel-border', '--muted', '--error-bg', '--error-border',
+    '--error-fg', '--error-line', '--focus-ring'
+  ];
+
+  function customPalette(picks) {
+    var T = AccessibleTint;
+    var bg = T.parseHex(picks.bg);
+    var fg = T.readableTextOn(bg, picks.fg);
+    var keyword = T.readableTextOn(bg, picks.keyword);
+    var string = T.readableTextOn(bg, picks.string);
+    var comment = T.readableTextOn(bg, picks.comment);
+    var number = T.readableTextOn(bg, picks.number);
+    var fn = T.readableTextOn(bg, picks.function);
+    var selection = T.toHex(T.tintReadableOn(
+      T.mixHex(bg, fg, 0.25), bg, [fg]));
+    var gutterBg = T.mixHex(bg, fg, 0.04);
+    return {
+      name: 'Custom',
+      bg: T.toHex(bg),
+      fg: fg,
+      selection: selection,
+      highlight: T.mixHex(bg, fg, 0.06),
+      cursor: fg,
+      gutter_bg: gutterBg,
+      // Clamped against the background like every other text colour; the
+      // gutter is only 4% away from it, so this clears on the gutter too.
+      gutter_fg: T.readableTextOn(bg, T.mixHex(fg, bg, 0.35)),
+      keyword: keyword,
+      string: string,
+      comment: comment,
+      number: number,
+      function: fn,
+      variable: fg,
+      operator: keyword,
+      punctuation: fg
+    };
+  }
+
+  function customChrome(palette) {
+    var T = AccessibleTint;
+    var bg = T.parseHex(palette.bg);
+    var fg = T.parseHex(palette.fg);
+    var panel = T.parseHex(palette.gutter_bg);
+    var accent = fg;
+    var black = [0, 0, 0], white = [255, 255, 255];
+    var accentFg;
+    if (T.contrastRatio(black, accent) >= 4.5) {
+      accentFg = '#000000';
+    } else if (T.contrastRatio(white, accent) >= 4.5) {
+      accentFg = '#ffffff';
+    } else {
+      // A mid-grey accent clears neither extreme. Fade it toward the
+      // background until the extreme that clears on the background clears
+      // on it - the fade always has a known-good side.
+      accentFg = T.contrastRatio(white, bg) >= T.contrastRatio(black, bg)
+        ? '#ffffff' : '#000000';
+      accent = T.tintReadableOn(T.toHex(accent), bg, [accentFg]);
+    }
+    var errorBg = T.mixHex(bg, '#ff6b6b', 0.12);
+    var errorFgBase, errorBorderBase;
+    if (T.luminance(bg) < 0.5) {
+      errorFgBase = '#ffb3b3'; errorBorderBase = '#ff6b6b';
+    } else {
+      errorFgBase = '#8f2f1a'; errorBorderBase = '#c0523f';
+    }
+    return {
+      '--bg': palette.bg,
+      '--fg': palette.fg,
+      '--accent': T.toHex(accent),
+      '--accent-fg': accentFg,
+      '--panel-bg': palette.gutter_bg,
+      '--panel-border': T.mixHex(bg, fg, 0.2),
+      '--muted': T.readableTextOn(panel, T.mixHex(fg, bg, 0.25)),
+      '--error-bg': errorBg,
+      '--error-border': T.readableTextOn(errorBg, errorBorderBase),
+      '--error-fg': T.readableTextOn(errorBg, errorFgBase),
+      '--error-line': 'color-mix(in srgb, var(--error-border) 16%, transparent)',
+      '--focus-ring': palette.fg
+    };
+  }
+
+  function applyCustomChrome(themeKey) {
+    var palette = themePalette[themeKey];
+    if (themeKey !== 'custom' || !palette || !palette.bg) {
+      // A preset theme's chrome comes from the stylesheet. The inline
+      // variables are removed so they cannot win the cascade over it.
+      CUSTOM_CHROME_KEYS.forEach(function (key) {
+        body.style.removeProperty(key);
+      });
+      return;
+    }
+    var chrome = customChrome(palette);
+    Object.keys(chrome).forEach(function (key) {
+      body.style.setProperty(key, chrome[key]);
+    });
   }
 
   // ---------- Fonts ----------
@@ -781,6 +901,23 @@
         // Saved straight away, so a reader who chooses a font and then
         // skips does not lose the choice.
         saveConfig({ font: radio.value }).then(function (result) {
+          if (!result || !result.ok) setupError();
+        });
+      });
+    });
+
+    var themeRadios = setupDialog.querySelectorAll('input[name="setup-theme"]');
+    Array.prototype.forEach.call(themeRadios, function (radio) {
+      radio.addEventListener('change', function () {
+        var chosen = radio.value;
+        if (!chosen) return;
+        // The editor behind the wizard repaints so the reader sees the
+        // theme against real code, not just the swatches.
+        applyTheme(chosen);
+        body.setAttribute('data-theme', chosen);
+        // Saved straight away, so a reader who chooses a theme and then
+        // skips does not lose the choice.
+        saveConfig({ theme: chosen }).then(function (result) {
           if (!result || !result.ok) setupError();
         });
       });
@@ -1873,8 +2010,159 @@
   themeSelect.addEventListener('change', function () {
     applyTheme(themeSelect.value);
     body.setAttribute('data-theme', themeSelect.value);
+    syncThemeBuilder();
     saveConfig({ theme: themeSelect.value });
   });
+
+  // ---------- Theme builder ----------
+  // The reader's own theme. Seven colours are picked; the rest of the
+  // palette is derived from them (customPalette above, mirrored from
+  // custom_palette in routes.py). The server is the authority on what gets
+  // saved; the browser copy exists so a pick previews live.
+  var themeBuilder = document.getElementById('theme-builder');
+  var themeBuilderFields = ['bg', 'fg', 'keyword', 'string', 'comment', 'number', 'function'];
+  var themeCustomReset = document.getElementById('theme-custom-reset');
+  var themeCustomSaved = document.getElementById('theme-custom-saved');
+
+  function syncThemeBuilder() {
+    if (!themeBuilder) return;
+    themeBuilder.hidden = themeSelect.value !== 'custom';
+  }
+
+  function customFieldHex(key) {
+    return document.getElementById('theme-custom-' + key);
+  }
+
+  function customFieldPicker(key) {
+    return document.getElementById('theme-custom-' + key + '-picker');
+  }
+
+  function customFieldStatus(key) {
+    return document.getElementById('theme-custom-' + key + '-status');
+  }
+
+  function buildCustomPalette() {
+    var picks = {};
+    themeBuilderFields.forEach(function (key) {
+      picks[key] = customFieldHex(key).value;
+    });
+    return customPalette(picks);
+  }
+
+  // The contrast of a raw pick against the picked background, shown under
+  // the field. The server clamps a pick that fails, so this is a preview
+  // of what will happen to the colour, not a rejection of it.
+  function paintCustomStatus(key) {
+    var status = customFieldStatus(key);
+    if (!status) return;
+    var bg = customFieldHex('bg').value;
+    var colour = customFieldHex(key).value;
+    var ratio = 0;
+    try {
+      ratio = AccessibleTint.contrastRatio(
+        AccessibleTint.parseHex(colour), AccessibleTint.parseHex(bg));
+    } catch (error) {
+      status.hidden = true;
+      return;
+    }
+    status.hidden = false;
+    status.textContent = ratio >= 4.5
+      ? t('theme.custom_contrast_ok')
+      : t('theme.custom_contrast_fail');
+  }
+
+  function repaintCustomTheme() {
+    var palette;
+    try {
+      palette = buildCustomPalette();
+    } catch (error) {
+      return; // a field is mid-typing; the save validates it
+    }
+    themePalette.custom = palette;
+    if (themeSelect.value === 'custom') {
+      applyTheme('custom');
+      applyGlassTint(glassTint);
+    }
+    themeBuilderFields.forEach(paintCustomStatus);
+  }
+
+  function saveCustomTheme() {
+    var payload = {};
+    themeBuilderFields.forEach(function (key) {
+      payload['theme_custom_' + key] = customFieldHex(key).value;
+    });
+    return saveConfig(payload).then(function () {
+      if (themeCustomSaved) {
+        themeCustomSaved.hidden = false;
+        themeCustomSaved.textContent = t('theme.custom_saved');
+      }
+    });
+  }
+
+  if (themeBuilder) {
+    themeBuilderFields.forEach(function (key) {
+      var hex = customFieldHex(key);
+      var picker = customFieldPicker(key);
+      if (hex) {
+        hex.addEventListener('input', function () {
+          if (picker && /^#[0-9a-fA-F]{6}$/.test(hex.value)) picker.value = hex.value;
+          repaintCustomTheme();
+        });
+        hex.addEventListener('change', function () {
+          saveCustomTheme();
+        });
+      }
+      if (picker) {
+        picker.addEventListener('input', function () {
+          hex.value = picker.value;
+          repaintCustomTheme();
+        });
+        picker.addEventListener('change', function () {
+          saveCustomTheme();
+        });
+      }
+    });
+    if (themeCustomReset) {
+      themeCustomReset.addEventListener('click', function () {
+        // The defaults are the high-contrast theme's colours, the same
+        // values DEFAULT_CONFIG starts with in routes.py.
+        var defaults = {
+          bg: '#0b0b0b', fg: '#ffffff', keyword: '#ff9a9a',
+          string: '#93e6a8', comment: '#b4b4b4', number: '#ffd93d',
+          function: '#93d4ff'
+        };
+        themeBuilderFields.forEach(function (key) {
+          customFieldHex(key).value = defaults[key];
+          customFieldPicker(key).value = defaults[key];
+        });
+        repaintCustomTheme();
+        saveCustomTheme();
+      });
+    }
+  }
+
+  // ---------- Background gradient ----------
+  // A very subtle pull of the background toward the foreground colour, so
+  // the page is not a flat slab. It is off by default for readers who find
+  // any movement of tone distracting, and it never touches text.
+  var themeGradient = document.getElementById('theme-gradient');
+  var themeGradientState = document.getElementById('theme-gradient-state');
+
+  function applyThemeGradient(on) {
+    body.setAttribute('data-gradient', on ? 'on' : 'off');
+    if (themeGradientState) themeGradientState.textContent = on
+      ? t('switch.on') : t('switch.off');
+  }
+
+  if (themeGradient) {
+    themeGradient.addEventListener('click', function () {
+      var on = themeGradient.getAttribute('aria-checked') !== 'true';
+      themeGradient.setAttribute('aria-checked', on ? 'true' : 'false');
+      themeGradient.classList.toggle('active', on);
+      applyThemeGradient(on);
+      saveConfig({ theme_gradient: on });
+    });
+  }
 
   contrastSelect.addEventListener('change', function () {
     applyContrast(contrastSelect.value);
@@ -2173,6 +2461,70 @@
       });
     });
   }
+
+  // ---------- Developer mode ----------
+  // Hidden on purpose: it is for the people building the app, not for the
+  // readers. Right-clicking the Settings button (or pressing Shift+F10 on
+  // it) adds the "dev" update channel to the channel list. The choice is
+  // remembered in localStorage, so it survives a reload but stays on this
+  // machine. Turning it off removes the channel again.
+  var devMode = false;
+
+  function ensureDevOption() {
+    if (!updateChannelEl) return;
+    var devOption = updateChannelEl.querySelector('option[value="dev"]');
+    if (devMode && !devOption) {
+      var option = document.createElement('option');
+      option.value = 'dev';
+      option.textContent = t('update.channel_dev');
+      updateChannelEl.appendChild(option);
+    } else if (!devMode && devOption) {
+      // Leaving dev mode while the dev channel is chosen would strand the
+      // reader on a channel they can no longer see. Fall back to beta, the
+      // default, and save it so the server agrees.
+      if (updateChannelEl.value === 'dev') {
+        updateChannelEl.value = 'beta';
+        saveConfig({ update_channel: 'beta' });
+      }
+      devOption.remove();
+    }
+  }
+
+  function setDevMode(on) {
+    devMode = on;
+    try {
+      localStorage.setItem('accessible_ide_dev_mode', on ? '1' : '0');
+    } catch (error) {
+      // Storage can be unavailable (private mode, some embedded browsers).
+      // The mode still works for this page load.
+    }
+    ensureDevOption();
+    say(on ? t('update.dev_mode_on') : t('update.dev_mode_off'));
+  }
+
+  function toggleDevMode() {
+    setDevMode(!devMode);
+  }
+
+  if (btnSettings) {
+    btnSettings.addEventListener('contextmenu', function (event) {
+      event.preventDefault();
+      toggleDevMode();
+    });
+    btnSettings.addEventListener('keydown', function (event) {
+      if (event.key === 'F10' && event.shiftKey) {
+        event.preventDefault();
+        toggleDevMode();
+      }
+    });
+  }
+
+  try {
+    devMode = localStorage.getItem('accessible_ide_dev_mode') === '1';
+  } catch (error) {
+    devMode = false;
+  }
+  ensureDevOption();
 
   if (btnCheckUpdate) {
     btnCheckUpdate.addEventListener('click', function () {
