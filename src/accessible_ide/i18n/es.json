@@ -59,6 +59,8 @@
   "group.updates": "Actualizaciones",
   "language.help": "Esto cambia las palabras de AccessibleIDE. Tu código se queda igual.",
   "language.label": "Idioma",
+  "layout.editor_divider": "Cambiar el tamaño del editor y la salida",
+  "layout.shell_divider": "Cambiar el tamaño de la salida y el shell",
   "motion.help": "Al activarlo, los botones, los interruptores y los paneles dejan de moverse. No desaparece nada, solo llega todo de inmediato.",
   "motion.hint": "El movimiento es un extra. Desactivarlo no cambia lo que hace la aplicación, solo la rapidez con la que aparecen las cosas.",
   "motion.label": "Reducir el movimiento",

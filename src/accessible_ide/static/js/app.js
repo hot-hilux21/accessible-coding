@@ -2210,6 +2210,141 @@
     });
   }
 
+  // ---------- Resizable panes ----------
+  // The workspace is a split view: the editor on the left, the output on
+  // the right, and the shell below the output when it is open. The dividers
+  // are separators, so a reader who cannot use a mouse can still resize
+  // with the arrow keys, and a screen reader hears the current size as a
+  // percentage.
+  //
+  // The sizes live in CSS variables on the two containers, and a drag only
+  // rewrites the numbers. The layout itself stays in the stylesheet, where
+  // a narrow screen can fall back to stacked panes without this script
+  // having to know about it.
+  var workspaceEl = document.getElementById('workspace');
+  var rightColumn = document.getElementById('right-column');
+  var dividerMain = document.getElementById('divider-main');
+  var dividerShell = document.getElementById('divider-shell');
+  var LAYOUT_KEY = 'accessible_ide_layout';
+  var MIN_PCT = 20;
+  var MAX_PCT = 80;
+  var editorWidthPct = 50;
+  var shellHeightPct = 40;
+
+  function clampPct(value) {
+    return Math.min(MAX_PCT, Math.max(MIN_PCT, value));
+  }
+
+  function applyLayout() {
+    if (workspaceEl) workspaceEl.style.setProperty('--editor-width', editorWidthPct + '%');
+    if (rightColumn) rightColumn.style.setProperty('--shell-height', shellHeightPct + '%');
+    if (dividerMain) dividerMain.setAttribute('aria-valuenow', String(editorWidthPct));
+    if (dividerShell) dividerShell.setAttribute('aria-valuenow', String(shellHeightPct));
+  }
+
+  // The layout is the reader's own: where they put a divider is where it
+  // stays, on this browser. A corrupt value is ignored and the defaults
+  // stand, the same way a hand-edited config file is.
+  try {
+    var savedLayout = JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}');
+    if (typeof savedLayout.editorWidth === 'number') editorWidthPct = clampPct(savedLayout.editorWidth);
+    if (typeof savedLayout.shellHeight === 'number') shellHeightPct = clampPct(savedLayout.shellHeight);
+  } catch (e) { /* defaults stand */ }
+  applyLayout();
+
+  function saveLayout() {
+    try {
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify({
+        editorWidth: editorWidthPct,
+        shellHeight: shellHeightPct
+      }));
+    } catch (e) { /* a full or blocked store is not worth a dialog */ }
+  }
+
+  function startPaneDrag(e, axis) {
+    // Only the primary button drags. A right-click must not start a resize.
+    if (e.button && e.button !== 0) return;
+    e.preventDefault();
+    var divider = axis === 'vertical' ? dividerMain : dividerShell;
+    if (!divider) return;
+    if (divider.setPointerCapture) {
+      try { divider.setPointerCapture(e.pointerId); } catch (err) { /* already released */ }
+    }
+    var startX = e.clientX;
+    var startY = e.clientY;
+    var startWidth = editorWidthPct;
+    var startHeight = shellHeightPct;
+    var moved = false;
+
+    function onMove(ev) {
+      if (axis === 'vertical') {
+        var width = workspaceEl && workspaceEl.getBoundingClientRect ?
+          workspaceEl.getBoundingClientRect().width : 0;
+        if (width > 0) {
+          editorWidthPct = clampPct(startWidth + ((ev.clientX - startX) / width) * 100);
+          moved = true;
+        }
+      } else {
+        var height = rightColumn && rightColumn.getBoundingClientRect ?
+          rightColumn.getBoundingClientRect().height : 0;
+        if (height > 0) {
+          shellHeightPct = clampPct(startHeight + ((ev.clientY - startY) / height) * 100);
+          moved = true;
+        }
+      }
+      applyLayout();
+    }
+
+    function onUp() {
+      divider.removeEventListener('pointermove', onMove);
+      divider.removeEventListener('pointerup', onUp);
+      divider.removeEventListener('pointercancel', onUp);
+      if (moved) {
+        saveLayout();
+        // CodeMirror lays out to the size it was given. After a drag it has
+        // to be told the editor pane changed, or the text keeps the old
+        // width until the next window resize.
+        if (typeof editor.refresh === 'function') editor.refresh();
+      }
+    }
+
+    divider.addEventListener('pointermove', onMove);
+    divider.addEventListener('pointerup', onUp);
+    divider.addEventListener('pointercancel', onUp);
+  }
+
+  function nudgePane(axis, delta) {
+    if (axis === 'vertical') {
+      editorWidthPct = clampPct(editorWidthPct + delta);
+    } else {
+      shellHeightPct = clampPct(shellHeightPct + delta);
+    }
+    applyLayout();
+    saveLayout();
+    if (typeof editor.refresh === 'function') editor.refresh();
+  }
+
+  if (dividerMain) {
+    dividerMain.addEventListener('pointerdown', function (e) { startPaneDrag(e, 'vertical'); });
+    dividerMain.addEventListener('keydown', function (e) {
+      var step = e.shiftKey ? 10 : 5;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); nudgePane('vertical', -step); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); nudgePane('vertical', step); }
+      else if (e.key === 'Home') { e.preventDefault(); nudgePane('vertical', -100); }
+      else if (e.key === 'End') { e.preventDefault(); nudgePane('vertical', 100); }
+    });
+  }
+  if (dividerShell) {
+    dividerShell.addEventListener('pointerdown', function (e) { startPaneDrag(e, 'horizontal'); });
+    dividerShell.addEventListener('keydown', function (e) {
+      var step = e.shiftKey ? 10 : 5;
+      if (e.key === 'ArrowUp') { e.preventDefault(); nudgePane('horizontal', -step); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); nudgePane('horizontal', step); }
+      else if (e.key === 'Home') { e.preventDefault(); nudgePane('horizontal', -100); }
+      else if (e.key === 'End') { e.preventDefault(); nudgePane('horizontal', 100); }
+    });
+  }
+
   // The Python shell.
   //
   // Deliberately not the runner above. The runner is for handing in a file
@@ -2267,6 +2402,9 @@
   function shellOpen() {
     if (!shellPane || !shellPane.hidden) return;
     shellPane.hidden = false;
+    // The divider between the output and the shell comes with it. A line
+    // with nothing on the other side of it would just be a line.
+    if (dividerShell) dividerShell.hidden = false;
     if (btnShell) btnShell.setAttribute('aria-expanded', 'true');
     if (shellInput) shellInput.focus();
     if (shellSession) return;
@@ -2288,6 +2426,7 @@
   function shellClose() {
     if (!shellPane || shellPane.hidden) return;
     shellPane.hidden = true;
+    if (dividerShell) dividerShell.hidden = true;
     if (btnShell) btnShell.setAttribute('aria-expanded', 'false');
     // Closing hands the process back rather than leaving it running for
     // nobody. The id is forgotten, so reopening starts a clean shell.

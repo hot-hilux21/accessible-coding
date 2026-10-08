@@ -76,6 +76,10 @@ const KNOWN_IDS = new Set([
   // exercised, while the harness still reports success.
   'btn-shell', 'shell-pane', 'shell-input', 'shell-output', 'shell-status',
   'shell-run', 'shell-clear', 'shell-close',
+  // The split view: the editor and the right-hand column, and the two
+  // dividers between them. The dividers are separators, so the harness can
+  // check the keyboard path and the drag path both work.
+  'workspace', 'right-column', 'divider-main', 'divider-shell',
   // The two JSON script blocks the server embeds. They are not elements
   // app.js draws with, but without them every t() call falls back to
   // returning the key, and this harness would stop testing translations
@@ -112,6 +116,28 @@ const STEPPER_BUTTONS = {
   'line-height-more': { 'data-target': 'line-height', 'data-step': '0.1' },
   'letter-spacing-less': { 'data-target': 'letter-spacing', 'data-step': '-0.1' },
   'letter-spacing-more': { 'data-target': 'letter-spacing', 'data-step': '0.1' },
+};
+
+// The pane dividers are separators, and the template gives each one its
+// role, orientation, size range and starting size. A stub without these
+// would let every separator check pass for the wrong reason.
+const DIVIDER_ATTRIBUTES = {
+  'divider-main': {
+    role: 'separator',
+    'aria-orientation': 'vertical',
+    'aria-valuemin': '20',
+    'aria-valuemax': '80',
+    'aria-valuenow': '50',
+    tabindex: '0',
+  },
+  'divider-shell': {
+    role: 'separator',
+    'aria-orientation': 'horizontal',
+    'aria-valuemin': '20',
+    'aria-valuemax': '80',
+    'aria-valuenow': '40',
+    tabindex: '0',
+  },
 };
 
 const lookups = [];
@@ -161,6 +187,7 @@ function attributesFor(id) {
     { 'data-tts-voice-gender': 'male' },
     range ? { min: range.min, max: range.max, step: range.step } : {},
     STEPPER_BUTTONS[id] || {},
+    DIVIDER_ATTRIBUTES[id] || {},
   );
 }
 
@@ -192,8 +219,13 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
 
   // style is a real object, not a swallowing proxy, so the harness can
   // read back what the code actually set. The preview's resolved colour is
-  // the whole point of the panel, and it has to be checkable.
-  const style = { setProperty: noop, removeProperty: noop };
+  // the whole point of the panel, and it has to be checkable. setProperty
+  // records the same way, so a CSS variable the code wrote (the pane
+  // widths) can be read back as a property.
+  const style = {
+    setProperty: (name, value) => { style[name] = value; },
+    removeProperty: (name) => { delete style[name]; },
+  };
 
   // Replacing a select's contents empties it, as setting innerHTML does in
   // a browser. app.js clears the voice list that way before refilling it.
@@ -225,7 +257,12 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
     addEventListener: (type, handler) => {
       (listeners[type] = listeners[type] || []).push(handler);
     },
-    removeEventListener: noop,
+    // Removal is real too. The pane dividers add move and up handlers for
+    // the duration of a drag and remove them on release; a stub that kept
+    // them would fire a stale handler at the next drag.
+    removeEventListener: (type, handler) => {
+      listeners[type] = (listeners[type] || []).filter((h) => h !== handler);
+    },
     // A real <select> collects the options appended to it, and empties them
     // when its contents are replaced. Without this the voice picker looks
     // permanently empty, and every check about what a reader can choose
@@ -566,6 +603,9 @@ const INSTALLED_VOICES = [
 // bodyAttrs stands in for the settings the server rendered onto the body,
 // which is how a saved choice survives a reload.
 function makePage(locale, shared, bodyAttrs) {
+  // A per-page store, so a layout saved on one page does not leak into the
+  // next page the harness builds.
+  const store = new Map();
   const catalogue = CATALOGUES[locale] || CATALOGUE;
   const i18nScripts = {
     'i18n-data': makeElement('i18n-data', {}, { textContent: JSON.stringify(catalogue) }),
@@ -645,6 +685,9 @@ function makePage(locale, shared, bodyAttrs) {
           // tell has happened. Starting it open would make every later
           // check pass for the wrong reason.
           id === 'shell-pane' ? { hidden: true } : {},
+          // Its divider is hidden with it: a line with nothing on the other
+          // side of it would just be a line.
+          id === 'divider-shell' ? { hidden: true } : {},
         );
         found.set(id, makeElement(id, attributesFor(id), props));
       }
@@ -668,7 +711,11 @@ function makePage(locale, shared, bodyAttrs) {
     document: doc,
     navigator: { language: locale, userAgent: 'stub' },
     matchMedia: () => ({ matches: false, addEventListener: noop, removeEventListener: noop }),
-    localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+    localStorage: {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => { store.set(key, String(value)); },
+      removeItem: (key) => { store.delete(key); },
+    },
     fetch: fetchStub,
     setTimeout, clearTimeout, setInterval, clearInterval,
     Promise, JSON, Math, Date, Number, String, Object, Array,
@@ -700,7 +747,7 @@ function makePage(locale, shared, bodyAttrs) {
   context.globalThis = context;
   context.self = context;
   vm.createContext(context);
-  return { context, doc, found, spoken };
+  return { context, doc, found, spoken, store };
 }
 
 // Fire a handler on an element of a page built by makePage.
@@ -2667,6 +2714,97 @@ function readText(node) {
   return (node.children || []).map(readText).join(' ');
 }
 
+// The split view: two separators, a keyboard path and a drag path, and a
+// layout that remembers where the reader put the dividers. The shell
+// divider's own visibility is checked in runShellChecks, where the shell
+// is actually opened and closed.
+function runLayoutChecks() {
+  const workspace = elements.get('workspace');
+  const rightColumn = elements.get('right-column');
+  const main = elements.get('divider-main');
+  const shellDivider = elements.get('divider-shell');
+
+  // Both dividers are separators with a size a screen reader can hear.
+  if (main.getAttribute('role') !== 'separator' ||
+      main.getAttribute('aria-orientation') !== 'vertical' ||
+      main.getAttribute('aria-valuenow') !== '50') {
+    failed = true;
+    console.log('FAIL the editor divider is not a vertical separator at 50%');
+  } else {
+    console.log('     the editor divider is a separator, and it starts at half the width');
+  }
+
+  if (shellDivider.getAttribute('role') !== 'separator' ||
+      shellDivider.getAttribute('aria-orientation') !== 'horizontal') {
+    failed = true;
+    console.log('FAIL the shell divider is not a horizontal separator');
+  } else {
+    console.log('     the shell divider is a horizontal separator');
+  }
+
+  // The shell divider is hidden with the shell, which runShellChecks opens
+  // and closes. Here it only has to start hidden.
+  if (!shellDivider.hidden) {
+    failed = true;
+    console.log('FAIL the shell divider was visible while the shell was closed');
+  } else {
+    console.log('     the shell divider is hidden until the shell opens');
+  }
+
+  // The keyboard path: ArrowRight widens the editor by one step, and the
+  // width reaches the stylesheet as a CSS variable.
+  fire('divider-main', 'keydown', { key: 'ArrowRight', preventDefault: noop, stopPropagation: noop });
+  if (main.getAttribute('aria-valuenow') !== '55') {
+    failed = true;
+    console.log(`FAIL ArrowRight did not widen the editor: ${main.getAttribute('aria-valuenow')}`);
+  } else if (workspace.style['--editor-width'] !== '55%') {
+    failed = true;
+    console.log(`FAIL the editor width never reached the stylesheet: ${workspace.style['--editor-width']}`);
+  } else {
+    console.log('     ArrowRight widens the editor, and the width reaches the stylesheet');
+  }
+
+  // The drag path: press, move, release. The stub's workspace is 100px
+  // wide, so ten pixels is ten percent.
+  fire('divider-main', 'pointerdown', { button: 0, clientX: 500, preventDefault: noop, stopPropagation: noop });
+  fire('divider-main', 'pointermove', { clientX: 510, preventDefault: noop, stopPropagation: noop });
+  fire('divider-main', 'pointerup', { preventDefault: noop, stopPropagation: noop });
+  if (main.getAttribute('aria-valuenow') !== '65') {
+    failed = true;
+    console.log(`FAIL dragging did not resize the editor: ${main.getAttribute('aria-valuenow')}`);
+  } else {
+    console.log('     dragging the divider resizes the editor');
+  }
+
+  // The layout is remembered, so the reader does not have to drag it back
+  // into place on every visit.
+  if (mainPage.store.get('accessible_ide_layout') !== '{"editorWidth":65,"shellHeight":40}') {
+    failed = true;
+    console.log(`FAIL the layout was not remembered: ${mainPage.store.get('accessible_ide_layout')}`);
+  } else {
+    console.log('     the layout is remembered for the next visit');
+  }
+
+  // Home and End go to the ends, and the ends are clamped so a hand-edited
+  // value can never leave a pane unreadable.
+  fire('divider-main', 'keydown', { key: 'Home', preventDefault: noop, stopPropagation: noop });
+  if (main.getAttribute('aria-valuenow') !== '20') {
+    failed = true;
+    console.log(`FAIL Home did not take the editor to its narrowest: ${main.getAttribute('aria-valuenow')}`);
+  } else {
+    console.log('     Home takes the editor to its narrowest');
+  }
+  fire('divider-main', 'keydown', { key: 'End', preventDefault: noop, stopPropagation: noop });
+  if (main.getAttribute('aria-valuenow') !== '80') {
+    failed = true;
+    console.log(`FAIL End did not take the editor to its widest: ${main.getAttribute('aria-valuenow')}`);
+  } else {
+    console.log('     End takes the editor to its widest');
+  }
+
+  console.log('layout: 8 checks');
+}
+
 // The Python shell, end to end: closed, opened, a command run, the answer
 // kept on screen, a failure explained, and a close that hands the process
 // back rather than leaving it running for nobody.
@@ -2703,6 +2841,30 @@ function runShellChecks() {
     console.log('FAIL the shell button did not say it was open');
   } else {
     console.log('     the button says the shell is open');
+  }
+
+  // The divider between the output and the shell comes with it. A line
+  // with nothing on the other side of it would just be a line.
+  const shellDivider = elements.get('divider-shell');
+  const rightColumn = elements.get('right-column');
+  if (shellDivider.hidden) {
+    failed = true;
+    console.log('FAIL the shell divider stayed hidden when the shell opened');
+  } else {
+    console.log('     opening the shell brings its divider with it');
+  }
+
+  // The shell divider resizes the shell, not the editor: ArrowDown grows
+  // the shell by one step, and the height reaches the stylesheet.
+  fire('divider-shell', 'keydown', { key: 'ArrowDown', preventDefault: noop, stopPropagation: noop });
+  if (shellDivider.getAttribute('aria-valuenow') !== '45') {
+    failed = true;
+    console.log(`FAIL ArrowDown did not grow the shell: ${shellDivider.getAttribute('aria-valuenow')}`);
+  } else if (rightColumn.style['--shell-height'] !== '45%') {
+    failed = true;
+    console.log(`FAIL the shell height never reached the stylesheet: ${rightColumn.style['--shell-height']}`);
+  } else {
+    console.log('     the shell divider resizes the shell');
   }
 
   setTimeout(() => {
@@ -2792,7 +2954,15 @@ function runShellChecks() {
               console.log('     closing hands the process back and clears the button');
             }
 
-            console.log('shell: 9 checks');
+            // The divider goes back into hiding with the pane it belongs to.
+            if (!shellDivider.hidden) {
+              failed = true;
+              console.log('FAIL the shell divider stayed visible when the shell closed');
+            } else {
+              console.log('     closing the shell hides its divider again');
+            }
+
+            console.log('shell: 12 checks');
             // Hand over to the module checks rather than exiting here. This
             // used to reassign finish() first, which quietly replaced the
             // module stage with a plain exit - so the checks after the shell
@@ -2817,6 +2987,9 @@ setTimeout(() => {
     runResetConfigChecks();
     setTimeout(runResetConfigReloadCheck, 10);
   }, 30);
+  // The dividers answer synchronously, so the layout checks need no window
+  // of their own.
+  runLayoutChecks();
   // Last, because it asserts on the final exit and the checks above are
   // still in flight when it starts.
   setTimeout(runShellChecks, 200);

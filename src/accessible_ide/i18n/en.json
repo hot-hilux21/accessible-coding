@@ -59,6 +59,8 @@
   "group.updates": "Updates",
   "language.help": "This changes the words in AccessibleIDE. Your code stays the same.",
   "language.label": "Language",
+  "layout.editor_divider": "Resize the editor and the output",
+  "layout.shell_divider": "Resize the output and the shell",
   "motion.help": "Turning this on stops the buttons, switches and panels moving. Nothing disappears, it just arrives straight away.",
   "motion.hint": "Movement is extra. Turning it off never changes what the app does, only how quickly things arrive.",
   "motion.label": "Reduce motion",

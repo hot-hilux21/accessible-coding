@@ -383,18 +383,32 @@ input[type="range"] {
 }
 
 /* ---------- Workspace ---------- */
+/* A split view: the editor on the left, and a column on the right holding
+   the output and, when it is open, the shell. The widths and heights are
+   CSS variables written by app.js when a divider is dragged, so the layout
+   itself stays in the stylesheet and a narrow screen can fall back to
+   stacked panes without the script knowing about it. */
 .workspace {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   min-height: 0;
 }
 
 .editor-pane {
-  flex: 1;
+  flex: 0 0 var(--editor-width, 50%);
+  min-width: 0;
   min-height: 0;
   position: relative;
   background: var(--bg);
+}
+
+.right-column {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
 .editor {
@@ -458,13 +472,11 @@ body[data-focus-mode="lines"] .CodeMirror-line.CodeMirror-activeline-background 
 
 /* ---------- Output pane ---------- */
 .output-pane {
-  border-top: 1px solid var(--panel-border);
-  background: var(--panel-bg);
-  max-height: 35%;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-height: 140px;
-  box-shadow: inset 0 1px 0 var(--panel-border);
+  background: var(--panel-bg);
 }
 
 .output-header {
@@ -529,17 +541,16 @@ body[data-focus-mode="lines"] .CodeMirror-line.CodeMirror-activeline-background 
 }
 
 /* ---------- The Python shell ---------- */
-/* Sits under the output, which is where somebody who has just run something
-   and wants to try a variation of it will look next. Hidden by default
-   because a page that has not asked for a shell should not pay for one. */
+/* On the right of the editor, below the output, which is where somebody
+   who has just run something and wants to try a variation of it will look
+   next. Hidden by default because a page that has not asked for a shell
+   should not pay for one. */
 .shell-pane {
-  border-top: 1px solid var(--panel-border);
-  background: var(--panel-bg);
-  max-height: 45%;
+  flex: 0 0 var(--shell-height, 40%);
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-height: 220px;
-  box-shadow: inset 0 1px 0 var(--panel-border);
+  background: var(--panel-bg);
 }
 
 .shell-header {
@@ -629,6 +640,57 @@ body[data-focus-mode="lines"] .CodeMirror-line.CodeMirror-activeline-background 
   /* New output is appended constantly, and scroll anchoring would yank the
      view while somebody is reading further up the transcript. */
   overflow-anchor: none;
+}
+
+/* ---------- Pane dividers ---------- */
+/* The workspace is a split view, and each divider is a separator: a wide
+   enough grab area for a shaky hand, a visible line, and a focus ring for
+   the keyboard path. The line is the only decoration; the grab area around
+   it is invisible so the panes keep their full width. */
+.divider {
+  flex: 0 0 12px;
+  position: relative;
+  touch-action: none;
+  background: transparent;
+}
+
+.divider::after {
+  content: '';
+  position: absolute;
+  background: var(--panel-border);
+  transition: background var(--motion-fast) var(--ease);
+}
+
+.divider-vertical::after {
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+}
+
+.divider-horizontal::after {
+  left: 0;
+  right: 0;
+  top: 5px;
+  height: 2px;
+}
+
+.divider:hover::after,
+.divider:focus-visible::after {
+  background: var(--accent);
+}
+
+.divider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.divider-vertical {
+  cursor: col-resize;
+}
+
+.divider-horizontal {
+  cursor: row-resize;
 }
 
 /* ---------- Footer ---------- */
@@ -1098,8 +1160,29 @@ body[data-contrast="high"][data-theme="pastel"] {
   .brand {
     justify-content: center;
   }
+  /* A phone has no width to spare for a split view, so the panes stack the
+     way they always did: editor, output, shell. The dividers belong to the
+     split layout and are hidden with it. */
+  .workspace {
+    flex-direction: column;
+  }
+  .editor-pane {
+    flex: 1 1 auto;
+  }
+  .right-column {
+    flex: 1 1 auto;
+  }
   .output-pane {
     max-height: 45%;
+    border-top: 1px solid var(--panel-border);
+  }
+  .shell-pane {
+    flex: 1 1 auto;
+    max-height: 45%;
+    border-top: 1px solid var(--panel-border);
+  }
+  .divider {
+    display: none;
   }
 }
 

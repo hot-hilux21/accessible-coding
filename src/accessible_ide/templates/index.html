@@ -138,57 +138,74 @@
     </div>
   </header>
 
-  <main class="workspace" role="main">
+  <main id="workspace" class="workspace" role="main">
     <section class="editor-pane" aria-label="{{ t('editor.label') }}">
       <div id="editor" class="editor" role="textbox" aria-label="{{ t('editor.label') }}" aria-multiline="true"></div>
     </section>
 
-    <section class="output-pane" aria-label="{{ t('output.title') }}">
-      <div class="output-header">
-        <h2 class="output-title">{{ t('output.title') }}</h2>
-        <button id="btn-clear" class="btn btn-small">{{ t('output.clear') }}</button>
-      </div>
-      <pre id="output" class="output" aria-live="polite"></pre>
-      <div id="error-panel" class="error-panel" role="alert" hidden>
-        <h3 class="error-title">&#9888; {{ t('error.title') }}</h3>
-        <p id="error-message" class="error-message"></p>
-      </div>
-    </section>
+    <!-- The divider between the editor and the right-hand panes. It is a
+         separator, not a plain bar: a reader who cannot use a mouse can
+         resize with the arrow keys, and a screen reader hears the current
+         size as a percentage. -->
+    <div id="divider-main" class="divider divider-vertical" role="separator"
+         aria-orientation="vertical" aria-label="{{ t('layout.editor_divider') }}"
+         aria-valuemin="20" aria-valuemax="80" aria-valuenow="50" tabindex="0"></div>
 
-    <!-- The Python shell.
-
-         Below the output rather than behind a button, because it is the
-         thing a reader reaches for when they want to try things rather than
-         hand something in to be run. It stays closed until it is opened, so
-         it costs a page that has not asked for it nothing.
-
-         The output is aria-live="polite" and not role="alert": a shell
-         prints as it goes, and an alert would interrupt on every line. -->
-    <section id="shell-pane" class="shell-pane" aria-labelledby="shell-heading" hidden>
-      <div class="shell-header">
-        <h2 id="shell-heading" class="shell-title">{{ t('shell.title') }}</h2>
-        <div class="shell-header-buttons">
-          <button id="shell-clear" class="btn btn-small"
-                  title="{{ t('shell.clear_title') }}">{{ t('shell.clear') }}</button>
-          <button id="shell-close" class="btn btn-small">{{ t('shell.close') }}</button>
+    <div id="right-column" class="right-column">
+      <section class="output-pane" aria-label="{{ t('output.title') }}">
+        <div class="output-header">
+          <h2 class="output-title">{{ t('output.title') }}</h2>
+          <button id="btn-clear" class="btn btn-small">{{ t('output.clear') }}</button>
         </div>
-      </div>
+        <pre id="output" class="output" aria-live="polite"></pre>
+        <div id="error-panel" class="error-panel" role="alert" hidden>
+          <h3 class="error-title">&#9888; {{ t('error.title') }}</h3>
+          <p id="error-message" class="error-message"></p>
+        </div>
+      </section>
 
-      <p class="shell-intro">{{ t('shell.intro') }}</p>
+      <!-- The divider between the output and the shell. Hidden with the
+           shell, because a divider for a pane that is not there is a line
+           with nothing on the other side of it. -->
+      <div id="divider-shell" class="divider divider-horizontal" role="separator"
+           aria-orientation="horizontal" aria-label="{{ t('layout.shell_divider') }}"
+           aria-valuemin="20" aria-valuemax="80" aria-valuenow="40" tabindex="0" hidden></div>
 
-      <label for="shell-input" class="shell-label">{{ t('shell.input_label') }}</label>
-      <textarea id="shell-input" class="shell-input" rows="3" spellcheck="false"
-                aria-describedby="shell-status"></textarea>
+      <!-- The Python shell.
 
-      <div class="shell-actions">
-        <button id="shell-run" class="btn btn-primary"
-                title="{{ t('shell.run_title') }}">{{ t('shell.run') }}</button>
-        <span id="shell-status" class="shell-status" role="status">{{ t('shell.status_waiting') }}</span>
-      </div>
+           On the right of the editor, below the output, which is where
+           somebody who has just run something and wants to try a variation
+           of it will look next. It stays closed until it is opened, so it
+           costs a page that has not asked for it nothing.
 
-      <h3 class="shell-output-label visually-hidden">{{ t('shell.output_label') }}</h3>
-      <pre id="shell-output" class="shell-output" aria-live="polite" tabindex="0"></pre>
-    </section>
+           The output is aria-live="polite" and not role="alert": a shell
+           prints as it goes, and an alert would interrupt on every line. -->
+      <section id="shell-pane" class="shell-pane" aria-labelledby="shell-heading" hidden>
+        <div class="shell-header">
+          <h2 id="shell-heading" class="shell-title">{{ t('shell.title') }}</h2>
+          <div class="shell-header-buttons">
+            <button id="shell-clear" class="btn btn-small"
+                    title="{{ t('shell.clear_title') }}">{{ t('shell.clear') }}</button>
+            <button id="shell-close" class="btn btn-small">{{ t('shell.close') }}</button>
+          </div>
+        </div>
+
+        <p class="shell-intro">{{ t('shell.intro') }}</p>
+
+        <label for="shell-input" class="shell-label">{{ t('shell.input_label') }}</label>
+        <textarea id="shell-input" class="shell-input" rows="3" spellcheck="false"
+                  aria-describedby="shell-status"></textarea>
+
+        <div class="shell-actions">
+          <button id="shell-run" class="btn btn-primary"
+                  title="{{ t('shell.run_title') }}">{{ t('shell.run') }}</button>
+          <span id="shell-status" class="shell-status" role="status">{{ t('shell.status_waiting') }}</span>
+        </div>
+
+        <h3 class="shell-output-label visually-hidden">{{ t('shell.output_label') }}</h3>
+        <pre id="shell-output" class="shell-output" aria-live="polite" tabindex="0"></pre>
+      </section>
+    </div>
   </main>
 
   <footer class="footer" role="contentinfo">
