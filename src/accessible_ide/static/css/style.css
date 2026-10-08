@@ -528,6 +528,109 @@ body[data-focus-mode="lines"] .CodeMirror-line.CodeMirror-activeline-background 
   box-shadow: inset 3px 0 0 var(--error-border);
 }
 
+/* ---------- The Python shell ---------- */
+/* Sits under the output, which is where somebody who has just run something
+   and wants to try a variation of it will look next. Hidden by default
+   because a page that has not asked for a shell should not pay for one. */
+.shell-pane {
+  border-top: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  max-height: 45%;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  box-shadow: inset 0 1px 0 var(--panel-border);
+}
+
+.shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.shell-header-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.shell-title {
+  margin: 0;
+  font-size: 0.9em;
+  font-weight: bold;
+  color: var(--muted);
+  letter-spacing: normal;
+}
+
+/* One sentence of guidance, in the reader's language, above the box. The
+   shell is the one place in the app where what to type is not obvious. */
+.shell-intro {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: var(--muted);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.shell-label {
+  padding: var(--space-2) var(--space-4) 0;
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+/* The monospace and the line height come from the reader's settings like
+   everywhere else, so the shell is as readable as the editor. */
+.shell-input {
+  margin: var(--space-1) var(--space-4);
+  padding: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  line-height: var(--line-height, 1.5);
+  letter-spacing: var(--letter-spacing, normal);
+  color: var(--fg);
+  background: var(--bg);
+  border: 2px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.shell-input:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.shell-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-2);
+}
+
+.shell-status {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.shell-output {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  line-height: var(--line-height, 1.5);
+  letter-spacing: var(--letter-spacing, normal);
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg);
+  /* New output is appended constantly, and scroll anchoring would yank the
+     view while somebody is reading further up the transcript. */
+  overflow-anchor: none;
+}
+
 /* ---------- Footer ---------- */
 .footer {
   padding: var(--space-2) var(--space-4);
@@ -1118,9 +1221,9 @@ body[data-reduce-motion='true'] *::after {
    picked up by a broad descendant rule, so the list stays
    auditable. If you add a surface here, check that nothing which
    needs to be read sits directly on it. */
-body:not([data-glass-material='off']) :is(.topbar, .output-pane,
-                                           .error-panel, .settings,
-                                           .setup-panel) {
+body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
+                                            .error-panel, .settings,
+                                            .setup-panel) {
   /* Defaults, and what a material that names no values falls back to. */
   --glass-alpha: 72%;
   --glass-blur: 16px;
@@ -1145,7 +1248,7 @@ body:not([data-glass-material='off']) :is(.topbar, .output-pane,
 /* Each material only sets the three numbers that make it different, so
    the surface list above stays the single place that decides what is
    allowed to go translucent. */
-body[data-glass-material='mica'] :is(.topbar, .output-pane,
+body[data-glass-material='mica'] :is(.topbar, .output-pane, .shell-pane,
                                         .error-panel, .settings,
                                         .setup-panel) {
   /* Quiet and almost solid. Mica tints itself with whatever is behind
@@ -1156,7 +1259,7 @@ body[data-glass-material='mica'] :is(.topbar, .output-pane,
   --glass-sat: 112%;
 }
 
-body[data-glass-material='frosted'] :is(.topbar, .output-pane,
+body[data-glass-material='frosted'] :is(.topbar, .output-pane, .shell-pane,
                                           .error-panel, .settings,
                                           .setup-panel) {
   /* An even frost, no grain. The middle of the three. */
@@ -1165,7 +1268,7 @@ body[data-glass-material='frosted'] :is(.topbar, .output-pane,
   --glass-sat: 150%;
 }
 
-body[data-glass-material='acrylic'] :is(.topbar, .output-pane,
+body[data-glass-material='acrylic'] :is(.topbar, .output-pane, .shell-pane,
                                           .error-panel, .settings,
                                           .setup-panel) {
   /* Heaviest, and the most see-through of the three. The grain below
@@ -1202,7 +1305,7 @@ body:not([data-glass-material='off']) :is(.settings, .setup-panel) {
    same reasoning as the reduced-motion block above: this has to win
    against the material rules, and in exactly the case where it matters. */
 @media (prefers-reduced-transparency: reduce) {
-  body:not([data-glass-material='off']) :is(.topbar, .output-pane,
+  body:not([data-glass-material='off']) :is(.topbar, .output-pane, .shell-pane,
                                               .error-panel, .settings,
                                               .setup-panel) {
     background: var(--panel-bg) !important;
@@ -1235,6 +1338,7 @@ body:not([data-glass-material='off']) :is(.settings, .setup-panel) {
 
 dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 .error-panel:not([hidden]) { animation: panel-arrive var(--motion-med) var(--ease) both; }
+.shell-pane:not([hidden]) { animation: panel-arrive var(--motion-med) var(--ease) both; }
 
 /* This used to include .btn and .btn-toggle, which quietly replaced the
    translateY(1px) that .btn:active sets with a scale. The two rules

@@ -71,6 +71,11 @@ const KNOWN_IDS = new Set([
   // than skipped.
   'setup-dialog', 'setup-progress', 'setup-status', 'setup-back',
   'setup-next', 'setup-skip', 'btn-setup-again',
+  // The Python shell. Declared here for the same reason as the index above:
+  // without these, the pane cannot be found and nothing about the shell is
+  // exercised, while the harness still reports success.
+  'btn-shell', 'shell-pane', 'shell-input', 'shell-output', 'shell-status',
+  'shell-run', 'shell-clear', 'shell-close',
   // The two JSON script blocks the server embeds. They are not elements
   // app.js draws with, but without them every t() call falls back to
   // returning the key, and this harness would stop testing translations
@@ -636,6 +641,10 @@ function makePage(locale, shared, bodyAttrs) {
           // the stub would start with it showing, and a check about it
           // hiding would pass for the wrong reason.
           id === 'setup-back' ? { hidden: true } : {},
+          // The shell starts closed, so opening it is something a check can
+          // tell has happened. Starting it open would make every later
+          // check pass for the wrong reason.
+          id === 'shell-pane' ? { hidden: true } : {},
         );
         found.set(id, makeElement(id, attributesFor(id), props));
       }
@@ -721,6 +730,10 @@ const configPosts = [];
 // configPosts so a check can prove a reset went to its own route rather
 // than being recorded as an ordinary settings save.
 const configResets = [];
+// What the shell was asked to run, in order. Kept so a check can prove the
+// session id and the reader's own code both went out, rather than only that
+// a request happened.
+const shellCommands = [];
 // Whether a settings write is accepted. Held in a variable so the refused
 // path can be walked: a stub that only ever saves would never show what the
 // app does when the answer comes back "no", which is the case where the
@@ -764,6 +777,43 @@ const fetchMethods = [];
 function fetchStub(url, options) {
   fetchCalls.push(url);
   fetchMethods.push({ url: String(url), method: (options && options.method) || 'GET' });
+  // The shell, before the catch-all /api/config branch, because the session
+  // id it is handed has to be echoed back or a check cannot tell that one
+  // command's output reached the next.
+  if (String(url).includes('/api/shell/start')) {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ success: true, session: 'session-1' }),
+    });
+  }
+  if (String(url).includes('/api/shell/stop')) {
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) });
+  }
+  if (String(url).includes('/api/shell/reset')) {
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) });
+  }
+  if (String(url).includes('/api/shell/exec')) {
+    let sent = {};
+    try { sent = JSON.parse(options.body); } catch (e) { sent = {}; }
+    shellCommands.push(sent);
+    // Echoing what was typed is the whole contract of a shell in a test
+    // double: a check can prove the reader's own command came back rather
+    // than only that something did.
+    if (sent.code === 'boom') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true, output: '', error: 'NameError: name \'boom\' is not defined',
+        }),
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        success: true, output: (sent.code || '') + '\n', error: '',
+      }),
+    });
+  }
   if (String(url).includes('/api/themes')) {
     return Promise.resolve({
       ok: true,
@@ -2617,6 +2667,144 @@ function readText(node) {
   return (node.children || []).map(readText).join(' ');
 }
 
+// The Python shell, end to end: closed, opened, a command run, the answer
+// kept on screen, a failure explained, and a close that hands the process
+// back rather than leaving it running for nobody.
+function runShellChecks() {
+  const btn = elements.get('btn-shell');
+  const pane = elements.get('shell-pane');
+  const input = elements.get('shell-input');
+  const out = elements.get('shell-output');
+  const status = elements.get('shell-status');
+  const run = elements.get('shell-run');
+  const clear = elements.get('shell-clear');
+  const close = elements.get('shell-close');
+
+  // Closed to begin with. A pane that started open would let every later
+  // check pass without the reader ever opening it.
+  if (!pane.hidden) {
+    failed = true;
+    console.log('FAIL the shell started open instead of closed');
+  } else {
+    console.log('     the shell starts closed, so it costs nothing until it is asked for');
+  }
+
+  (btn.__listeners.click || []).forEach((h) => h(fakeEvent));
+  if (pane.hidden) {
+    failed = true;
+    console.log('FAIL the shell did not open');
+  } else {
+    console.log('     it opens from its own button');
+  }
+  // The button says whether it is open, so somebody reading with a screen
+  // reader is not left guessing.
+  if (btn.getAttribute('aria-expanded') !== 'true') {
+    failed = true;
+    console.log('FAIL the shell button did not say it was open');
+  } else {
+    console.log('     the button says the shell is open');
+  }
+
+  setTimeout(() => {
+    // A session has to be opened before anything can be run in it.
+    if (!fetchCalls.some((u) => u.includes('/api/shell/start'))) {
+      failed = true;
+      console.log('FAIL the shell never asked for a session');
+    } else {
+      console.log('     it asks the server for a session, and the id is kept for later commands');
+    }
+
+    input.value = 'answer = 6 * 7';
+    (run.__listeners.click || []).forEach((h) => h(fakeEvent));
+
+    setTimeout(() => {
+      const sent = shellCommands[shellCommands.length - 1];
+      if (!sent) {
+        failed = true;
+        console.log('FAIL nothing was sent to the shell');
+      } else if (sent.session !== 'session-1') {
+        failed = true;
+        console.log(`FAIL the command did not carry its session id: ${sent.session}`);
+      } else if (sent.code !== 'answer = 6 * 7') {
+        failed = true;
+        console.log(`FAIL the wrong code was sent: ${sent.code}`);
+      } else {
+        console.log('     a command is sent with the reader\'s own code and the session id');
+      }
+
+      if (!/answer = 6 \* 7/.test(String(out.textContent))) {
+        failed = true;
+        console.log(`FAIL the shell's answer never reached the screen: "${out.textContent}"`);
+      } else {
+        console.log('     the answer is shown');
+      }
+
+      // A second command must not wipe the first answer off the screen. A
+      // shell you cannot look back in is a log, not a shell.
+      input.value = 'print(answer)';
+      (run.__listeners.click || []).forEach((h) => h(fakeEvent));
+      setTimeout(() => {
+        if (!/answer = 6 \* 7/.test(String(out.textContent))) {
+          failed = true;
+          console.log('FAIL the next command wiped the previous answer off the screen');
+        } else {
+          console.log('     a second command keeps what came before it on screen');
+        }
+
+        // A failure is said in words, not left as an empty box.
+        input.value = 'boom';
+        (run.__listeners.click || []).forEach((h) => h(fakeEvent));
+        setTimeout(() => {
+          if (!/boom/.test(String(out.textContent))) {
+            failed = true;
+            console.log(`FAIL a failed command was not explained: "${out.textContent}"`);
+          } else {
+            console.log('     a failed command is explained on screen, not swallowed');
+          }
+
+          // Clearing wipes the namespace and the transcript together, so
+          // the two never disagree about what is still defined.
+          (clear.__listeners.click || []).forEach((h) => h(fakeEvent));
+          setTimeout(() => {
+            if (!fetchCalls.some((u) => u.includes('/api/shell/reset'))) {
+              failed = true;
+              console.log('FAIL clearing did not tell the server to forget the namespace');
+            } else if (String(out.textContent) !== '') {
+              failed = true;
+              console.log(`FAIL clearing left the old answers on screen: "${out.textContent}"`);
+            } else {
+              console.log('     clearing forgets both the definitions and the transcript');
+            }
+
+            // Closing gives the process back. A shell left running after the
+            // reader walks away is a python.exe nobody is looking after.
+            (close.__listeners.click || []).forEach((h) => h(fakeEvent));
+            if (!pane.hidden) {
+              failed = true;
+              console.log('FAIL the shell did not close');
+            } else if (!fetchCalls.some((u) => u.includes('/api/shell/stop'))) {
+              failed = true;
+              console.log('FAIL closing left the shell process running');
+            } else if (btn.getAttribute('aria-expanded') !== 'false') {
+              failed = true;
+              console.log('FAIL the button still said the shell was open');
+            } else {
+              console.log('     closing hands the process back and clears the button');
+            }
+
+            console.log('shell: 9 checks');
+            // Hand over to the module checks rather than exiting here. This
+            // used to reassign finish() first, which quietly replaced the
+            // module stage with a plain exit - so the checks after the shell
+            // never ran and the run still reported success.
+            finish();
+          }, 10);
+        }, 10);
+      }, 10);
+    }, 10);
+  }, 10);
+}
+
 setTimeout(() => {
   runPanelChecks();
   runStepperChecks();
@@ -2629,4 +2817,7 @@ setTimeout(() => {
     runResetConfigChecks();
     setTimeout(runResetConfigReloadCheck, 10);
   }, 30);
+  // Last, because it asserts on the final exit and the checks above are
+  // still in flight when it starts.
+  setTimeout(runShellChecks, 200);
 }, 50);

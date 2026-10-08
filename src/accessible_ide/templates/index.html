@@ -120,6 +120,13 @@
         </button>
       </div>
 
+      <div class="tool-group">
+        <button id="btn-shell" class="btn btn-toggle" aria-expanded="false"
+                aria-controls="shell-pane" title="{{ t('shell.title') }}">
+          <span aria-hidden="true">&#9642;</span> {{ t('shell.title') }}
+        </button>
+      </div>
+
       <input type="file" id="file-input" accept=".py,.txt" class="visually-hidden">
 
       <div class="tool-group">
@@ -146,6 +153,41 @@
         <h3 class="error-title">&#9888; {{ t('error.title') }}</h3>
         <p id="error-message" class="error-message"></p>
       </div>
+    </section>
+
+    <!-- The Python shell.
+
+         Below the output rather than behind a button, because it is the
+         thing a reader reaches for when they want to try things rather than
+         hand something in to be run. It stays closed until it is opened, so
+         it costs a page that has not asked for it nothing.
+
+         The output is aria-live="polite" and not role="alert": a shell
+         prints as it goes, and an alert would interrupt on every line. -->
+    <section id="shell-pane" class="shell-pane" aria-labelledby="shell-heading" hidden>
+      <div class="shell-header">
+        <h2 id="shell-heading" class="shell-title">{{ t('shell.title') }}</h2>
+        <div class="shell-header-buttons">
+          <button id="shell-clear" class="btn btn-small"
+                  title="{{ t('shell.clear_title') }}">{{ t('shell.clear') }}</button>
+          <button id="shell-close" class="btn btn-small">{{ t('shell.close') }}</button>
+        </div>
+      </div>
+
+      <p class="shell-intro">{{ t('shell.intro') }}</p>
+
+      <label for="shell-input" class="shell-label">{{ t('shell.input_label') }}</label>
+      <textarea id="shell-input" class="shell-input" rows="3" spellcheck="false"
+                aria-describedby="shell-status"></textarea>
+
+      <div class="shell-actions">
+        <button id="shell-run" class="btn btn-primary"
+                title="{{ t('shell.run_title') }}">{{ t('shell.run') }}</button>
+        <span id="shell-status" class="shell-status" role="status">{{ t('shell.status_waiting') }}</span>
+      </div>
+
+      <h3 class="shell-output-label visually-hidden">{{ t('shell.output_label') }}</h3>
+      <pre id="shell-output" class="shell-output" aria-live="polite" tabindex="0"></pre>
     </section>
   </main>
 
