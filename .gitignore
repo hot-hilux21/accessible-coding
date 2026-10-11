@@ -18,6 +18,7 @@ dist/
 .vscode/
 .idea/
 *.swp
+.opencode/
 
 # OS
 .DS_Store

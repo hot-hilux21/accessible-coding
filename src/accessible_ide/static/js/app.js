@@ -295,7 +295,7 @@
       '.cm-s-accessible-theme .CodeMirror-gutters { background-color: ' + c.gutter_bg + '; color: ' + c.gutter_fg + '; }',
       '.cm-s-accessible-theme .CodeMirror-linenumber { color: ' + c.gutter_fg + '; }',
       '.cm-s-accessible-theme .CodeMirror-cursor { border-left: 2px solid ' + c.cursor + '; }',
-      '.cm-s-accessible-theme .CodeMirror-selected { background-color: ' + c.selection + '; }',
+      '.cm-s-accessible-theme .CodeMirror-selected { background-color: ' + highlightColour(c) + '; }',
       '.cm-s-accessible-theme .CodeMirror-activeline-background { background-color: ' + highlightColour(c) + '; }',
       '.cm-s-accessible-theme .cm-keyword { color: ' + contrastAdjust(c.keyword) + '; font-weight: bold; }',
       '.cm-s-accessible-theme .cm-string { color: ' + contrastAdjust(c.string) + '; }',
