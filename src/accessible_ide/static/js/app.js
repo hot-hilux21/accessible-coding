@@ -101,6 +101,9 @@
   var settingsStatus = document.getElementById('settings-status');
   var btnQuit = document.getElementById('btn-quit');
   var fontBundledNote = document.getElementById('font-bundled-note');
+  var fontUpload = document.getElementById('font-upload');
+  var btnRemoveFont = document.getElementById('btn-remove-font');
+  var fontUploadStatus = document.getElementById('font-upload-status');
   var sampleText = document.getElementById('sample-text');
   var fontPreview = document.getElementById('font-preview');
   var fontPreviewText = document.getElementById('font-preview-text');
@@ -1907,6 +1910,7 @@
     applyFont(fontSelect.value);
     body.setAttribute('data-font', fontSelect.value);
     updateFontNote();
+    updateFontRemoveButton();
     updatePreview();
     saveConfig({ font: fontSelect.value });
   });
@@ -1932,11 +1936,12 @@
   function updateFontNote() {
     if (!fontBundledNote || !fontSelect) return;
     var option = fontSelect.options[fontSelect.selectedIndex];
-    var bundled = option && option.getAttribute('data-bundled') === 'true';
     var note = option ? option.textContent : '';
-    fontBundledNote.textContent = bundled
-      ? t('try.bundled', note)
-      : t('try.system_font', note);
+    var bundled = option && option.getAttribute('data-bundled') === 'true';
+    var uploaded = option && option.getAttribute('data-uploaded') === 'true';
+    fontBundledNote.textContent = uploaded
+      ? t('try.uploaded_font', note)
+      : (bundled ? t('try.bundled', note) : t('try.system_font', note));
     fontBundledNote.hidden = false;
   }
 
@@ -1960,6 +1965,124 @@
     if (previewStatus) {
       previewStatus.textContent = t('try.status_theme', name);
     }
+  }
+
+  // ---------- Uploaded fonts ----------
+  // A font the reader adds joins the list as a normal option, so the same
+  // change handler applies it. The file is posted as a form, not as JSON,
+  // because it is a file.
+  function showFontStatus(message, isError) {
+    if (!fontUploadStatus) return;
+    fontUploadStatus.textContent = message;
+    fontUploadStatus.classList.toggle('is-error', !!isError);
+  }
+
+  // The remove button is only offered while one of the reader's own fonts
+  // is chosen, so it is never a control that would remove nothing.
+  function updateFontRemoveButton() {
+    if (!btnRemoveFont || !fontSelect) return;
+    var option = fontSelect.options[fontSelect.selectedIndex];
+    btnRemoveFont.hidden = !(option && option.getAttribute('data-uploaded') === 'true');
+  }
+
+  function addFontOption(key, font) {
+    if (!fontSelect) return null;
+    var existing = fontSelect.querySelector(
+      'option[value="' + key.replace(/"/g, '') + '"]');
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    var option = document.createElement('option');
+    option.value = key;
+    option.textContent = (font && font.name) || key;
+    option.setAttribute('data-family', (font && font.family) || '');
+    option.setAttribute('data-bundled', 'false');
+    option.setAttribute('data-uploaded', 'true');
+    fontSelect.appendChild(option);
+    return option;
+  }
+
+  function chooseFont(key) {
+    fontSelect.value = key;
+    applyFont(key);
+    body.setAttribute('data-font', key);
+    updateFontNote();
+    updateFontRemoveButton();
+    updatePreview();
+    saveConfig({ font: key });
+  }
+
+  if (fontUpload) {
+    fontUpload.addEventListener('change', function () {
+      var file = fontUpload.files && fontUpload.files[0];
+      if (!file) return;
+      var form = new FormData();
+      form.append('font', file);
+      form.append('access_code', accessCode);
+      form.append('locale', META.locale);
+      fetch('/api/fonts/upload', { method: 'POST', body: form })
+        .then(function (res) {
+          return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+        })
+        .then(function (result) {
+          // Reset the input either way, so choosing the same file a second
+          // time still counts as a change.
+          fontUpload.value = '';
+          if (!result.ok) {
+            showFontStatus(
+              (result.data && result.data.error) || t('font.upload_failed'), true);
+            return;
+          }
+          addFontOption(result.data.key, result.data.font);
+          chooseFont(result.data.key);
+          showFontStatus(t('font.upload_success', result.data.key), false);
+        })
+        .catch(function () {
+          fontUpload.value = '';
+          showFontStatus(t('font.upload_failed'), true);
+        });
+    });
+  }
+
+  if (btnRemoveFont) {
+    btnRemoveFont.addEventListener('click', function () {
+      var key = fontSelect.value;
+      if (!key) return;
+      fetch('/api/fonts/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: key,
+          access_code: accessCode,
+          locale: META.locale
+        })
+      })
+        .then(function (res) {
+          return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+        })
+        .then(function (result) {
+          if (!result.ok) {
+            showFontStatus(
+              (result.data && result.data.error) || t('font.remove_failed'), true);
+            return;
+          }
+          var option = fontSelect.querySelector(
+            'option[value="' + key.replace(/"/g, '') + '"]');
+          if (option && option.parentNode) option.parentNode.removeChild(option);
+          // The server moves the config back to the default when the font
+          // removed was the one in use, so follow that answer rather than
+          // guess at it.
+          var next = (result.data.config && result.data.config.font) || fontSelect.value;
+          fontSelect.value = next;
+          applyFont(next);
+          body.setAttribute('data-font', next);
+          updateFontNote();
+          updateFontRemoveButton();
+          updatePreview();
+          showFontStatus(t('font.remove_success', key), false);
+        })
+        .catch(function () {
+          showFontStatus(t('font.remove_failed'), true);
+        });
+    });
   }
 
   function expandHex(value) {
@@ -2977,6 +3100,7 @@
   customHighlightColor = body.getAttribute('data-highlight-color') || '';
   applyTheme(body.getAttribute('data-theme') || 'high-contrast');
   applyFont(body.getAttribute('data-font') || 'OpenDyslexic');
+  updateFontRemoveButton();
   applyFontSize(parseInt(body.getAttribute('data-font-size') || '16', 10));
   applyFontWeight(parseInt(body.getAttribute('data-font-weight') || '400', 10));
   applyLineHeight(body.getAttribute('data-line-height') || '1.6');

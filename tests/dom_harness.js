@@ -83,6 +83,7 @@ const KNOWN_IDS = new Set([
   'update-install-row', 'update-install-label', 'update-install-help',
   'btn-install-update',
   'font-bundled-note', 'sample-text', 'font-preview', 'font-preview-text',
+  'font-upload', 'btn-remove-font', 'font-upload-status',
   'preview-status', 'btn-reset-config',
   'btn-export-config', 'btn-import-config', 'config-file-input', 'backup-status',
   'highlight-color-hex', 'highlight-color-picker', 'highlight-error',

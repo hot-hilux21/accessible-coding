@@ -110,6 +110,11 @@ IMPORT_RE = re.compile(r'^\s*(?:import|from)\s+([a-zA-Z_][a-zA-Z0-9_]*)', re.MUL
 # Config file path
 CONFIG_DIR = Path.home() / '.accessible-ide'
 CONFIG_FILE = CONFIG_DIR / 'config.json'
+# Fonts the reader adds themselves. Kept beside the config rather than in
+# the package's assets folder: the package may be read-only (a frozen .exe
+# unpacks to a temp directory that is wiped on close), and a reader's own
+# font is their data, not the app's.
+USER_FONT_DIR = CONFIG_DIR / 'fonts'
 
 # The first-run setup screen, one step at a time. Defined here rather than in
 # the template so the validation below, the rendered progress text and the
@@ -618,6 +623,79 @@ FONTS = {
 }
 
 
+# Fonts the reader uploads. The extension is checked, but so are the first
+# bytes: a file renamed to .ttf is not a font, and a browser that is handed
+# one either ignores it or, worse, renders nothing and leaves the reader
+# wondering why their text vanished. The signatures are the four container
+# formats a browser will actually load.
+USER_FONT_EXTENSIONS = ('.ttf', '.otf', '.woff', '.woff2')
+FONT_SIGNATURES = (
+    b'\x00\x01\x00\x00',  # TrueType
+    b'true',              # TrueType (older Mac tag)
+    b'ttcf',              # TrueType Collection
+    b'OTTO',              # OpenType with CFF outlines
+    b'wOFF',              # WOFF
+    b'wOF2',              # WOFF2
+)
+# A font is a few hundred kilobytes; five megabytes is generous for a
+# variable font with a wide script range and still small enough that a
+# mistaken upload cannot fill the disk.
+MAX_FONT_BYTES = 5 * 1024 * 1024
+
+
+def _safe_font_key(stem):
+    """A font's name, reduced to what is safe as a CSS family and a value.
+
+    The name is used three ways: as the <option> value, as the CSS family
+    the @font-face declares, and as the file's name on disk. Anything that
+    could break a CSS selector, a URL or a path is dropped rather than
+    escaped, because a font name has no need for it.
+    """
+    key = re.sub(r'[^A-Za-z0-9 _-]+', '', stem or '').strip()
+    key = re.sub(r'\s+', ' ', key)
+    return key
+
+
+def _user_font_entry(key, filename):
+    """The same shape as a bundled font, so the template and the browser
+    treat an uploaded font exactly like any other."""
+    return {
+        'name': key,
+        'family': _stack(f'"{key}"'),
+        'files': [filename],
+        'bundled': False,
+        'uploaded': True,
+        'note': 'A font you added.',
+    }
+
+
+def _user_fonts():
+    """Every font the reader has uploaded, keyed by its name.
+
+    The directory is read on each call rather than cached: a font can be
+    added or removed while the app is running, and a stale list would offer
+    a font whose file is gone.
+    """
+    fonts = {}
+    if not USER_FONT_DIR.is_dir():
+        return fonts
+    for path in sorted(USER_FONT_DIR.iterdir()):
+        if not path.is_file() or path.suffix.lower() not in USER_FONT_EXTENSIONS:
+            continue
+        key = _safe_font_key(path.stem)
+        if not key or key in FONTS:
+            # A name that collides with a bundled font would shadow it, and
+            # the reader could not tell the two apart in the list.
+            continue
+        fonts[key] = _user_font_entry(key, path.name)
+    return fonts
+
+
+def _all_fonts():
+    """The bundled fonts plus the reader's own, in one table."""
+    return {**FONTS, **_user_fonts()}
+
+
 def load_config():
     """Load user configuration from JSON file."""
     if CONFIG_FILE.exists():
@@ -904,7 +982,12 @@ def index():
                          # panel this exists to prevent. A tint that ignored
                          # the text colours is the same failure.
                          panel_info=panel_info,
-                         fonts=FONTS,
+                         fonts=_all_fonts(),
+                         # The reader's own fonts, separately, so the page
+                         # can write an @font-face for each one. The family
+                         # name is the key, which is what the stack in the
+                         # font table refers to.
+                         user_fonts=_user_fonts(),
                          # The version on the badge comes from the build, not
                          # from a line somebody remembered to edit. It used to
                          # be written out in the template, which meant a
@@ -1633,7 +1716,94 @@ def themes_api():
 
 @main_bp.route('/api/fonts')
 def fonts_api():
-    return jsonify(FONTS)
+    return jsonify(_all_fonts())
+
+
+@main_bp.route('/api/fonts/upload', methods=['POST'])
+def font_upload_api():
+    """Take a font file the reader chose and make it available.
+
+    The file is checked three ways before it is kept: the extension, the
+    size, and the first bytes. A file that fails any of them is refused
+    with a sentence that says what to do, not a stack trace.
+    """
+    data = request.form
+    t = translator_for(request_locale(data))
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_required'),
+            'code_required': True,
+        }), 403
+
+    font_file = request.files.get('font')
+    if font_file is None or not font_file.filename:
+        return jsonify({'success': False, 'error': t('font.upload_no_file')}), 400
+
+    extension = Path(font_file.filename).suffix.lower()
+    if extension not in USER_FONT_EXTENSIONS:
+        return jsonify({'success': False, 'error': t('font.upload_bad_type')}), 400
+
+    raw = font_file.read()
+    if len(raw) > MAX_FONT_BYTES:
+        return jsonify({'success': False, 'error': t('font.upload_too_big')}), 400
+    if raw[:4] not in FONT_SIGNATURES:
+        return jsonify({'success': False, 'error': t('font.upload_not_a_font')}), 400
+
+    key = _safe_font_key(Path(font_file.filename).stem)
+    if not key:
+        return jsonify({'success': False, 'error': t('font.upload_bad_name')}), 400
+    if key in FONTS:
+        # The name would shadow a bundled font in the list.
+        return jsonify({'success': False, 'error': t('font.upload_name_taken')}), 400
+
+    USER_FONT_DIR.mkdir(parents=True, exist_ok=True)
+    # One font per name: a second upload of the same name replaces the
+    # first, including a change of format, so the list never shows two
+    # entries that look identical.
+    for existing in USER_FONT_DIR.glob(key + '.*'):
+        if existing.is_file():
+            existing.unlink()
+    filename = key + extension
+    (USER_FONT_DIR / filename).write_bytes(raw)
+
+    return jsonify({
+        'success': True,
+        'key': key,
+        'font': _user_font_entry(key, filename),
+    })
+
+
+@main_bp.route('/api/fonts/delete', methods=['POST'])
+def font_delete_api():
+    """Remove a font the reader uploaded.
+
+    If it was the font in use, the config is moved back to the default in
+    the same request, so the page is never left pointing at a family whose
+    file has just been deleted.
+    """
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_required'),
+            'code_required': True,
+        }), 403
+
+    key = data.get('key')
+    if not isinstance(key, str) or key not in _user_fonts():
+        return jsonify({'success': False, 'error': t('font.remove_failed')}), 400
+
+    for path in USER_FONT_DIR.glob(key + '.*'):
+        if path.is_file():
+            path.unlink()
+
+    config = load_config()
+    if config.get('font') == key:
+        config['font'] = DEFAULT_CONFIG['font']
+        save_config(config)
+    return jsonify({'success': True, 'config': config})
 
 
 # Python's mimetypes has no entry for .ttf on Windows, so fonts were
@@ -1652,6 +1822,13 @@ FONT_MIME_TYPES = {
 def serve_font(filename):
     mimetype = FONT_MIME_TYPES.get(Path(filename).suffix.lower())
     return send_from_directory('assets/fonts', filename, mimetype=mimetype)
+
+
+@main_bp.route('/assets/user-fonts/<path:filename>')
+def serve_user_font(filename):
+    """Serve a font the reader uploaded, from their own data directory."""
+    mimetype = FONT_MIME_TYPES.get(Path(filename).suffix.lower())
+    return send_from_directory(USER_FONT_DIR, filename, mimetype=mimetype)
 
 
 @main_bp.route('/health')

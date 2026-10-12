@@ -78,6 +78,10 @@ REQUIRED_SETTINGS_IDS = (
     "highlight-status",
     "btn-reset-highlight",
     "btn-reset-config",
+    # The reader's own fonts.
+    "font-upload",
+    "btn-remove-font",
+    "font-upload-status",
     # The settings backup group.
     "btn-export-config",
     "btn-import-config",
@@ -672,7 +676,7 @@ class TryItOutPanelTests(RenderedPageFixture):
         # which is how OpenDyslexic shipped broken.
         options = re.findall(r"<option value=\"[^\"]+\"[^>]*>", self.html)
         font_options = [o for o in options if "data-family" in o]
-        self.assertEqual(len(font_options), len(routes.FONTS))
+        self.assertEqual(len(font_options), len(routes._all_fonts()))
         for option in font_options:
             with self.subTest(option=option[:60]):
                 self.assertRegex(option, r'data-family="[^"]+"')
@@ -891,11 +895,11 @@ class SetupWizardTests(RenderedPageFixture):
         # This is the whole point of the step. A list of names, all set in
         # the same typeface, asks the reader to trust a label.
         radios = re.findall(r'<input type="radio" name="setup-font"[^>]*>', self.html)
-        self.assertEqual(len(radios), len(routes.FONTS))
+        self.assertEqual(len(radios), len(routes._all_fonts()))
         samples = re.findall(
             r'class="setup-sample"\s+style="font-family: ([^"]+)"', self.html
         )
-        self.assertEqual(len(samples), len(routes.FONTS))
+        self.assertEqual(len(samples), len(routes._all_fonts()))
         for family, radio in zip(samples, radios):
             with self.subTest(font=family):
                 self.assertIn(f'data-family="{family}"', radio)

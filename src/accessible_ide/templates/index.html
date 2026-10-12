@@ -87,6 +87,16 @@
       font-weight: bold;
       font-display: swap;
     }
+    <!-- Fonts the reader added. The family name is the key the font table
+         uses, so the stack in the <option> and this declaration agree. -->
+    {% for key, font in user_fonts.items() %}
+    @font-face {
+      font-family: '{{ key }}';
+      src: url('{{ url_for('main.serve_user_font', filename=font.files[0]) }}');
+      font-weight: 100 900;
+      font-display: swap;
+    }
+    {% endfor %}
   </style>
 </head>
 <body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-font-weight="{{ config.font_weight }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}" data-gradient="{% if config.theme_gradient %}on{% else %}off{% endif %}"{% if body_style %} style="{{ body_style }}"{% endif %}>
@@ -272,6 +282,18 @@
               {% endfor %}
             </select>
             <p class="field-help" id="font-bundled-note" hidden></p>
+          </div>
+
+          <div class="field">
+            <label for="font-upload">{{ t('reading.upload_font') }}</label>
+            <div class="field-row">
+              <input type="file" id="font-upload"
+                     accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2">
+              <button type="button" id="btn-remove-font" class="btn btn-small" hidden>
+                {{ t('reading.remove_font') }}
+              </button>
+            </div>
+            <p class="field-help" id="font-upload-status" role="status" aria-live="polite">{{ t('reading.upload_font_help') }}</p>
           </div>
 
           <div class="field">

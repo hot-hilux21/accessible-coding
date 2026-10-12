@@ -9,10 +9,12 @@ simply absent and nothing failed loudly.
 These tests check the bytes, not the filename or the HTTP status.
 """
 
+import io
 import pathlib
 import re
 import struct
 import sys
+import tempfile
 import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -226,7 +228,12 @@ class BundledFontTests(unittest.TestCase):
         response = client.get("/api/fonts")
         try:
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(sorted(response.get_json()), sorted(routes.FONTS))
+            # _all_fonts() rather than FONTS: the endpoint also offers the
+            # reader's own uploaded fonts, and a test run may find some in
+            # the real data directory.
+            self.assertEqual(
+                sorted(response.get_json()), sorted(routes._all_fonts())
+            )
         finally:
             response.close()
 
@@ -535,6 +542,133 @@ class MonospaceTests(unittest.TestCase):
             "Courier New is back in a rule. It is a Microsoft font and a "
             "1980s screen face; the monospace token should be used instead.",
         )
+
+
+class UploadedFontTests(unittest.TestCase):
+    """Fonts the reader adds themselves.
+
+    The upload is checked three ways before it is kept - the extension, the
+    size and the first bytes - because a file renamed to .ttf is not a
+    font, and a browser handed one renders nothing rather than failing
+    loudly. The tests work in a temporary directory so they never touch the
+    reader's own fonts or settings.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = pathlib.Path(self.tmp.name)
+
+        saved = {
+            "USER_FONT_DIR": routes.USER_FONT_DIR,
+            "CONFIG_DIR": routes.CONFIG_DIR,
+            "CONFIG_FILE": routes.CONFIG_FILE,
+        }
+        routes.CONFIG_DIR = root / "config"
+        routes.CONFIG_FILE = routes.CONFIG_DIR / "config.json"
+        routes.USER_FONT_DIR = routes.CONFIG_DIR / "fonts"
+        for name, value in saved.items():
+            self.addCleanup(setattr, routes, name, value)
+
+        app = create_app()
+        app.config["TESTING"] = True
+        self.client = app.test_client()
+
+    def real_font_bytes(self):
+        return (FONT_DIR / "OpenDyslexic3-Regular.ttf").read_bytes()
+
+    def upload(self, filename, data):
+        return self.client.post(
+            "/api/fonts/upload",
+            data={"font": (io.BytesIO(data), filename)},
+            content_type="multipart/form-data",
+        )
+
+    def test_an_uploaded_font_is_kept_and_offered(self):
+        response = self.upload("TestFont.ttf", self.real_font_bytes())
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["key"], "TestFont")
+        self.assertTrue((routes.USER_FONT_DIR / "TestFont.ttf").exists())
+
+        listing = self.client.get("/api/fonts").get_json()
+        self.assertIn("TestFont", listing)
+        self.assertTrue(listing["TestFont"]["uploaded"])
+        self.assertFalse(listing["TestFont"]["bundled"])
+
+    def test_the_uploaded_font_is_served_as_a_font(self):
+        self.upload("TestFont.ttf", self.real_font_bytes())
+        response = self.client.get("/assets/user-fonts/TestFont.ttf")
+        try:
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(response.data[:4], FONT_MAGIC)
+            self.assertEqual(response.mimetype, "font/ttf")
+        finally:
+            response.close()
+
+    def test_the_uploaded_font_reaches_the_page(self):
+        self.upload("TestFont.ttf", self.real_font_bytes())
+        page = self.client.get("/").get_data(as_text=True)
+        self.assertIn("font-family: 'TestFont'", page)
+        self.assertIn('value="TestFont"', page)
+
+    def test_a_file_that_is_not_a_font_is_refused(self):
+        response = self.upload("Fake.ttf", b"this is not a font at all")
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.get_json()["success"])
+        self.assertFalse((routes.USER_FONT_DIR / "Fake.ttf").exists())
+
+    def test_the_wrong_extension_is_refused(self):
+        response = self.upload("Notes.txt", self.real_font_bytes())
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.get_json()["success"])
+
+    def test_an_oversized_font_is_refused(self):
+        big = b"\x00\x01\x00\x00" + b"x" * (routes.MAX_FONT_BYTES + 1)
+        response = self.upload("Big.ttf", big)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.get_json()["success"])
+
+    def test_a_name_that_shadows_a_bundled_font_is_refused(self):
+        response = self.upload("OpenDyslexic.ttf", self.real_font_bytes())
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.get_json()["success"])
+
+    def test_uploading_the_same_name_replaces_the_file(self):
+        self.upload("TestFont.ttf", self.real_font_bytes())
+        response = self.upload("TestFont.otf", self.real_font_bytes())
+        self.assertEqual(response.status_code, 200)
+        # One font per name: the old file is gone, the new one is there.
+        self.assertFalse((routes.USER_FONT_DIR / "TestFont.ttf").exists())
+        self.assertTrue((routes.USER_FONT_DIR / "TestFont.otf").exists())
+
+    def test_deleting_a_font_removes_it_and_moves_the_config_back(self):
+        self.upload("TestFont.ttf", self.real_font_bytes())
+        self.client.post("/api/config", json={"font": "TestFont"})
+
+        response = self.client.post("/api/fonts/delete", json={"key": "TestFont"})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse((routes.USER_FONT_DIR / "TestFont.ttf").exists())
+        self.assertNotIn("TestFont", self.client.get("/api/fonts").get_json())
+        # The config pointed at the deleted font, so it has to have moved.
+        self.assertEqual(
+            response.get_json()["config"]["font"],
+            routes.DEFAULT_CONFIG["font"],
+        )
+
+    def test_deleting_an_unknown_font_is_refused(self):
+        response = self.client.post("/api/fonts/delete", json={"key": "Nope"})
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.get_json()["success"])
+
+    def test_the_access_code_is_required_when_one_is_set(self):
+        original = routes.ACCESS_CODE
+        routes.ACCESS_CODE = "letmein"
+        self.addCleanup(setattr, routes, "ACCESS_CODE", original)
+        response = self.upload("TestFont.ttf", self.real_font_bytes())
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse((routes.USER_FONT_DIR / "TestFont.ttf").exists())
 
 
 if __name__ == "__main__":
