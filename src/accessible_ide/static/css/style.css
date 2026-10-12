@@ -1104,7 +1104,7 @@ body[data-contrast="high"][data-theme="pastel"] {
 /* Switch: a real <button role="switch">, so it is reachable by keyboard
    and announced correctly. The track is decorative; the state lives in
    the accessible name and aria-checked. */
-#tts-toggle {
+[role="switch"] {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -1119,7 +1119,7 @@ body[data-contrast="high"][data-theme="pastel"] {
               border-color var(--motion-med) var(--ease);
 }
 
-#tts-toggle:hover {
+[role="switch"]:hover {
   border-color: var(--accent);
 }
 
@@ -1145,17 +1145,17 @@ body[data-contrast="high"][data-theme="pastel"] {
   transition: transform var(--motion-med) var(--ease);
 }
 
-#tts-toggle.active {
+[role="switch"].active {
   background: var(--bg);
   color: var(--fg);
   border-color: var(--accent);
 }
 
-#tts-toggle.active .switch-track {
+[role="switch"].active .switch-track {
   background: var(--accent);
 }
 
-#tts-toggle.active .switch-thumb {
+[role="switch"].active .switch-thumb {
   transform: translateX(22px);
   background: var(--accent-fg);
 }
