@@ -78,6 +78,11 @@ REQUIRED_SETTINGS_IDS = (
     "highlight-status",
     "btn-reset-highlight",
     "btn-reset-config",
+    # The settings backup group.
+    "btn-export-config",
+    "btn-import-config",
+    "config-file-input",
+    "backup-status",
 )
 
 

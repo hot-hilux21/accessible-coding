@@ -909,5 +909,121 @@ class ThemeApiTests(ConfigApiTestCase):
                     self.assertIn(key, palette)
 
 
+class ConfigBackupTests(ConfigApiTestCase):
+    """GET /api/config/export and POST /api/config/import.
+
+    The file is the reader's own settings, so it has to be complete enough
+    to move to another machine, and it has to be validated on the way back
+    in exactly as the panel is - a hand-edited file must not be able to put
+    a value into the config that the app would refuse from its own controls.
+    """
+
+    def export(self):
+        response = self.client.get("/api/config/export")
+        self.assertEqual(response.status_code, 200)
+        return response
+
+    def test_export_is_a_downloadable_file(self):
+        response = self.export()
+        disposition = response.headers["Content-Disposition"]
+        self.assertIn("attachment", disposition)
+        self.assertIn("accessible-ide-settings.json", disposition)
+        self.assertIn("application/json", response.headers["Content-Type"])
+
+    def test_export_names_the_app_and_carries_the_settings(self):
+        self.post_settings(font="Nunito", font_size=20)
+        body = json.loads(self.export().get_data(as_text=True))
+        self.assertEqual(body["app"], "AccessibleIDE")
+        self.assertIn("version", body)
+        self.assertEqual(body["config"]["font"], "Nunito")
+        self.assertEqual(body["config"]["font_size"], 20)
+
+    def test_export_never_carries_the_access_code(self):
+        routes.ACCESS_CODE = "letmein"
+        self.post_settings(font_size=20, access_code="letmein")
+        raw = self.export().get_data(as_text=True)
+        self.assertNotIn("access_code", raw)
+        self.assertNotIn("letmein", raw)
+
+    def test_export_leaves_out_settings_that_were_never_chosen(self):
+        # reduce_motion is None until the reader answers, and null is not a
+        # value the validator accepts for a switch. A file the app writes
+        # has to be a file the app can read back, so the unset setting is
+        # left out rather than written as null.
+        body = json.loads(self.export().get_data(as_text=True))
+        self.assertNotIn("reduce_motion", body["config"])
+
+    def test_import_applies_the_settings(self):
+        response = self.client.post("/api/config/import", json={
+            "config": {"font": "Nunito", "font_size": 22, "theme": "dark"},
+        })
+        self.assertEqual(response.status_code, 200)
+        stored = self.get_settings()
+        self.assertEqual(stored["font"], "Nunito")
+        self.assertEqual(stored["font_size"], 22)
+        self.assertEqual(stored["theme"], "dark")
+
+    def test_import_leaves_settings_the_file_does_not_mention(self):
+        self.post_settings(contrast="high")
+        self.client.post("/api/config/import", json={"config": {"font_size": 22}})
+        stored = self.get_settings()
+        self.assertEqual(stored["font_size"], 22)
+        self.assertEqual(stored["contrast"], "high")
+
+    def test_import_refuses_a_body_that_is_not_a_settings_file(self):
+        for payload in ({}, {"config": "nope"}, {"config": [1, 2]}, {"config": 5}):
+            with self.subTest(payload=payload):
+                response = self.client.post("/api/config/import", json=payload)
+                self.assertEqual(response.status_code, 400)
+                self.assertFalse(response.get_json()["success"])
+
+    def test_import_validates_exactly_as_the_panel_does(self):
+        response = self.client.post("/api/config/import", json={
+            "config": {"font_size": 999, "theme": "neon", "colour": "purple"},
+        })
+        self.assertEqual(response.status_code, 400)
+        # Nothing from the bad file was written.
+        stored = self.get_settings()
+        self.assertEqual(stored["font_size"], routes.DEFAULT_CONFIG["font_size"])
+        self.assertEqual(stored["theme"], routes.DEFAULT_CONFIG["theme"])
+
+    def test_import_requires_the_access_code_when_one_is_set(self):
+        routes.ACCESS_CODE = "letmein"
+        response = self.client.post(
+            "/api/config/import", json={"config": {"font_size": 22}}
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(routes.CONFIG_FILE.exists())
+
+    def test_import_accepts_the_access_code(self):
+        routes.ACCESS_CODE = "letmein"
+        response = self.client.post("/api/config/import", json={
+            "config": {"font_size": 22}, "access_code": "letmein",
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_import_is_post_only(self):
+        self.assertEqual(self.client.get("/api/config/import").status_code, 405)
+
+    def test_export_is_get_only(self):
+        self.assertEqual(self.client.post("/api/config/export").status_code, 405)
+
+    def test_a_round_trip_restores_the_settings(self):
+        self.post_settings(font="Nunito", font_size=22, theme="dark", contrast="high")
+        exported = json.loads(self.export().get_data(as_text=True))
+        # Wipe back to defaults, then import the file the app just wrote.
+        self.client.post("/api/config/reset", json={})
+        self.assertEqual(self.get_settings()["font"], routes.DEFAULT_CONFIG["font"])
+        response = self.client.post(
+            "/api/config/import", json={"config": exported["config"]}
+        )
+        self.assertEqual(response.status_code, 200)
+        stored = self.get_settings()
+        self.assertEqual(stored["font"], "Nunito")
+        self.assertEqual(stored["font_size"], 22)
+        self.assertEqual(stored["theme"], "dark")
+        self.assertEqual(stored["contrast"], "high")
+
+
 if __name__ == "__main__":
     unittest.main()

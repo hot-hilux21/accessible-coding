@@ -640,6 +640,25 @@
           <p class="field-help" id="update-version"></p>
         </fieldset>
 
+        <fieldset class="settings-group" id="group-backup">
+          <legend class="settings-legend">{{ t('group.backup') }}</legend>
+          <p class="settings-hint" id="backup-hint">{{ t('config.export_help') }}</p>
+          <div class="field">
+            <div class="field-row">
+              <button id="btn-export-config" class="btn btn-small" type="button"
+                      aria-describedby="backup-hint">
+                {{ t('config.export') }}
+              </button>
+              <button id="btn-import-config" class="btn btn-small" type="button"
+                      aria-describedby="backup-hint">
+                {{ t('config.import') }}
+              </button>
+            </div>
+            <input type="file" id="config-file-input" accept="application/json,.json" hidden>
+            <p class="field-help" id="backup-status" role="status" aria-live="polite"></p>
+          </div>
+        </fieldset>
+
         <fieldset class="settings-group" id="group-reset">
           <legend class="settings-legend">{{ t('group.reset') }}</legend>
           <p class="settings-hint" id="reset-hint">{{ t('settings.reset_help') }}</p>

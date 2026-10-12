@@ -1,7 +1,7 @@
 """
 Main routes for AccessibleIDE.
 """
-from flask import Blueprint, render_template, request, jsonify, send_from_directory
+from flask import Blueprint, render_template, request, jsonify, make_response, send_from_directory
 import subprocess
 import sys
 import json
@@ -1324,24 +1324,13 @@ def _describe(key, value, t):
     return t('config.error_unknown', label)
 
 
-@main_bp.route('/api/config', methods=['GET', 'POST'])
-def config_api():
-    if request.method == 'GET':
-        return jsonify(load_config())
+def _validate_config(data, t):
+    """Plain explanations for the settings that were refused.
 
-    data = request.get_json(silent=True) or {}
-    t = translator_for(request_locale(data))
-
-    # Access code gate (web version)
-    if not access_code_ok(data):
-        return jsonify({'success': False, 'error': t('error.access_required'), 'code_required': True}), 403
-
-    # The access code is a gate, not a setting. Drop it before validating
-    # and before saving, otherwise it is rejected as an unknown key and
-    # would be written into config.json in plain text.
-    data = {key: value for key, value in data.items() if key != 'access_code'}
-
-    # Validate keys and types
+    Shared by the settings endpoint and the import endpoint, so a file
+    cannot carry a value the panel itself would have rejected. Returns an
+    empty list when every setting is acceptable.
+    """
     invalid = []
     for key, value in data.items():
         if key not in CONFIG_TYPES:
@@ -1379,7 +1368,27 @@ def config_api():
                 and len(value) > CONFIG_MAX_LENGTHS[key]:
             invalid.append(_describe(key, value, t))
             continue
+    return invalid
 
+
+@main_bp.route('/api/config', methods=['GET', 'POST'])
+def config_api():
+    if request.method == 'GET':
+        return jsonify(load_config())
+
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+
+    # Access code gate (web version)
+    if not access_code_ok(data):
+        return jsonify({'success': False, 'error': t('error.access_required'), 'code_required': True}), 403
+
+    # The access code is a gate, not a setting. Drop it before validating
+    # and before saving, otherwise it is rejected as an unknown key and
+    # would be written into config.json in plain text.
+    data = {key: value for key, value in data.items() if key != 'access_code'}
+
+    invalid = _validate_config(data, t)
     if invalid:
         return jsonify({
             'success': False,
@@ -1412,6 +1421,73 @@ def config_reset_api():
     current = load_config()
     config = DEFAULT_CONFIG.copy()
     config['setup_complete'] = current.get('setup_complete', False)
+    save_config(config)
+    return jsonify({'success': True, 'config': config})
+
+
+@main_bp.route('/api/config/export')
+def config_export_api():
+    """The current settings as a file the reader can keep or move.
+
+    The access code is not a setting and is never written out: it is a
+    gate for the hosted version, and a file that carried it would leak it
+    wherever the file is copied. The wrapper names the app and the version
+    so a file found later says what wrote it.
+    """
+    from . import __version__
+    config = load_config()
+    config.pop('access_code', None)
+    # A setting with no value is left out rather than written as null. The
+    # only one is reduce_motion, where None means "not chosen yet" - which
+    # is the default, so leaving it out says the same thing. It also keeps
+    # the file importable: the validator refuses null for a switch, and a
+    # file the app wrote has to be a file the app can read back.
+    config = {key: value for key, value in config.items() if value is not None}
+    payload = json.dumps(
+        {'app': 'AccessibleIDE', 'version': __version__, 'config': config},
+        indent=2, ensure_ascii=False,
+    )
+    response = make_response(payload)
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    response.headers['Content-Disposition'] = (
+        'attachment; filename="accessible-ide-settings.json"'
+    )
+    return response
+
+
+@main_bp.route('/api/config/import', methods=['POST'])
+def config_import_api():
+    """Apply settings from a file the reader chose.
+
+    The file is validated exactly as the settings panel is, so a
+    hand-edited or foreign file cannot put a value into the config that
+    the app would refuse from its own controls. Only the keys the app
+    knows are applied; the rest of the current settings are left alone.
+    """
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+
+    # Access code gate (web version), same as the settings endpoint.
+    if not access_code_ok(data):
+        return jsonify({'success': False, 'error': t('error.access_required'), 'code_required': True}), 403
+
+    imported = data.get('config')
+    if not isinstance(imported, dict):
+        return jsonify({
+            'success': False,
+            'error': t('config.import_not_a_file'),
+        }), 400
+
+    imported = {key: value for key, value in imported.items() if key != 'access_code'}
+    invalid = _validate_config(imported, t)
+    if invalid:
+        return jsonify({
+            'success': False,
+            'error': t('config.error_prefix') + ' ' + ' '.join(invalid),
+        }), 400
+
+    config = load_config()
+    config.update(imported)
     save_config(config)
     return jsonify({'success': True, 'config': config})
 

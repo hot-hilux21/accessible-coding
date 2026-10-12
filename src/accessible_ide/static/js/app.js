@@ -122,6 +122,10 @@
   var setupSkip = document.getElementById('setup-skip');
   var btnSetupAgain = document.getElementById('btn-setup-again');
   var btnResetConfig = document.getElementById('btn-reset-config');
+  var btnExportConfig = document.getElementById('btn-export-config');
+  var btnImportConfig = document.getElementById('btn-import-config');
+  var configFileInput = document.getElementById('config-file-input');
+  var backupStatus = document.getElementById('backup-status');
 
   var body = document.body;
   var ttsEnabled = btnTts.getAttribute('aria-checked') === 'true';
@@ -1005,6 +1009,80 @@
         settingsStatus.classList.add('is-error');
       }
     }
+  }
+
+  // ---------- Settings backup ----------
+  // Export is a plain download: the browser saves the file the server
+  // sends and the page is left alone. Import reads the file the reader
+  // chose, sends it to the server, and reloads so the new settings are
+  // painted from the top rather than half-applied.
+  function showBackupStatus(message, isError) {
+    if (!backupStatus) return;
+    backupStatus.textContent = message;
+    backupStatus.classList.toggle('is-error', !!isError);
+  }
+
+  if (btnExportConfig) {
+    btnExportConfig.addEventListener('click', function () {
+      // A download, not a navigation: the server sends the file with a
+      // Content-Disposition header, so the browser saves it and stays put.
+      window.location.href = '/api/config/export';
+    });
+  }
+
+  if (btnImportConfig && configFileInput) {
+    btnImportConfig.addEventListener('click', function () {
+      configFileInput.click();
+    });
+
+    configFileInput.addEventListener('change', function () {
+      var file = configFileInput.files && configFileInput.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var parsed;
+        try {
+          parsed = JSON.parse(reader.result);
+        } catch (error) {
+          showBackupStatus(t('config.import_not_a_file'), true);
+          return;
+        }
+        // The file the app writes wraps the settings under "config". A
+        // bare settings object is accepted too, so a hand-written file
+        // works as well as one the app saved.
+        var settings = (parsed && typeof parsed === 'object' && parsed.config)
+          ? parsed.config
+          : parsed;
+        fetch('/api/config/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            config: settings,
+            access_code: accessCode,
+            locale: META.locale
+          })
+        })
+          .then(function (res) {
+            return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+          })
+          .then(function (result) {
+            if (result.ok) {
+              showBackupStatus(t('config.import_success'), false);
+              window.location.reload();
+              return;
+            }
+            showBackupStatus(
+              (result.data && result.data.error) || t('config.import_failed'), true);
+          })
+          .catch(function () {
+            showBackupStatus(t('config.import_failed'), true);
+          });
+      };
+      reader.onerror = function () {
+        showBackupStatus(t('config.import_failed'), true);
+      };
+      reader.readAsText(file);
+    });
   }
 
   // ---------- TTS ----------
