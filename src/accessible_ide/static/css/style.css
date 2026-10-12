@@ -572,91 +572,38 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
 /* On the right of the editor, below the output, which is where somebody
    who has just run something and wants to try a variation of it will look
    next. Hidden by default because a page that has not asked for a shell
-   should not pay for one. */
+   should not pay for one.
+
+   It is drawn as a terminal: the transcript and the line you type on share
+   one surface, in the editor's own monospace, so it looks like the output
+   pane above it with a prompt at its foot. It opens at half the column, so
+   the output and the shell sit one above the other. */
 .shell-pane {
-  flex: 0 0 var(--shell-height, 40%);
+  flex: 0 0 var(--shell-height, 50%);
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--panel-bg);
 }
 
-.shell-header {
+/* Clear and close only. No title and no explanation: the prompt below says
+   what the pane is better than a label would. */
+.shell-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.shell-header-buttons {
-  display: flex;
+  justify-content: flex-end;
   gap: var(--space-2);
-}
-
-.shell-title {
-  margin: 0;
-  font-size: 0.9em;
-  font-weight: bold;
-  color: var(--muted);
-  letter-spacing: normal;
-}
-
-/* One sentence of guidance, in the reader's language, above the box. The
-   shell is the one place in the app where what to type is not obvious. */
-.shell-intro {
-  margin: 0;
   padding: var(--space-2) var(--space-4);
-  font-size: 0.9em;
-  line-height: 1.5;
-  color: var(--muted);
   border-bottom: 1px solid var(--panel-border);
 }
 
-.shell-label {
-  padding: var(--space-2) var(--space-4) 0;
-  font-size: 0.9em;
-  color: var(--muted);
-}
-
-/* The monospace and the line height come from the reader's settings like
-   everywhere else, so the shell is as readable as the editor. */
-.shell-input {
-  margin: var(--space-1) var(--space-4);
-  padding: var(--space-2);
-  font-family: var(--font-mono);
-  font-size: 0.95em;
-  line-height: var(--line-height, 1.5);
-  letter-spacing: var(--letter-spacing, normal);
-  color: var(--fg);
-  background: var(--bg);
-  border: 2px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  resize: vertical;
-}
-
-.shell-input:focus {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.shell-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-4) var(--space-2);
-}
-
-.shell-status {
-  font-size: 0.85em;
-  color: var(--muted);
-}
-
+/* The transcript. It fills the pane and scrolls; the prompt line below it
+   stays put. The monospace and the line height come from the reader's
+   settings like everywhere else, so the shell is as readable as the editor. */
 .shell-output {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4) 0;
   overflow: auto;
   font-family: var(--font-mono);
   font-size: 0.95em;
@@ -668,6 +615,44 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   /* New output is appended constantly, and scroll anchoring would yank the
      view while somebody is reading further up the transcript. */
   overflow-anchor: none;
+}
+
+/* The line the reader types on, with the prompt in front of it. It carries
+   no border of its own and shares the transcript's type and colour, so the
+   two read as one surface, the way a terminal does. */
+.shell-form {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-4) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  line-height: var(--line-height, 1.5);
+  letter-spacing: var(--letter-spacing, normal);
+  color: var(--fg);
+}
+
+/* The prompt is punctuation, not prose, so it lives in the stylesheet and
+   stays out of the markup and the catalogues. Its colour is the muted text
+   colour, which is measured against the panel behind it like every other
+   label in the app. */
+.shell-prompt::before {
+  content: ">>>";
+  color: var(--muted);
+}
+
+.shell-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
 }
 
 /* ---------- Pane dividers ---------- */

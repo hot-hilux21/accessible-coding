@@ -2803,7 +2803,9 @@
   var MIN_PCT = 20;
   var MAX_PCT = 80;
   var editorWidthPct = 50;
-  var shellHeightPct = 40;
+  // The shell opens at half the right column: output on top, shell below,
+  // the two sharing the height evenly until the reader drags the divider.
+  var shellHeightPct = 50;
 
   function clampPct(value) {
     return Math.min(MAX_PCT, Math.max(MIN_PCT, value));
@@ -2935,14 +2937,20 @@
   // keeping one reader's variables out of another reader's shell.
   var shellPane = document.getElementById('shell-pane');
   var btnShell = document.getElementById('btn-shell');
+  var shellForm = document.getElementById('shell-form');
   var shellInput = document.getElementById('shell-input');
   var shellOutput = document.getElementById('shell-output');
   var shellStatus = document.getElementById('shell-status');
-  var btnShellRun = document.getElementById('shell-run');
   var btnShellClear = document.getElementById('shell-clear');
   var btnShellClose = document.getElementById('shell-close');
   var shellSession = null;
   var shellBusy = false;
+
+  // The prompt in front of every line, in the box and in the transcript.
+  // It is not translated: a prompt is punctuation, and a reader who knows
+  // Python already knows it. The stylesheet draws the same three marks in
+  // front of the line the reader is typing on.
+  var SHELL_PROMPT = '>>>';
 
   function shellPost(url, code) {
     return fetch(url, {
@@ -3020,8 +3028,13 @@
     if (shellBusy || !shellSession || !shellInput) return;
     var code = shellInput.value;
     if (!code.trim()) return;
+    // The line is echoed with its prompt the way a terminal echoes it, so
+    // the transcript is a record of the session and not only of its output.
+    // The box is emptied straight away: what was typed now belongs to the
+    // transcript, and the reader is already on a fresh line.
+    shellSay(SHELL_PROMPT + ' ' + code);
+    shellInput.value = '';
     shellBusy = true;
-    if (btnShellRun) btnShellRun.disabled = true;
     shellPost('/api/shell/exec', code)
       .then(function (data) {
         if (shellFail(data)) return;
@@ -3035,7 +3048,6 @@
       })
       .then(function () {
         shellBusy = false;
-        if (btnShellRun) btnShellRun.disabled = false;
         if (shellInput) shellInput.focus();
       });
   }
@@ -3057,16 +3069,14 @@
     if (shellPane && shellPane.hidden) shellOpen(); else shellClose();
   });
   if (btnShellClose) btnShellClose.addEventListener('click', shellClose);
-  if (btnShellRun) btnShellRun.addEventListener('click', shellRun);
   if (btnShellClear) btnShellClear.addEventListener('click', shellClear);
-  if (shellInput) {
-    // The same gesture as the editor, because muscle memory should not
-    // have to be relearned for a different box.
-    shellInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        shellRun();
-      }
+  if (shellForm) {
+    // The line is the whole interface. What a terminal does with the line
+    // you have typed is run it, and the form gives that gesture to Enter
+    // without a button to look for.
+    shellForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      shellRun();
     });
   }
 

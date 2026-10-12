@@ -99,7 +99,7 @@ const KNOWN_IDS = new Set([
   // without these, the pane cannot be found and nothing about the shell is
   // exercised, while the harness still reports success.
   'btn-shell', 'shell-pane', 'shell-input', 'shell-output', 'shell-status',
-  'shell-run', 'shell-clear', 'shell-close',
+  'shell-form', 'shell-clear', 'shell-close',
   // The split view: the editor and the right-hand column, and the two
   // dividers between them. The dividers are separators, so the harness can
   // check the keyboard path and the drag path both work.
@@ -159,7 +159,7 @@ const DIVIDER_ATTRIBUTES = {
     'aria-orientation': 'horizontal',
     'aria-valuemin': '20',
     'aria-valuemax': '80',
-    'aria-valuenow': '40',
+    'aria-valuenow': '50',
     tabindex: '0',
   },
 };
@@ -3135,7 +3135,7 @@ function runLayoutChecks() {
 
   // The layout is remembered, so the reader does not have to drag it back
   // into place on every visit.
-  if (mainPage.store.get('accessible_ide_layout') !== '{"editorWidth":65,"shellHeight":40}') {
+  if (mainPage.store.get('accessible_ide_layout') !== '{"editorWidth":65,"shellHeight":50}') {
     failed = true;
     console.log(`FAIL the layout was not remembered: ${mainPage.store.get('accessible_ide_layout')}`);
   } else {
@@ -3171,7 +3171,7 @@ function runShellChecks() {
   const input = elements.get('shell-input');
   const out = elements.get('shell-output');
   const status = elements.get('shell-status');
-  const run = elements.get('shell-run');
+  const form = elements.get('shell-form');
   const clear = elements.get('shell-clear');
   const close = elements.get('shell-close');
 
@@ -3215,17 +3215,17 @@ function runShellChecks() {
   // shell's top edge, so ArrowDown moves it down and makes the shell
   // shorter, and ArrowUp moves it up and makes it taller.
   fire('divider-shell', 'keydown', { key: 'ArrowDown', preventDefault: noop, stopPropagation: noop });
-  if (shellDivider.getAttribute('aria-valuenow') !== '35') {
+  if (shellDivider.getAttribute('aria-valuenow') !== '45') {
     failed = true;
     console.log(`FAIL ArrowDown did not shrink the shell: ${shellDivider.getAttribute('aria-valuenow')}`);
-  } else if (rightColumn.style['--shell-height'] !== '35%') {
+  } else if (rightColumn.style['--shell-height'] !== '45%') {
     failed = true;
     console.log(`FAIL the shell height never reached the stylesheet: ${rightColumn.style['--shell-height']}`);
   } else {
     console.log('     ArrowDown shrinks the shell, and the height reaches the stylesheet');
   }
   fire('divider-shell', 'keydown', { key: 'ArrowUp', preventDefault: noop, stopPropagation: noop });
-  if (shellDivider.getAttribute('aria-valuenow') !== '40') {
+  if (shellDivider.getAttribute('aria-valuenow') !== '50') {
     failed = true;
     console.log(`FAIL ArrowUp did not grow the shell back: ${shellDivider.getAttribute('aria-valuenow')}`);
   } else {
@@ -3238,7 +3238,7 @@ function runShellChecks() {
   fire('divider-shell', 'pointerdown', { button: 0, clientY: 300, preventDefault: noop, stopPropagation: noop });
   fire('divider-shell', 'pointermove', { clientY: 310, preventDefault: noop, stopPropagation: noop });
   fire('divider-shell', 'pointerup', { preventDefault: noop, stopPropagation: noop });
-  if (shellDivider.getAttribute('aria-valuenow') !== '30') {
+  if (shellDivider.getAttribute('aria-valuenow') !== '40') {
     failed = true;
     console.log(`FAIL dragging the shell divider down did not shrink the shell: ${shellDivider.getAttribute('aria-valuenow')}`);
   } else {
@@ -3255,7 +3255,7 @@ function runShellChecks() {
     }
 
     input.value = 'answer = 6 * 7';
-    (run.__listeners.click || []).forEach((h) => h(fakeEvent));
+    fire('shell-form', 'submit', { preventDefault: noop, stopPropagation: noop });
 
     setTimeout(() => {
       const sent = shellCommands[shellCommands.length - 1];
@@ -3282,7 +3282,7 @@ function runShellChecks() {
       // A second command must not wipe the first answer off the screen. A
       // shell you cannot look back in is a log, not a shell.
       input.value = 'print(answer)';
-      (run.__listeners.click || []).forEach((h) => h(fakeEvent));
+      fire('shell-form', 'submit', { preventDefault: noop, stopPropagation: noop });
       setTimeout(() => {
         if (!/answer = 6 \* 7/.test(String(out.textContent))) {
           failed = true;
@@ -3293,7 +3293,7 @@ function runShellChecks() {
 
         // A failure is said in words, not left as an empty box.
         input.value = 'boom';
-        (run.__listeners.click || []).forEach((h) => h(fakeEvent));
+        fire('shell-form', 'submit', { preventDefault: noop, stopPropagation: noop });
         setTimeout(() => {
           if (!/boom/.test(String(out.textContent))) {
             failed = true;
