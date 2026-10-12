@@ -110,6 +110,8 @@
   "python.unknown": "Ocurrió un error desconocido.",
   "reading.font": "Fuente",
   "reading.font_size": "Tamaño de fuente",
+  "reading.font_weight": "Grosor del texto",
+  "reading.font_weight_help": "Cuán gruesas se ven las letras. 400 es normal; más alto es más grueso.",
   "reading.hint": "Estos cambios modifican cómo se ve el código. Aquí nada necesita reiniciarse.",
   "reading.letter_spacing": "Espaciado entre letras",
   "reading.letter_spacing_help": "Espacio extra entre letras. A algunas personas les resulta más fácil seguirlo con un poco más.",

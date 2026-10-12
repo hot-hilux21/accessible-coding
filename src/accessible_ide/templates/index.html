@@ -89,7 +89,7 @@
     }
   </style>
 </head>
-<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}" data-gradient="{% if config.theme_gradient %}on{% else %}off{% endif %}"{% if body_style %} style="{{ body_style }}"{% endif %}>
+<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-font-weight="{{ config.font_weight }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}" data-gradient="{% if config.theme_gradient %}on{% else %}off{% endif %}"{% if body_style %} style="{{ body_style }}"{% endif %}>
 
   <a class="skip-link" href="#editor">{{ t('app.skip_to_editor') }}</a>
 
@@ -280,6 +280,15 @@
               <input type="range" id="font-size" min="12" max="28" step="1" value="{{ config.font_size }}">
               <output id="font-size-label" class="field-value" for="font-size">{{ config.font_size }}px</output>
             </div>
+          </div>
+
+          <div class="field">
+            <label for="font-weight">{{ t('reading.font_weight') }}</label>
+            <div class="field-row">
+              <input type="range" id="font-weight" min="300" max="800" step="100" value="{{ config.font_weight }}">
+              <output id="font-weight-label" class="field-value" for="font-weight">{{ config.font_weight }}</output>
+            </div>
+            <p class="field-help">{{ t('reading.font_weight_help') }}</p>
           </div>
 
           <div class="field">

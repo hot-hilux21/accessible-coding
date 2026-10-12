@@ -62,6 +62,8 @@
   var fontSelect = document.getElementById('font-select');
   var fontSize = document.getElementById('font-size');
   var fontSizeLabel = document.getElementById('font-size-label');
+  var fontWeight = document.getElementById('font-weight');
+  var fontWeightLabel = document.getElementById('font-weight-label');
   var lineHeight = document.getElementById('line-height');
   var lineHeightLabel = document.getElementById('line-height-label');
   var letterSpacing = document.getElementById('letter-spacing');
@@ -560,6 +562,17 @@
     var cm = editorEl.querySelector('.CodeMirror');
     if (cm) cm.style.fontSize = size + 'px';
     fontSizeLabel.textContent = size + 'px';
+    editor.refresh();
+    updatePreview();
+  }
+
+  // The weight is a token rather than an inline font-weight, so it reaches
+  // the editor as well as the page: .CodeMirror reads var(--font-weight)
+  // with !important, and an inline declaration would lose to that.
+  function applyFontWeight(weight) {
+    body.style.setProperty('--font-weight', String(weight));
+    body.setAttribute('data-font-weight', weight);
+    fontWeightLabel.textContent = weight;
     editor.refresh();
     updatePreview();
   }
@@ -1981,6 +1994,14 @@
     saveConfig({ font_size: parseInt(fontSize.value, 10) });
   });
 
+  fontWeight.addEventListener('input', function () {
+    applyFontWeight(parseInt(fontWeight.value, 10));
+  });
+
+  fontWeight.addEventListener('change', function () {
+    saveConfig({ font_weight: parseInt(fontWeight.value, 10) });
+  });
+
   lineHeight.addEventListener('input', function () {
     applyLineHeight(lineHeight.value);
     paintStepperLimits();
@@ -2879,6 +2900,7 @@
   applyTheme(body.getAttribute('data-theme') || 'high-contrast');
   applyFont(body.getAttribute('data-font') || 'OpenDyslexic');
   applyFontSize(parseInt(body.getAttribute('data-font-size') || '16', 10));
+  applyFontWeight(parseInt(body.getAttribute('data-font-weight') || '400', 10));
   applyLineHeight(body.getAttribute('data-line-height') || '1.6');
   applyLetterSpacing(body.getAttribute('data-letter-spacing') || '0.5');
   paintStepperLimits();

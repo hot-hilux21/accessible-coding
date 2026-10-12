@@ -110,6 +110,8 @@
   "python.unknown": "An unknown error occurred.",
   "reading.font": "Font",
   "reading.font_size": "Font size",
+  "reading.font_weight": "Text weight",
+  "reading.font_weight_help": "How heavy the letters look. 400 is normal; higher is bolder.",
   "reading.hint": "These change how the code looks. Nothing here needs a restart.",
   "reading.letter_spacing": "Letter spacing",
   "reading.letter_spacing_help": "Extra space between letters. Some readers find a little more easier to track.",

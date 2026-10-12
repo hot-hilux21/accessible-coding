@@ -41,6 +41,9 @@
      real monospace with nothing downloaded. */
   --font-mono: "Consolas", "Cascadia Mono", ui-monospace, "Mukta", "Almarai", monospace;
   --font-size: 16px;
+  /* How heavy the reading text is. 400 is the normal weight every font
+     has; the reader can move it up or down from Settings. */
+  --font-weight: 400;
   --line-height: 1.6;
   --letter-spacing: 0.5px;
   --radius: 14px;
@@ -149,6 +152,7 @@ body {
   color: var(--fg);
   font-family: var(--font-family);
   font-size: var(--font-size);
+  font-weight: var(--font-weight);
   line-height: var(--line-height);
   letter-spacing: var(--letter-spacing);
   display: flex;
@@ -425,6 +429,7 @@ input[type="range"] {
   position: absolute;
   inset: 0;
   font-size: var(--font-size);
+  font-weight: var(--font-weight);
   line-height: var(--line-height);
   letter-spacing: var(--letter-spacing);
 }
@@ -434,6 +439,7 @@ input[type="range"] {
   height: 100%;
   font-family: var(--font-family) !important;
   font-size: var(--font-size) !important;
+  font-weight: var(--font-weight) !important;
   line-height: var(--line-height) !important;
   letter-spacing: var(--letter-spacing) !important;
 }

@@ -110,6 +110,8 @@
   "python.unknown": "Une erreur inconnue s'est produite.",
   "reading.font": "Police",
   "reading.font_size": "Taille de la police",
+  "reading.font_weight": "Graisse du texte",
+  "reading.font_weight_help": "L'épaisseur des lettres. 400 est normal ; plus haut est plus gras.",
   "reading.hint": "Ces réglages changent l'apparence du code. Rien ici n demande de redémarrer.",
   "reading.letter_spacing": "Espacement des lettres",
   "reading.letter_spacing_help": "Espace supplémentaire entre les lettres. Certains lecteurs trouvent un peu plus agréable à suivre.",

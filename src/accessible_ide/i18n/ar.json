@@ -110,6 +110,8 @@
   "python.unknown": "حدث خطأ غير معروف.",
   "reading.font": "الخط",
   "reading.font_size": "حجم الخط",
+  "reading.font_weight": "سماكة النص",
+  "reading.font_weight_help": "مدى ثقل الحروف. 400 عادي؛ والأعلى أكثر سماكة.",
   "reading.hint": "تغيّر هذه الخيارات شكل الشيفرة. لا يحتاج أي منها إلى إعادة تشغيل.",
   "reading.letter_spacing": "تباعد الأحرف",
   "reading.letter_spacing_help": "مسافة إضافية بين الأحرف. يجد بعض القراء القليل الإضافي أسهل في التتبع.",

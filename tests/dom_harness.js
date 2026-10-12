@@ -41,6 +41,7 @@ const KNOWN_IDS = new Set([
   'editor', 'output', 'error-panel', 'error-message', 'file-input',
   'settings-dialog', 'settings-title', 'settings-status', 'btn-settings',
   'btn-settings-close', 'font-select', 'font-size', 'font-size-label',
+  'font-weight', 'font-weight-label',
   'line-height', 'line-height-label', 'letter-spacing',
   'letter-spacing-label', 'line-height-less', 'line-height-more',
   'letter-spacing-less', 'letter-spacing-more',
@@ -115,7 +116,7 @@ const KNOWN_IDS = new Set([
 ]);
 
 const numericIds = new Set([
-  'font-size', 'line-height', 'letter-spacing', 'blur-intensity', 'tts-rate',
+  'font-size', 'font-weight', 'line-height', 'letter-spacing', 'blur-intensity', 'tts-rate',
 ]);
 
 // The two spacing sliders, with the limits, the step and the starting value
@@ -233,6 +234,7 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
     'data-theme': 'high-contrast',
     'data-font': 'OpenDyslexic',
     'data-font-size': '16',
+    'data-font-weight': '400',
     'data-highlight-color': '',
     'data-line-height': '1.6',
     'data-letter-spacing': '0.5',
@@ -1156,6 +1158,7 @@ function eventFor(el) {
 }
 const interactions = [
   ['font-select', 'change'], ['font-size', 'input'], ['font-size', 'change'],
+  ['font-weight', 'input'], ['font-weight', 'change'],
   ['line-height', 'input'], ['line-height', 'change'],
   ['letter-spacing', 'input'], ['letter-spacing', 'change'],
   ['line-height-less', 'click'], ['line-height-more', 'click'],

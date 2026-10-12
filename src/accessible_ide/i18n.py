@@ -59,6 +59,7 @@ class MissingTranslationError(KeyError):
 CONFIG_LABELS = {
     "font": "reading.font",
     "font_size": "reading.font_size",
+    "font_weight": "reading.font_weight",
     "highlight_color": "try.highlight_label",
     "locale": "language.label",
     "line_height": "reading.line_height",

@@ -120,6 +120,11 @@ SETUP_TOTAL_STEPS = len(SETUP_STEPS)
 DEFAULT_CONFIG = {
     'font': 'OpenDyslexic',
     'font_size': 16,
+    # How heavy the reading text is. 400 is the normal weight every font
+    # has. The range reaches the light and bold faces the bundled fonts
+    # declare, and a variable font (Lexend, Nunito) renders anything in
+    # between; a static font falls back to its nearest real face.
+    'font_weight': 400,
     'locale': i18n.DEFAULT_LOCALE,
     # The first-run setup screen shows until this is true. It is a flag
     # rather than "does the config file exist" because the config file is
@@ -1181,6 +1186,7 @@ def shell_stop():
 CONFIG_TYPES = {
     'font': str,
     'font_size': int,
+    'font_weight': int,
     'highlight_color': str,
     'locale': str,
     'setup_complete': bool,
@@ -1243,6 +1249,11 @@ CONFIG_VALUES = {
 # unreadable screen. (minimum, maximum)
 CONFIG_RANGES = {
     'font_size': (12, 28),
+    # 300 (light) to 800 (extra bold), in steps the reader can feel. The
+    # bundled static fonts only declare 400 and 700, so the browser takes
+    # the nearest real face for the values in between rather than faking
+    # a smudged one.
+    'font_weight': (300, 800),
     'line_height': (1.0, 2.4),
     'letter_spacing': (-0.5, 4.0),
     'blur_intensity': (0.0, 1.0),

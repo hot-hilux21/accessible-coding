@@ -304,6 +304,16 @@ class TemplateContractTests(RenderedPageFixture):
             with self.subTest(token=token):
                 self.assertIn(token, self.js)
 
+    def test_the_font_weight_reaches_the_editor(self):
+        # The weight is a token, not an inline font-weight. .CodeMirror
+        # reads var(--font-weight) with !important, and an inline
+        # declaration loses to that, so the editor would stay at 400 while
+        # the rest of the page changed.
+        self.assertIn("--font-weight", self.js)
+        self.assertIn("--font-weight", self.css)
+        self.assertIn("font-weight: var(--font-weight)", self.css)
+        self.assertIn("font-weight: var(--font-weight) !important", self.css)
+
     def test_slider_bounds_match_the_server_ranges(self):
         # If a range is widened on the server but not on the slider, the
         # new value can never be reached from the panel, and the server
