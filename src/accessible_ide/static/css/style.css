@@ -1214,8 +1214,13 @@ body[data-contrast="high"][data-theme="pastel"] {
     flex: 1 1 auto;
   }
   .output-pane {
-    max-height: 45%;
     border-top: 1px solid var(--panel-border);
+  }
+  /* Only cap the output when the shell is also on screen. With the shell
+     closed it is the only pane in the column, so it takes the whole of it
+     instead of leaving the space below it empty. */
+  .right-column:has(.shell-pane:not([hidden])) .output-pane {
+    max-height: 45%;
   }
   .shell-pane {
     flex: 1 1 auto;
