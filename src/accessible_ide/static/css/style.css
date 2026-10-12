@@ -467,16 +467,28 @@ input[type="range"] {
    Hiding the gutter with CSS leaves CodeMirror's internal width
    math stale, which makes the line numbers ghost over the code. */
 
-/* Focus mode: blur non-active lines.
-   --blur-amount is written by app.js from the "How much to fade" slider.
-   It is clamped in CSS too, so a hand-edited config can never make the
-   other lines completely invisible. */
-body[data-focus-mode="lines"] .CodeMirror-line:not(.CodeMirror-activeline-background) {
-  opacity: clamp(0.15, var(--blur-amount, 0.5), 0.85);
+/* Focus mode: fade the other lines only while the pointer rests on one
+   line. At rest every line is fully legible, so the page is calm; hovering
+   singles one line out and fades the rest. The line number fades with its
+   line, so the gutter does not stay loud while the code goes quiet.
+   --blur-amount is written by app.js from the "How much to fade" slider,
+   and is clamped here too so a hand-edited config can never make the other
+   lines invisible. */
+body[data-focus-mode="lines"] .CodeMirror-line,
+body[data-focus-mode="lines"] .CodeMirror-linebackground,
+body[data-focus-mode="lines"] .CodeMirror-gutter-wrapper {
   transition: opacity var(--motion-med) var(--ease);
 }
 
-body[data-focus-mode="lines"] .CodeMirror-line.CodeMirror-activeline-background {
+body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-line,
+body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-linebackground,
+body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-gutter-wrapper {
+  opacity: clamp(0.15, var(--blur-amount, 0.5), 0.85);
+}
+
+body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-line:hover,
+body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hover .CodeMirror-linebackground,
+body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hover .CodeMirror-gutter-wrapper {
   opacity: 1;
 }
 
