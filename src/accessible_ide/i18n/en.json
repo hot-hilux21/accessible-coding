@@ -127,6 +127,7 @@
   "settings.reset_help": "Puts every setting back to the default. Your code is not touched.",
   "settings.save_failed": "That setting could not be saved.",
   "settings.saved": "Saved.",
+  "settings.sections": "Settings sections",
   "settings.setup_again": "Run the setup screen again",
   "settings.title": "Settings",
   "setup.back": "Back",

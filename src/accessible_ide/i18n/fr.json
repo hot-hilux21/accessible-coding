@@ -127,6 +127,7 @@
   "settings.reset_help": "Remet tous les réglages par défaut. Votre code n'est pas touché.",
   "settings.save_failed": "Ce réglage n'a pas pu être enregistré.",
   "settings.saved": "Enregistré.",
+  "settings.sections": "Sections des réglages",
   "settings.setup_again": "Revenir à l'écran de configuration",
   "settings.title": "Réglages",
   "setup.back": "Retour",

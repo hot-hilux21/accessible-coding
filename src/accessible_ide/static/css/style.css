@@ -795,6 +795,34 @@ body[data-contrast="high"][data-theme="pastel"] {
   background: var(--panel-bg);
 }
 
+/* Jump links to each group. The body below scrolls, so these stay in
+   view while the reader moves between sections. */
+.settings-nav {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+}
+
+.settings-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-nav-list a {
+  color: var(--accent);
+  font-size: 0.9em;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.settings-nav-list a:hover {
+  text-decoration-thickness: 2px;
+}
+
 .settings-title {
   margin: 0;
   font-size: 1.25em;

@@ -127,6 +127,7 @@
   "settings.reset_help": "Vuelve a poner todos los ajustes por defecto. Tu código no se toca.",
   "settings.save_failed": "No se pudo guardar ese ajuste.",
   "settings.saved": "Guardado.",
+  "settings.sections": "Secciones de ajustes",
   "settings.setup_again": "Volver a la pantalla de configuración",
   "settings.title": "Ajustes",
   "setup.back": "Atrás",

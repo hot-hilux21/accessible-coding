@@ -127,6 +127,7 @@
   "settings.reset_help": "يعيد كل إعداد إلى الوضع الافتراضي. لا يمسّ رمزك.",
   "settings.save_failed": "تعذر حفظ هذا الإعداد.",
   "settings.saved": "تم الحفظ.",
+  "settings.sections": "أقسام الإعدادات",
   "settings.setup_again": "اعرض شاشة الإعداد مرة أخرى",
   "settings.title": "الإعدادات",
   "setup.back": "رجوع",

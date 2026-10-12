@@ -127,6 +127,7 @@
   "settings.reset_help": "हर सेटिंग को डिफ़ॉल्ट पर वापस रखता है। आपका कोड नहीं बदलता।",
   "settings.save_failed": "वह सेटिंग सहेजी नहीं जा सकी।",
   "settings.saved": "सहेजा गया।",
+  "settings.sections": "सेटिंग अनुभाग",
   "settings.setup_again": "सेटअप स्क्रीन फिर से चलाएँ",
   "settings.title": "सेटिंग्स",
   "setup.back": "पीछे",
