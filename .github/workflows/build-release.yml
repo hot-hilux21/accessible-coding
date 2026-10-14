@@ -167,10 +167,15 @@ jobs:
             release/version.json
           generate_release_notes: true
           prerelease: true
-      # The channels the app reads. Both are moving release tags holding
-      # one file: the manifest, which points at the tagged release above.
-      # Nothing else is copied, so the app needs no release-list API and no
+      # The channels the app reads. The manifest is the channel: it points at
+      # the tagged release above, so the app needs no release-list API and no
       # token, only a fixed address per channel.
+      #
+      # Beta also carries a copy of the two builds. It is the address the
+      # README sends people to, and a download link has to land on a file.
+      # Replacing those copies on every release is what keeps that link from
+      # going stale, which is how it ended up pointing at a build from weeks
+      # earlier. Stable stays manifest-only; nothing links to it directly.
       #
       # Neither channel is marked as the repository's latest release, so the
       # "Latest" badge on the releases page stays on a real build rather than
@@ -207,7 +212,10 @@ jobs:
             --notes "The newest tagged release, for readers who want new work as it lands. Moved by every release." \
             --prerelease \
             --repo "${{ github.repository }}" 2>/dev/null || true
-          gh release upload beta release/version.json \
+          gh release upload beta \
+            release/version.json \
+            release/AccessibleIDE.exe \
+            release/AccessibleIDE-Setup.exe \
             --clobber --repo "${{ github.repository }}"
       - name: Check the stable channel can move
         if: steps.channels.outputs.stable == 'true'
