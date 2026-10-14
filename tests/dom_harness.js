@@ -128,6 +128,11 @@ const KNOWN_IDS = new Set([
   'mini-shell-toggle', 'mini-shell-panel',
   'shell-font-size', 'shell-line-height', 'shell-letter-spacing',
   'shell-font-size-value', 'shell-line-height-value', 'shell-letter-spacing-value',
+  // The trace table. app.js looks every one of these up on the way in too, so
+  // a missing id here would leave the feature silently absent while each check
+  // below still passed.
+  'btn-trace', 'trace-window', 'trace-rows', 'trace-note', 'trace-scroll',
+  'trace-grip', 'trace-close',
 ]);
 
 const numericIds = new Set([

@@ -13,6 +13,12 @@ datas = [
     ('src/accessible_ide/templates', 'accessible_ide/templates'),
     ('src/accessible_ide/assets', 'accessible_ide/assets'),
     ('src/accessible_ide/i18n', 'accessible_ide/i18n'),
+    # The traced child the app launches by path rather than importing. It is
+    # read from disk and handed to a child interpreter, so it has to sit beside
+    # the package in the bundle and not only inside it as compiled bytecode.
+    # Bundled as a module alone it is not on disk, --run-script is pointed at a
+    # file that is not there, and every run fails in the exe.
+    ('src/accessible_ide/trace_runner.py', 'accessible_ide'),
 ]
 
 a = Analysis(

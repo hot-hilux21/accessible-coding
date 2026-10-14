@@ -422,7 +422,168 @@ input[type="range"] {
   background: var(--bg);
 }
 
-/* ---------- Pane text toolbar ---------- */
+/* ---------- Trace table ---------- */
+/* The table a reader opens after a run, one row per change to a variable, on
+   the line that made the change. It is a native dialog so Escape and focus
+   come for free, but it is the one dialog here that is shown non-modally:
+   checking a row against the line that produced it means reading the code at
+   the same time, and a modal makes the page behind it inert.
+
+   It floats free of the layout, so opening it cannot reflow the code
+   underneath, and it is moved by transform only. That last part is not
+   decoration: a drag writes a transform on every pointer move, so animating
+   top or left would relayout the page at pointer speed, and the animation
+   below is opacity-only for the same reason. An animated transform would hold
+   the value for the duration and the window would refuse to be dragged. */
+.trace-window {
+  position: fixed;
+  inset-block-start: calc(var(--space-7) + var(--space-4));
+  inset-block-end: auto;
+  inset-inline-start: auto;
+  inset-inline-end: var(--space-5);
+  /* Cleared because the UA centres a dialog with margin: auto, and a window
+     that starts centred then jumps on the first drag is a worse start than
+     one that starts where it will stay. */
+  margin: 0;
+  padding: 0;
+  width: min(560px, calc(100vw - var(--space-5) * 2));
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  /* Opaque on purpose, and deliberately not in the glass list with .settings
+     and .setup-panel. That list's own rule is that nothing needing to be read
+     may sit directly on a translucent surface, and this surface is nothing but
+     a dense table of values: the code behind it must not show through them. */
+  background: var(--panel-bg);
+  color: var(--fg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-3);
+}
+
+.trace-window[open] {
+  animation: trace-arrive var(--motion-fast) var(--ease) both;
+}
+
+@keyframes trace-arrive {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.trace-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+}
+
+.trace-heading {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.trace-grip,
+.trace-close {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The same 44px target every other control in the app gets. A drag handle
+     smaller than that is one a tremor cannot take hold of. */
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  cursor: pointer;
+}
+
+.trace-grip {
+  cursor: grab;
+}
+
+.trace-grip:active {
+  cursor: grabbing;
+}
+
+.trace-grip:hover,
+.trace-close:hover {
+  color: var(--fg);
+}
+
+.trace-grip:focus-visible,
+.trace-close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.trace-hint,
+.trace-note {
+  margin: 0;
+  padding: var(--space-1) var(--space-4) var(--space-2);
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.trace-note {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.trace-scroll {
+  flex: 1 1 auto;
+  /* Without this a flex child refuses to shrink past its content, and a long
+     table would push the dialog off the bottom of the screen instead of
+     scrolling inside it. */
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid var(--panel-border);
+}
+
+.trace-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+}
+
+.trace-table th,
+.trace-table td {
+  padding: var(--space-2) var(--space-4);
+  text-align: start;
+  vertical-align: top;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.trace-table thead th {
+  /* Held in place while the rows scroll, so somebody following one variable
+     down a long table does not lose the column names on the way. */
+  position: sticky;
+  top: 0;
+  background: var(--panel-bg);
+  color: var(--muted);
+  font-family: var(--font-family);
+  font-weight: 600;
+}
+
+.trace-line {
+  width: 1%;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.trace-value {
+  /* A value can be one long token with nothing to break on, and it must wrap
+     rather than push the column wider than the window. */
+  overflow-wrap: anywhere;
+}
+
+
 /* Each pane carries one of these at its top: a single arrow that opens a row
    of compact sliders for that pane's own text size, line spacing and letter
    spacing. Closed it is one thin line, and open it is still one line, so a

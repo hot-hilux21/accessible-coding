@@ -15,6 +15,7 @@ from pathlib import Path
 
 from . import i18n
 from . import packages
+from . import trace_runner
 from .shell import ShellError, ShellTimeout
 from .shell import registry as shell_registry
 from .utils import colour
@@ -1021,6 +1022,62 @@ def _runner_env():
     return env
 
 
+def trace_child_path():
+    """Where trace_runner.py is, in a source tree and in a frozen build.
+
+    The same expression the shell uses to find its bootstrap, and it leans on
+    the same thing: Flask's root_path puts the package beside its bundled
+    folders, and both specs list this file in datas, so one expression finds it
+    either way. Read from disk rather than kept as a string here, so there is
+    one child program to look at rather than two that can drift apart.
+    """
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        'trace_runner.py')
+
+
+def no_trace():
+    """The trace a run has when there is nothing to show.
+
+    Shaped exactly like a real one, so the page never has to ask whether the
+    key is there or whether its fields exist. "Nothing to show" is a state, not
+    a missing value.
+    """
+    return {'available': False, 'rows': [], 'steps': 0, 'shown': 0,
+            'truncated': False}
+
+
+def read_trace(path):
+    """Read the sidecar the traced child left, or say there was none.
+
+    Every failure ends as "nothing to show" rather than an exception. The trace
+    is an extra the reader asked for after the fact; it must never be the
+    reason a run they did get back is the difference between an answer and a
+    500.
+    """
+    try:
+        with open(path, 'r', encoding='utf-8') as handle:
+            data = json.load(handle)
+    except Exception:
+        return no_trace()
+
+    rows = data.get('rows') if isinstance(data, dict) else None
+    if not isinstance(rows, list):
+        return no_trace()
+    try:
+        steps = int(data.get('steps', 0))
+    except (TypeError, ValueError):
+        steps = 0
+    if not rows and steps <= 0:
+        return no_trace()
+    return {
+        'available': True,
+        'rows': rows,
+        'steps': steps,
+        'shown': len(rows),
+        'truncated': bool(data.get('truncated', False)),
+    }
+
+
 @main_bp.route('/api/run', methods=['POST'])
 def run_code():
     data = request.get_json(silent=True) or {}
@@ -1033,6 +1090,7 @@ def run_code():
             'output': '',
             'error': t('error.access_code_run'),
             'error_line': None,
+            'trace': no_trace(),
             'code_required': True
         }), 403
 
@@ -1041,30 +1099,52 @@ def run_code():
         return jsonify({
             'output': '',
             'error': t('error.too_many_requests'),
-            'error_line': None
+            'error_line': None,
+            'trace': no_trace(),
         }), 429
 
     if not code.strip():
-        return jsonify({'output': '', 'error': t('error.no_code'), 'error_line': None})
+        return jsonify({'output': '', 'error': t('error.no_code'),
+                        'error_line': None, 'trace': no_trace()})
 
     # Sandbox check (web version)
     ok, sandbox_message = check_sandbox(code, t)
     if not ok:
-        return jsonify({'output': '', 'error': sandbox_message, 'error_line': None})
+        return jsonify({'output': '', 'error': sandbox_message,
+                        'error_line': None, 'trace': no_trace()})
 
     # Write code to temp file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
         f.write(code)
         temp_file = f.name
-    
+
+    # Where the child leaves its trace. A sidecar file rather than part of the
+    # child's stdout, so a program that prints cannot be mistaken for a trace
+    # and a trace cannot end up inside what the reader printed.
+    trace_file = temp_file + '.trace.json'
+
     try:
-        # Run with timeout.
-        # In the packaged exe, sys.executable is the exe itself, so we
-        # re-invoke it with --run-script to execute the temp file.
+        # The reader's file is run through the trace runner rather than
+        # directly, so every run leaves a trace sitting ready and the table can
+        # be offered after the fact. That is the whole reason tracing is not
+        # opt-in: the button appears once the run is already over, so the trace
+        # has to have been taken during it.
+        #
+        # Same two launch paths the plain runner used. In the packaged exe
+        # sys.executable is the exe itself, so we re-invoke it with
+        # --run-script to execute a file and exit.
+        child = trace_child_path()
         if getattr(sys, 'frozen', False):
-            cmd = [sys.executable, '--run-script', temp_file]
+            cmd = [sys.executable, '--run-script', child]
         else:
-            cmd = [sys.executable, temp_file]
+            cmd = [sys.executable, '-u', child]
+
+        # --run-script does not forward extra arguments, so the child is told
+        # what to run and where to answer through the environment instead. One
+        # launch path that works in a source tree and inside the exe.
+        env = _runner_env()
+        env[trace_runner.ENV_TARGET] = temp_file
+        env[trace_runner.ENV_OUT] = trace_file
 
         result = subprocess.run(
             cmd,
@@ -1072,33 +1152,44 @@ def run_code():
             text=True,
             timeout=10,
             cwd=tempfile.gettempdir(),
-            env=_runner_env(),
+            env=env,
         )
-        
+
         output = result.stdout
         error = result.stderr
         error_line = None
-        
+        # Read before the finally block deletes the sidecar, and read it even
+        # when the program failed: a failing run is the one a reader most wants
+        # to look at.
+        trace = read_trace(trace_file)
+
         if error:
             error, error_line = translate_error(error, t)
             return jsonify({
                 'output': output,
                 'error': error,
                 'error_line': error_line,
+                'trace': trace,
             })
 
-        return jsonify({'output': output, 'error': '', 'error_line': None})
-    
+        return jsonify({'output': output, 'error': '', 'error_line': None,
+                        'trace': trace})
+
     except subprocess.TimeoutExpired:
-        return jsonify({'output': '', 'error': t('error.timeout'), 'error_line': None})
+        return jsonify({'output': '', 'error': t('error.timeout'),
+                        'error_line': None, 'trace': no_trace()})
     except Exception as e:
-        return jsonify({'output': '', 'error': t('python.fallback', str(e)), 'error_line': None})
+        return jsonify({'output': '', 'error': t('python.fallback', str(e)),
+                        'error_line': None, 'trace': no_trace()})
     finally:
-        # Clean up
-        try:
-            os.unlink(temp_file)
-        except Exception:
-            pass
+        # Clean up. The sidecar goes with the code it describes: left behind,
+        # the next run that produced no trace would find this one and show the
+        # previous program's variables as its own.
+        for leftover in (temp_file, trace_file):
+            try:
+                os.unlink(leftover)
+            except Exception:
+                pass
 
 
 # The Python shell.

@@ -1539,6 +1539,7 @@
           }
           return;
         }
+        rememberTrace(data.trace);
         outputEl.textContent = data.output || t('output.no_output');
         if (data.error) {
           errorMessage.textContent = data.error;
@@ -1551,10 +1552,171 @@
         }
       })
       .catch(function () {
+        rememberTrace(null);
         outputEl.textContent = t('output.runner_unreachable');
         errorMessage.textContent = t('output.server_down');
         errorPanel.hidden = false;
       });
+  }
+
+  // ---------- Trace table ----------
+  // What each line did to the reader's variables, captured while the program
+  // ran and offered afterwards. Every run is traced rather than only the ones
+  // that ask, because the button is pressed once the run is already over and
+  // there is no second chance to collect it.
+  var traceButton = document.getElementById('btn-trace');
+  var traceWindow = document.getElementById('trace-window');
+  var traceRows = document.getElementById('trace-rows');
+  var traceNote = document.getElementById('trace-note');
+  var traceScroll = document.getElementById('trace-scroll');
+  var traceGrip = document.getElementById('trace-grip');
+  var traceCloseBtn = document.getElementById('trace-close');
+
+  // The last run's trace, or null when there is nothing worth opening.
+  var lastTrace = null;
+  var traceOffset = { x: 0, y: 0 };
+  var traceDrag = null;
+  var TRACE_STEP = 16;
+
+  function moveTrace(x, y) {
+    traceOffset.x = x;
+    traceOffset.y = y;
+    // transform and nothing else. A drag writes this on every pointer move,
+    // so a property that takes part in layout would relayout the page at
+    // pointer speed, under the code the reader is trying to read.
+    traceWindow.style.transform =
+      'translate(' + traceOffset.x + 'px, ' + traceOffset.y + 'px)';
+  }
+
+  function rememberTrace(trace) {
+    lastTrace = trace && trace.available ? trace : null;
+    if (!traceButton || !traceWindow) return;
+    traceButton.disabled = lastTrace === null;
+    // A disabled button is not focusable, so the title is the only place a
+    // reader who has not run anything yet can find out why it is dead.
+    traceButton.title = lastTrace === null
+      ? t('trace.not_run_yet')
+      : t('trace.button_title');
+    // The table describes one run. If it is open while another run finishes,
+    // it shows the new one rather than going stale in front of the reader.
+    if (traceWindow.open) {
+      if (lastTrace === null) {
+        traceWindow.close();
+      } else {
+        renderTrace();
+      }
+    }
+  }
+
+  function renderTrace() {
+    // Every cell is written with textContent. These values are the reader's own
+    // code run through repr(), so a string holding markup has to appear as
+    // those characters instead of becoming part of the page.
+    traceRows.textContent = '';
+    traceNote.hidden = true;
+    traceScroll.hidden = false;
+
+    var rows = lastTrace.rows || [];
+    if (rows.length === 0) {
+      traceScroll.hidden = true;
+      traceNote.textContent = t('trace.empty');
+      traceNote.hidden = false;
+      return;
+    }
+
+    var fragment = document.createDocumentFragment();
+    rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      var line = document.createElement('td');
+      line.className = 'trace-line';
+      line.textContent = String(row[0]);
+      var name = document.createElement('td');
+      name.className = 'trace-name';
+      name.textContent = String(row[1]);
+      var value = document.createElement('td');
+      value.className = 'trace-value';
+      value.textContent = String(row[2]);
+      tr.appendChild(line);
+      tr.appendChild(name);
+      tr.appendChild(value);
+      fragment.appendChild(tr);
+    });
+    traceRows.appendChild(fragment);
+
+    if (lastTrace.truncated) {
+      traceNote.textContent = t('trace.truncated', lastTrace.shown, lastTrace.steps);
+      traceNote.hidden = false;
+    }
+  }
+
+  function openTrace() {
+    if (!lastTrace) return;
+    renderTrace();
+    // show() and not showModal(). The reader is holding the table against the
+    // code, so the page behind it has to stay readable and reachable.
+    traceWindow.show();
+    traceWindow.focus();
+  }
+
+  if (traceButton && traceWindow && traceRows && traceGrip && traceCloseBtn) {
+    traceButton.addEventListener('click', openTrace);
+
+    traceCloseBtn.addEventListener('click', function () {
+      traceWindow.close();
+    });
+
+    traceWindow.addEventListener('close', function () {
+      if (!traceButton.disabled) traceButton.focus();
+    });
+
+    // Dragging. Pointer capture keeps the window on the pointer when the
+    // pointer outruns it, which is what a quick drag does.
+    traceGrip.addEventListener('pointerdown', function (event) {
+      if (event.button !== 0) return;
+      traceDrag = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        originX: traceOffset.x,
+        originY: traceOffset.y
+      };
+      traceGrip.setPointerCapture(event.pointerId);
+      // Stops the drag from selecting the heading text as it passes over it.
+      event.preventDefault();
+    });
+
+    traceGrip.addEventListener('pointermove', function (event) {
+      if (!traceDrag || event.pointerId !== traceDrag.id) return;
+      moveTrace(
+        traceDrag.originX + (event.clientX - traceDrag.x),
+        traceDrag.originY + (event.clientY - traceDrag.y)
+      );
+    });
+
+    function endTraceDrag(event) {
+      if (!traceDrag || event.pointerId !== traceDrag.id) return;
+      traceDrag = null;
+    }
+
+    traceGrip.addEventListener('pointerup', endTraceDrag);
+    traceGrip.addEventListener('pointercancel', endTraceDrag);
+
+    // The same movement from the keyboard. Arrow keys nudge, and Home puts the
+    // window back where it started, which is what somebody wants after moving
+    // it somewhere awkward.
+    traceGrip.addEventListener('keydown', function (event) {
+      var dx = 0;
+      var dy = 0;
+      if (event.key === 'ArrowLeft') { dx = -TRACE_STEP; }
+      else if (event.key === 'ArrowRight') { dx = TRACE_STEP; }
+      else if (event.key === 'ArrowUp') { dy = -TRACE_STEP; }
+      else if (event.key === 'ArrowDown') { dy = TRACE_STEP; }
+      else if (event.key === 'Home') { moveTrace(0, 0); event.preventDefault(); return; }
+      else { return; }
+      moveTrace(traceOffset.x + dx, traceOffset.y + dy);
+      // Otherwise the arrow keys scroll the table underneath as well.
+      event.preventDefault();
+    });
   }
 
   // ---------- Save / Open files ----------

@@ -115,6 +115,16 @@
         <span aria-hidden="true">&#9654;</span> {{ t('nav.run') }}
       </button>
 
+      {# The trace table sits beside Run because it describes a run. It stays
+         unusable until one has happened, and the button is what somebody who
+         has just run something reaches for next. #}
+      <div class="tool-group">
+        <button id="btn-trace" class="btn btn-toggle" type="button" disabled
+                aria-haspopup="dialog" title="{{ t('trace.not_run_yet') }}">
+          <span aria-hidden="true">&#9638;</span> {{ t('trace.button') }}
+        </button>
+      </div>
+
       <div class="tool-group">
         <button id="btn-save" class="btn btn-toggle" title="{{ t('nav.save_title') }}">
           <span aria-hidden="true">&#128190;</span> {{ t('nav.save') }}
@@ -274,6 +284,44 @@
     <p>{{ t('footer.text') }} <a href="https://github.com/hot-hilux21/accessible-coding" target="_blank" rel="noopener">{{ t('footer.github') }}</a></p>
     <button id="btn-quit" class="btn btn-small quit-btn" hidden>{{ t('nav.quit') }}</button>
   </footer>
+
+  <!-- The trace table. A native dialog for the focus handling and Escape, but
+       opened with show() rather than showModal() on purpose: a reader checking
+       a row against the line that produced it is reading their code at the
+       same time, and a modal dialog would make the page behind it inert.
+
+       It floats, so opening it cannot reflow the code underneath, and it can
+       be moved, because a table of changes runs longer than the screen and
+       parking it over the line somebody is reading is the one thing that would
+       make it worse than useful. -->
+  <dialog id="trace-window" class="trace-window" tabindex="-1"
+          aria-labelledby="trace-heading">
+    <div class="trace-bar">
+      <h2 class="trace-heading" id="trace-heading">{{ t('trace.heading') }}</h2>
+      <button type="button" class="trace-grip" id="trace-grip"
+              aria-label="{{ t('trace.move') }}" title="{{ t('trace.move') }}">
+        <span aria-hidden="true">&#10021;</span>
+      </button>
+      <button type="button" class="trace-close" id="trace-close"
+              aria-label="{{ t('trace.close') }}" title="{{ t('trace.close') }}">
+        <span aria-hidden="true">&#10005;</span>
+      </button>
+    </div>
+    <p class="trace-hint">{{ t('trace.hint') }}</p>
+    <p class="trace-note" id="trace-note" role="status" hidden></p>
+    <div class="trace-scroll" id="trace-scroll">
+      <table class="trace-table" aria-labelledby="trace-heading">
+        <thead>
+          <tr>
+            <th scope="col">{{ t('trace.col_line') }}</th>
+            <th scope="col">{{ t('trace.col_variable') }}</th>
+            <th scope="col">{{ t('trace.col_value') }}</th>
+          </tr>
+        </thead>
+        <tbody id="trace-rows"></tbody>
+      </table>
+    </div>
+  </dialog>
 
   <!-- Settings. A native dialog gives us focus trapping, Escape to close
        and an inert background for free, which matters more here than
