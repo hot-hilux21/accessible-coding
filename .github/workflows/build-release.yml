@@ -166,7 +166,12 @@ jobs:
             release/AccessibleIDE-Setup.exe
             release/version.json
           generate_release_notes: true
-          prerelease: true
+          # Not marked as a pre-release. That box is the only thing that
+          # decides which release GitHub calls "Latest", and a release that
+          # never takes it leaves the badge pinned to whatever shipped last.
+          # The word beta comes from the tag name, not from this box, and a
+          # plain number still moves the stable channel below.
+          prerelease: false
       # The channels the app reads. The manifest is the channel: it points at
       # the tagged release above, so the app needs no release-list API and no
       # token, only a fixed address per channel.
