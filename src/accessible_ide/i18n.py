@@ -64,6 +64,19 @@ CONFIG_LABELS = {
     "locale": "language.label",
     "line_height": "reading.line_height",
     "letter_spacing": "reading.letter_spacing",
+    # The pane toolbars are named by the labels the reader already sees in
+    # Settings: the value being rejected is the same kind of value, and a
+    # message that invented a second name for it would read as a different
+    # setting being complained about.
+    "editor_font_size": "reading.font_size",
+    "editor_line_height": "reading.line_height",
+    "editor_letter_spacing": "reading.letter_spacing",
+    "output_font_size": "reading.font_size",
+    "output_line_height": "reading.line_height",
+    "output_letter_spacing": "reading.letter_spacing",
+    "shell_font_size": "reading.font_size",
+    "shell_line_height": "reading.line_height",
+    "shell_letter_spacing": "reading.letter_spacing",
     "theme": "colours.theme",
     "focus_mode": "focus.mode",
     "blur_intensity": "focus.fade",

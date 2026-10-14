@@ -106,6 +106,7 @@
   "output.saved": "Fichier enregistré.",
   "output.server_down": "Le serveur ne répond pas. Veuillez réessayer.",
   "output.title": "Sortie",
+  "pane.controls": "Taille et espacement du texte",
   "python.AttributeError": "Vous utilisez un attribut ou une méthode qui n'existe pas sur cet objet.",
   "python.EOFError": "Fin de texte inattendue.",
   "python.FileNotFoundError": "Le fichier que vous essayez d'ouvrir n'existe pas.",

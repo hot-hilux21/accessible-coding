@@ -106,6 +106,7 @@
   "output.saved": "تم حفظ الملف.",
   "output.server_down": "الخادم لا يستجيب. الرجاء المحاولة مرة أخرى.",
   "output.title": "المخرجات",
+  "pane.controls": "حجم النص والمسافات",
   "python.AttributeError": "أنت تستخدم خاصية أو طريقة غير موجودة على هذا العنصر.",
   "python.EOFError": "نهاية نص غير متوقعة.",
   "python.FileNotFoundError": "الملف الذي تحاول فتحه غير موجود.",

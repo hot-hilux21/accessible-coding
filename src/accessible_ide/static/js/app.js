@@ -564,13 +564,25 @@
   }
 
   function applyFontSize(size) {
+    // The page keeps its own size because the output and the shell size their
+    // text relative to it, so that one still has to move.
     body.style.fontSize = size + 'px';
-    editorEl.style.fontSize = size + 'px';
-    var cm = editorEl.querySelector('.CodeMirror');
-    if (cm) cm.style.fontSize = size + 'px';
+    // The editor does not use the page size. .editor and .CodeMirror both read
+    // var(--font-size), and CodeMirror pins its own with !important, so the
+    // inline font-size that used to be written here was already being ignored
+    // by the code the reader is looking at. Writing the token instead is what
+    // makes the slider reach the code at all - and it is written on the body so
+    // that a pane which is still following the reading settings has something
+    // to follow.
+    body.style.setProperty('--font-size', size + 'px');
     fontSizeLabel.textContent = size + 'px';
     editor.refresh();
     updatePreview();
+    // Every path that changes a reading setting comes through here, including
+    // the notching buttons, which deliberately never fire the slider's own
+    // event. Syncing here rather than in the sliders' listeners is what keeps
+    // a following pane's number true whichever way the setting was moved.
+    syncFollowingPanes();
   }
 
   // The weight is a token rather than an inline font-weight, so it reaches
@@ -593,6 +605,7 @@
     body.setAttribute('data-line-height', value);
     lineHeightLabel.textContent = value;
     editor.refresh();
+    syncFollowingPanes();
   }
 
   function applyLetterSpacing(value) {
@@ -600,6 +613,7 @@
     body.setAttribute('data-letter-spacing', value);
     letterSpacingLabel.textContent = value + 'px';
     editor.refresh();
+    syncFollowingPanes();
   }
 
   // The notching buttons either side of the two spacing sliders.
@@ -3102,6 +3116,183 @@
     });
   }
 
+  // ---------- The pane text toolbars ----------
+  // Each pane carries a small toolbar at its top, and the three are
+  // independent: changing the editor's text never moves the output's. A pane
+  // nobody has adjusted keeps no styles of its own, so it goes on following
+  // the reading settings. The first touch of one of its sliders makes that one
+  // value the pane's own and it stops following. The fallback is therefore the
+  // absence of a style rather than a copy of the global number: a copy would
+  // freeze the pane at whatever size it happened to have that day, and the
+  // reader would watch Settings stop working on it.
+  //
+  // Each pane is given its value by whichever means its own stylesheet listens
+  // to. The editor takes the three reading tokens, and CodeMirror pins them
+  // with !important, so the editor is given tokens. The output and the shell
+  // size their text relative to the page rather than from the tokens, so the
+  // properties are what reach them, and an inline property beats any token
+  // their stylesheet also reads. Using the wrong means for a pane would look
+  // right in the code and do nothing on the screen.
+  var PANE_TEXT = {
+    editor: {
+      token: true,
+      elements: function () { return [editorEl]; },
+    },
+    output: {
+      token: false,
+      elements: function () { return [outputEl]; },
+    },
+    shell: {
+      token: false,
+      elements: function () {
+        // The transcript and the prompt line the reader types on both belong
+        // to the pane, so both move together.
+        return [
+          document.getElementById('shell-form'),
+          document.getElementById('shell-output'),
+        ].filter(function (element) { return !!element; });
+      },
+    },
+  };
+
+  // The three settings a pane carries. The property, the token and the unit
+  // are all here because the readout and the two application paths must agree
+  // on what a value looks like: "1.6" gets no unit and "0.5px" gets one.
+  var PANE_SETTINGS = [
+    { key: 'font_size', prop: 'fontSize', css: '--font-size', unit: 'px', whole: true },
+    { key: 'line_height', prop: 'lineHeight', css: '--line-height', unit: '', whole: false },
+    { key: 'letter_spacing', prop: 'letterSpacing', css: '--letter-spacing', unit: 'px', whole: false },
+  ];
+
+  var PANE_NAMES = ['editor', 'output', 'shell'];
+
+  // Where the reading settings themselves live, so a pane that is still
+  // following can show the number a Settings change would actually give it
+  // rather than the one it had when the page was drawn.
+  var READING_CONTROLS = {
+    font_size: function () { return fontSize; },
+    line_height: function () { return lineHeight; },
+    letter_spacing: function () { return letterSpacing; },
+  };
+
+  // True once a pane's slider has been moved, and never unset within a visit.
+  // A pane in here is on its own; a pane outside it is following.
+  var paneOwned = {};
+
+  function paneControl(pane, setting) {
+    // The id is the config key with its underscores taken out, prefixed by the
+    // pane, which is how the template draws it: those ids are walked by a
+    // contract test that matches every CONFIG_RANGES entry to a slider with
+    // matching bounds, so naming these anything else would leave the nine new
+    // ranges untested from the page's side.
+    return document.getElementById(pane + '-' + setting.key.replace('_', '-'));
+  }
+
+  function readingValue(key) {
+    var control = READING_CONTROLS[key] && READING_CONTROLS[key]();
+    return control ? control.value : '';
+  }
+
+  function paintPaneReadout(pane, setting) {
+    var control = paneControl(pane, setting);
+    if (!control) return;
+    var readout = document.getElementById(control.id + '-value');
+    if (readout) readout.textContent = control.value + setting.unit;
+  }
+
+  // Writes the values a pane owns onto it, and takes back the ones it does not
+  // own. Doing both in the same pass is what lets a pane come back to following
+  // the reading settings without a reload.
+  function applyPaneText(pane) {
+    var shape = PANE_TEXT[pane];
+    if (!shape) return;
+    var elements = shape.elements();
+    PANE_SETTINGS.forEach(function (setting) {
+      var control = paneControl(pane, setting);
+      var owned = !!(control && paneOwned[control.id]);
+      var value = owned ? control.value + setting.unit : '';
+      elements.forEach(function (element) {
+        if (shape.token) {
+          if (owned) element.style.setProperty(setting.css, value);
+          else element.style.removeProperty(setting.css);
+        } else if (owned) {
+          element.style[setting.prop] = value;
+        } else {
+          element.style.removeProperty(setting.prop);
+        }
+      });
+      paintPaneReadout(pane, setting);
+    });
+    // The editor's layout depends on the font it now has, so its gutters are
+    // measured again rather than left at the width of the old one.
+    if (pane === 'editor') editor.refresh();
+  }
+
+  // A pane that is following is moved to the new reading value when that
+  // setting changes, so the number beside its slider stays true. A pane that
+  // owns its value is left where the reader put it, which is the whole point of
+  // it being its own.
+  function syncFollowingPanes() {
+    PANE_SETTINGS.forEach(function (setting) {
+      var value = readingValue(setting.key);
+      PANE_NAMES.forEach(function (pane) {
+        var control = paneControl(pane, setting);
+        if (!control || paneOwned[control.id]) return;
+        if (control.value !== value) control.value = value;
+        paintPaneReadout(pane, setting);
+      });
+    });
+  }
+
+  function togglePaneToolbar(pane) {
+    var button = document.getElementById('mini-' + pane + '-toggle');
+    var panel = document.getElementById('mini-' + pane + '-panel');
+    if (!button || !panel) return;
+    var wasOpen = button.getAttribute('aria-expanded') === 'true';
+    // The arrow's direction and the panel are one answer told twice, so a
+    // reader who can see the arrow and a reader who cannot are told the same
+    // thing rather than two things that can drift apart.
+    button.setAttribute('aria-expanded', wasOpen ? 'false' : 'true');
+    panel.hidden = wasOpen;
+  }
+
+  function initPaneToolbars() {
+    PANE_NAMES.forEach(function (pane) {
+      var button = document.getElementById('mini-' + pane + '-toggle');
+      if (button) {
+        button.addEventListener('click', function () { togglePaneToolbar(pane); });
+      }
+      PANE_SETTINGS.forEach(function (setting) {
+        var control = paneControl(pane, setting);
+        if (!control) return;
+        var saved = body.getAttribute('data-' + pane + '-' + setting.key.replace('_', '-'));
+        if (saved) {
+          // Saved with a value of its own, so it is the pane's from the first
+          // frame rather than springing into place on the next drag.
+          paneOwned[control.id] = true;
+          control.value = saved;
+        } else {
+          // Never adjusted, so it starts on the reading value it is following
+          // and the slider shows what the pane is really drawing with.
+          var inherited = readingValue(setting.key);
+          if (inherited !== '') control.value = inherited;
+        }
+        control.addEventListener('input', function () {
+          paneOwned[control.id] = true;
+          applyPaneText(pane);
+        });
+        control.addEventListener('change', function () {
+          var partial = {};
+          partial[pane + '_' + setting.key] = setting.whole
+            ? parseInt(control.value, 10)
+            : parseFloat(control.value);
+          saveConfig(partial);
+        });
+      });
+      applyPaneText(pane);
+    });
+  }
+
   // ---------- Init ----------
   contrastMode = contrastSelect.value || 'normal';
   applyContrast(contrastMode);
@@ -3121,6 +3312,9 @@
   syncBlurField();
   updateFontNote();
   updatePreview();
+  // After the reading settings, so a pane that is still following starts from
+  // the values those settings just settled on.
+  initPaneToolbars();
 
   speechRate = parseFloat(body.getAttribute('data-tts-rate') || ttsRate.value || '0.9');
   speechVoiceName = body.getAttribute('data-tts-voice') || '';

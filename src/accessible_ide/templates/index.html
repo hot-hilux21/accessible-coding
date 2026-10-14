@@ -99,7 +99,7 @@
     {% endfor %}
   </style>
 </head>
-<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-font-weight="{{ config.font_weight }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}" data-gradient="{% if config.theme_gradient %}on{% else %}off{% endif %}"{% if body_style %} style="{{ body_style }}"{% endif %}>
+<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-font-weight="{{ config.font_weight }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-editor-font-size="{{ config.editor_font_size }}" data-editor-line-height="{{ config.editor_line_height }}" data-editor-letter-spacing="{{ config.editor_letter_spacing }}" data-output-font-size="{{ config.output_font_size }}" data-output-line-height="{{ config.output_line_height }}" data-output-letter-spacing="{{ config.output_letter_spacing }}" data-shell-font-size="{{ config.shell_font_size }}" data-shell-line-height="{{ config.shell_line_height }}" data-shell-letter-spacing="{{ config.shell_letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}" data-gradient="{% if config.theme_gradient %}on{% else %}off{% endif %}"{% if body_style %} style="{{ body_style }}"{% endif %}>
 
   <a class="skip-link" href="#editor">{{ t('app.skip_to_editor') }}</a>
 
@@ -148,8 +148,60 @@
     </div>
   </header>
 
+  {# The small toolbar each pane carries at its top: an arrow that opens a row
+     of compact sliders for that pane's own text size and spacing. The three
+     panes are independent. A pane starts from its own saved value and falls
+     back to the reading setting it otherwise follows, so the absence of a
+     saved value is what keeps an untouched pane in step with Settings. #}
+  {% macro pane_controls(pane, label) %}
+  {%- set font_key = pane ~ '_font_size' -%}
+  {%- set height_key = pane ~ '_line_height' -%}
+  {%- set spacing_key = pane ~ '_letter_spacing' -%}
+  {%- set font_size = config.get(font_key) if config.get(font_key) is not none else config.font_size -%}
+  {%- set line_height = config.get(height_key) if config.get(height_key) is not none else config.line_height -%}
+  {%- set letter_spacing = config.get(spacing_key) if config.get(spacing_key) is not none else config.letter_spacing -%}
+  <div class="pane-mini">
+    <button type="button" class="pane-mini-toggle" id="mini-{{ pane }}-toggle"
+            aria-expanded="false" aria-controls="mini-{{ pane }}-panel"
+            aria-label="{{ t('pane.controls') }}: {{ label }}">
+      <span class="pane-caret" aria-hidden="true"></span>
+    </button>
+    <div class="pane-mini-panel" id="mini-{{ pane }}-panel" role="group"
+         aria-label="{{ label }}" hidden>
+      {# A settings control is named after the key it saves under, with the
+         underscores taken out, which is the rule the contract tests work by:
+         they walk CONFIG_RANGES and ask for a slider with those exact bounds,
+         so a control named anything else would sit outside that check. The
+         toolbar's own toggle and panel are not settings, so they keep the
+         mini- prefix. #}
+      <span class="mini-field">
+        <span class="mini-icon" aria-hidden="true">&#65;</span>
+        <label for="{{ pane }}-font-size" class="visually-hidden">{{ t('reading.font_size') }}</label>
+        <input type="range" id="{{ pane }}-font-size" min="12" max="28" step="1"
+               value="{{ font_size }}">
+        <output class="mini-value" id="{{ pane }}-font-size-value" for="{{ pane }}-font-size"></output>
+      </span>
+      <span class="mini-field">
+        <span class="mini-icon" aria-hidden="true">&#8597;</span>
+        <label for="{{ pane }}-line-height" class="visually-hidden">{{ t('reading.line_height') }}</label>
+        <input type="range" id="{{ pane }}-line-height" min="1" max="2.4" step="0.1"
+               value="{{ line_height }}">
+        <output class="mini-value" id="{{ pane }}-line-height-value" for="{{ pane }}-line-height"></output>
+      </span>
+      <span class="mini-field">
+        <span class="mini-icon" aria-hidden="true">&#8596;</span>
+        <label for="{{ pane }}-letter-spacing" class="visually-hidden">{{ t('reading.letter_spacing') }}</label>
+        <input type="range" id="{{ pane }}-letter-spacing" min="-0.5" max="4" step="0.1"
+               value="{{ letter_spacing }}">
+        <output class="mini-value" id="{{ pane }}-letter-spacing-value" for="{{ pane }}-letter-spacing"></output>
+      </span>
+    </div>
+  </div>
+  {%- endmacro %}
+
   <main id="workspace" class="workspace" role="main">
     <section class="editor-pane" aria-label="{{ t('editor.label') }}">
+      {{ pane_controls('editor', t('editor.label')) }}
       <div id="editor" class="editor" role="textbox" aria-label="{{ t('editor.label') }}" aria-multiline="true"></div>
     </section>
 
@@ -167,6 +219,7 @@
           <h2 class="output-title">{{ t('output.title') }}</h2>
           <button id="btn-clear" class="btn btn-small">{{ t('output.clear') }}</button>
         </div>
+        {{ pane_controls('output', t('output.title')) }}
         <pre id="output" class="output" aria-live="polite"></pre>
         <div id="error-panel" class="error-panel" role="alert" hidden>
           <h3 class="error-title">&#9888; {{ t('error.title') }}</h3>
@@ -203,6 +256,7 @@
                   title="{{ t('shell.clear_title') }}">{{ t('shell.clear') }}</button>
           <button id="shell-close" class="btn btn-small" type="button">{{ t('shell.close') }}</button>
         </div>
+        {{ pane_controls('shell', t('shell.title')) }}
         <pre id="shell-output" class="shell-output" aria-live="polite" tabindex="0"></pre>
         <form id="shell-form" class="shell-form" autocomplete="off">
           <label for="shell-input" class="visually-hidden">{{ t('shell.input_label') }}</label>

@@ -106,6 +106,7 @@
   "output.saved": "File saved.",
   "output.server_down": "The server is not responding. Please try again.",
   "output.title": "Output",
+  "pane.controls": "Text size and spacing",
   "python.AttributeError": "You're trying to use an attribute or method that doesn't exist on this object.",
   "python.EOFError": "Unexpected end of input.",
   "python.FileNotFoundError": "The file you're trying to open doesn't exist.",

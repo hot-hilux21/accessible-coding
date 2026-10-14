@@ -115,6 +115,19 @@ const KNOWN_IDS = new Set([
   // of the colour on the light themes. Declared here so that path is measured
   // rather than quietly skipped.
   'panel-info',
+  // The pane text toolbars. app.js looks every one of these up on the way in,
+  // and an id it cannot find is a getElementById returning null - so without
+  // these the toolbar would be silently absent and each check below would pass
+  // while the feature did nothing at all.
+  'mini-editor-toggle', 'mini-editor-panel',
+  'editor-font-size', 'editor-line-height', 'editor-letter-spacing',
+  'editor-font-size-value', 'editor-line-height-value', 'editor-letter-spacing-value',
+  'mini-output-toggle', 'mini-output-panel',
+  'output-font-size', 'output-line-height', 'output-letter-spacing',
+  'output-font-size-value', 'output-line-height-value', 'output-letter-spacing-value',
+  'mini-shell-toggle', 'mini-shell-panel',
+  'shell-font-size', 'shell-line-height', 'shell-letter-spacing',
+  'shell-font-size-value', 'shell-line-height-value', 'shell-letter-spacing-value',
 ]);
 
 const numericIds = new Set([
@@ -130,6 +143,19 @@ const numericIds = new Set([
 const RANGE_INPUTS = {
   'line-height': { min: '1', max: '2.4', step: '0.1', value: '1.6' },
   'letter-spacing': { min: '-0.5', max: '4', step: '0.1', value: '0.5' },
+  // The nine pane sliders. The limits are the ones CONFIG_RANGES enforces
+  // server-side, so a pane cannot be dragged somewhere the config would then
+  // refuse to store. The starting values are the reading defaults, which is
+  // what an untouched pane is following before anybody touches it.
+  'editor-font-size': { min: '12', max: '28', step: '1', value: '16' },
+  'editor-line-height': { min: '1', max: '2.4', step: '0.1', value: '1.6' },
+  'editor-letter-spacing': { min: '-0.5', max: '4', step: '0.1', value: '0.5' },
+  'output-font-size': { min: '12', max: '28', step: '1', value: '16' },
+  'output-line-height': { min: '1', max: '2.4', step: '0.1', value: '1.6' },
+  'output-letter-spacing': { min: '-0.5', max: '4', step: '0.1', value: '0.5' },
+  'shell-font-size': { min: '12', max: '28', step: '1', value: '16' },
+  'shell-line-height': { min: '1', max: '2.4', step: '0.1', value: '1.6' },
+  'shell-letter-spacing': { min: '-0.5', max: '4', step: '0.1', value: '0.5' },
 };
 
 // The notching buttons, with the slider each one drives and the direction it
@@ -219,6 +245,16 @@ const THEME_CUSTOM_DEFAULTS = {
 // The attributes an element carries in the template, beyond the ones every
 // element gets. min, max and step are attributes rather than properties, so
 // this is where the sliders' limits have to live.
+// The three pane toolbars start closed, and the template says so with
+// aria-expanded. app.js reads that attribute to decide which way the next
+// press goes, so a stub without it would make the first press look like a
+// close and every toggle check would pass for the wrong reason.
+const PANE_TOGGLES = {
+  'mini-editor-toggle': { 'aria-expanded': 'false' },
+  'mini-output-toggle': { 'aria-expanded': 'false' },
+  'mini-shell-toggle': { 'aria-expanded': 'false' },
+};
+
 function attributesFor(id) {
   const range = RANGE_INPUTS[id];
   return Object.assign(
@@ -226,6 +262,7 @@ function attributesFor(id) {
     range ? { min: range.min, max: range.max, step: range.step } : {},
     STEPPER_BUTTONS[id] || {},
     DIVIDER_ATTRIBUTES[id] || {},
+    PANE_TOGGLES[id] || {},
   );
 }
 
@@ -770,6 +807,13 @@ function makePage(locale, shared, bodyAttrs) {
           // Its divider is hidden with it: a line with nothing on the other
           // side of it would just be a line.
           id === 'divider-shell' ? { hidden: true } : {},
+          // The three pane toolbars start closed, as the template draws them.
+          // Starting them open would make every "the arrow opened it" check
+          // pass before anything was pressed, which is the one thing those
+          // checks exist to catch.
+          id === 'mini-editor-panel' || id === 'mini-output-panel' || id === 'mini-shell-panel'
+            ? { hidden: true }
+            : {},
         );
         found.set(id, makeElement(id, attributesFor(id), props));
       }
@@ -3162,6 +3206,179 @@ function runLayoutChecks() {
   console.log('layout: 8 checks');
 }
 
+// The three pane text toolbars. Two things have to hold at once: a pane's own
+// slider moves that pane and no other, and a pane nobody has touched keeps
+// following the reading settings, so the Settings dialog a reader already had
+// goes on working on all three panes.
+//
+// The second is the one that is easy to lose, and the one that would hurt: a
+// feature that quietly pinned the panes would leave the reader's existing font
+// and spacing settings doing nothing, with nothing on screen to say why.
+function runPaneToolbarChecks() {
+  const panes = ['editor', 'output', 'shell'];
+  const editor = elements.get('editor');
+  const output = elements.get('output');
+  const shellForm = elements.get('shell-form');
+  const shellOutput = elements.get('shell-output');
+
+  // ---- Closed at rest ----
+  let resting = true;
+  for (const pane of panes) {
+    // Asked of the document rather than read out of the shared map, because
+    // that map only holds what app.js has already looked up, and a panel is
+    // not looked up until its arrow is pressed. A real page has the element
+    // from the start, which is the state this check is about.
+    const button = documentStub.getElementById(`mini-${pane}-toggle`);
+    const panel = documentStub.getElementById(`mini-${pane}-panel`);
+    if (!button || !panel) {
+      failed = true;
+      console.log(`FAIL there is no text toolbar on the ${pane} pane`);
+      resting = false;
+      continue;
+    }
+    if (panel.hidden !== true || button.getAttribute('aria-expanded') !== 'false') {
+      failed = true;
+      console.log(`FAIL the ${pane} toolbar did not start closed`);
+      resting = false;
+    }
+  }
+  if (resting) {
+    console.log('     all three toolbars start closed, as the template draws them');
+  }
+
+  // ---- The arrow opens it, and pressing again puts it away ----
+  const editorToggle = elements.get('mini-editor-toggle');
+  const editorPanel = elements.get('mini-editor-panel');
+  fire('mini-editor-toggle', 'click');
+  if (editorPanel.hidden !== false || editorToggle.getAttribute('aria-expanded') !== 'true') {
+    failed = true;
+    console.log('FAIL the arrow did not open the editor toolbar');
+  } else {
+    console.log('     the arrow opens its panel and says that it is open');
+  }
+  fire('mini-editor-toggle', 'click');
+  if (editorPanel.hidden !== true || editorToggle.getAttribute('aria-expanded') !== 'false') {
+    failed = true;
+    console.log('FAIL the arrow did not close the editor toolbar again');
+  } else {
+    console.log('     pressing it again puts the panel away');
+  }
+
+  // ---- Nothing has been touched, so nothing is owned ----
+  // The pane is left with no styles of its own, and that is what leaves the
+  // reading settings in charge of it.
+  const pinned = editor.style['--font-size'] || editor.style['--line-height'] ||
+    editor.style['--letter-spacing'] || output.style.fontSize ||
+    output.style.lineHeight || output.style.letterSpacing ||
+    shellOutput.style.fontSize || shellForm.style.fontSize;
+  if (pinned) {
+    failed = true;
+    console.log('FAIL a pane nobody touched was pinned to a value anyway: ' + JSON.stringify(pinned));
+  } else {
+    console.log('     an untouched pane owns nothing, so the reading settings still reach it');
+  }
+
+  // ---- Each slider shows the reading value it is following ----
+  const readingFont = elements.get('font-size').value;
+  const shown = panes.map((pane) => elements.get(`${pane}-font-size`).value);
+  if (shown.every((value) => value === readingFont)) {
+    console.log(`     all three sliders show the reading size (${readingFont}) they follow`);
+  } else {
+    failed = true;
+    console.log(`FAIL the pane sliders show ${JSON.stringify(shown)} while the reading size is ${readingFont}`);
+  }
+  const editorSizeReadout = elements.get('editor-font-size-value').textContent;
+  if (editorSizeReadout === readingFont + 'px') {
+    console.log('     and each size is written beside its own slider, in px');
+  } else {
+    failed = true;
+    console.log(`FAIL the size readout says ${JSON.stringify(editorSizeReadout)}, not ${readingFont}px`);
+  }
+
+  // ---- One pane's slider moves that pane and nothing else ----
+  const editorFont = elements.get('editor-font-size');
+  const beforeSave = configPosts.length;
+  editorFont.value = '22';
+  fire('editor-font-size', 'input');
+  if (editor.style['--font-size'] !== '22px') {
+    failed = true;
+    console.log(`FAIL the editor did not take its own size: ${JSON.stringify(editor.style['--font-size'])}`);
+  } else if (output.style.fontSize || shellOutput.style.fontSize) {
+    failed = true;
+    console.log('FAIL the editor slider moved another pane as well');
+  } else {
+    console.log('     a pane takes its own size and no other pane moves');
+  }
+  if (elements.get('editor-font-size-value').textContent !== '22px') {
+    failed = true;
+    console.log('FAIL the editor readout did not follow its own slider');
+  }
+
+  // The value only leaves the page when the reader lets go, which is what a
+  // change event means, and it is saved under a name of its own.
+  fire('editor-font-size', 'change');
+  const savedPaneSize = configPosts.slice(beforeSave).filter((post) => 'editor_font_size' in post);
+  if (savedPaneSize.length === 1 && savedPaneSize[0].editor_font_size === 22) {
+    console.log('     and the value is saved under the editor pane name of its own');
+  } else {
+    failed = true;
+    console.log('FAIL the editor size was not saved on its own: ' +
+      JSON.stringify(configPosts.slice(beforeSave)));
+  }
+
+  // ---- A second pane stays independent of the first ----
+  const outputFont = elements.get('output-font-size');
+  outputFont.value = '26';
+  fire('output-font-size', 'input');
+  if (output.style.fontSize === '26px' && editor.style['--font-size'] === '22px') {
+    console.log('     the output pane holds its own size beside the editor one');
+  } else {
+    failed = true;
+    console.log(`FAIL the panes did not stay independent: editor ${editor.style['--font-size']}, output ${output.style.fontSize}`);
+  }
+
+  // ---- A reading change reaches the panes that follow, and only those ----
+  const globalFont = elements.get('font-size');
+  globalFont.value = '24';
+  fire('font-size', 'input');
+  if (editor.style['--font-size'] === '22px' && output.style.fontSize === '26px') {
+    console.log('     a reading change leaves a pane the reader set exactly where it was');
+  } else {
+    failed = true;
+    console.log(`FAIL a reading change overrode a pane the reader had set: editor ${editor.style['--font-size']}, output ${output.style.fontSize}`);
+  }
+  const shellFont = elements.get('shell-font-size');
+  if (shellFont.value === '24') {
+    console.log('     while the pane still following takes the new value');
+  } else {
+    failed = true;
+    console.log(`FAIL the following pane still shows ${shellFont.value} after the reading size became 24`);
+  }
+
+  // ---- The notching buttons, which never fire the slider's own event ----
+  // This is the path a sync wired to the slider's listener would have missed,
+  // so it is the one worth pinning down. The reading value is put somewhere
+  // with room on both sides first, because the stepper checks above leave it
+  // wherever they finished and an arrow cannot move a slider that is already
+  // at the end of its travel.
+  const readingHeight = elements.get('line-height');
+  const shellHeight = elements.get('shell-line-height');
+  readingHeight.value = '1.5';
+  fire('line-height', 'input');
+  fire('line-height-more', 'click');
+  if (readingHeight.value === '1.5') {
+    failed = true;
+    console.log('FAIL the notching button did not move the reading line height at all');
+  } else if (shellHeight.value !== readingHeight.value) {
+    failed = true;
+    console.log(`FAIL the notching button left a following pane behind: it shows ${shellHeight.value}, the setting is ${readingHeight.value}`);
+  } else {
+    console.log('     a following pane keeps up when the setting is moved by the arrow buttons');
+  }
+
+  console.log('pane toolbars: 12 checks');
+}
+
 // The Python shell, end to end: closed, opened, a command run, the answer
 // kept on screen, a failure explained, and a close that hands the process
 // back rather than leaving it running for nobody.
@@ -3368,6 +3585,9 @@ setTimeout(() => {
   // The dividers answer synchronously, so the layout checks need no window
   // of their own.
   runLayoutChecks();
+  // Also synchronous, and deliberately after the stepper checks: those move
+  // the reading settings, and this proves a following pane kept up with them.
+  runPaneToolbarChecks();
   // Last, because it asserts on the final exit and the checks above are
   // still in flight when it starts.
   setTimeout(runShellChecks, 200);

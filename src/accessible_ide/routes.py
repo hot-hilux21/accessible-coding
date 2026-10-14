@@ -1301,6 +1301,20 @@ CONFIG_TYPES = {
     'tts_voice_gender': str,
     'auto_update': bool,
     'update_channel': str,
+    # The mini toolbar in each of the three panes. A pane the reader has
+    # never adjusted has no entry here at all, and that absence is what
+    # makes it follow the reading settings above. The entry appears the
+    # first time that pane is adjusted, and from then on it is that pane's
+    # own value, so the three panes move independently.
+    'editor_font_size': int,
+    'editor_line_height': (int, float),
+    'editor_letter_spacing': (int, float),
+    'output_font_size': int,
+    'output_line_height': (int, float),
+    'output_letter_spacing': (int, float),
+    'shell_font_size': int,
+    'shell_line_height': (int, float),
+    'shell_letter_spacing': (int, float),
 }
 
 # The updater owns the list of channels, and it is imported inside the two
@@ -1346,6 +1360,19 @@ CONFIG_RANGES = {
     # generous enough to be a deliberate request, low enough that nobody
     # can end up waiting half a minute for a word.
     'tts_hover_delay': (0, 3000),
+    # The three pane toolbars use the same bounds as the reading settings
+    # they start from, so a pane can never be taken somewhere the Settings
+    # dialog would refuse to go. The keyboard and the server both clamp, so
+    # a value that got past the slider still cannot make a pane unreadable.
+    'editor_font_size': (12, 28),
+    'editor_line_height': (1.0, 2.4),
+    'editor_letter_spacing': (-0.5, 4.0),
+    'output_font_size': (12, 28),
+    'output_line_height': (1.0, 2.4),
+    'output_letter_spacing': (-0.5, 4.0),
+    'shell_font_size': (12, 28),
+    'shell_line_height': (1.0, 2.4),
+    'shell_letter_spacing': (-0.5, 4.0),
 }
 
 # Voice names come from the operating system, so any string is allowed -

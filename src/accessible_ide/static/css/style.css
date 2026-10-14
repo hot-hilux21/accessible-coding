@@ -414,8 +414,129 @@ input[type="range"] {
   min-width: 0;
   min-height: 0;
   position: relative;
+  /* A column, because the pane now carries its own small toolbar above the
+     editor. The editor used to be absolutely positioned to fill the pane;
+     as a flex child it takes the space that is left rather than all of it. */
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
 }
+
+/* ---------- Pane text toolbar ---------- */
+/* Each pane carries one of these at its top: a single arrow that opens a row
+   of compact sliders for that pane's own text size, line spacing and letter
+   spacing. Closed it is one thin line, and open it is still one line, so a
+   reader with code to read past pays for it once.
+   The arrow is the only thing that moves, and it moves by transform, not by
+   width or position: that keeps it off the layout, so opening the toolbar
+   never reflows the line the reader was on. The global reduced-motion rule
+   already stops it, so there is no second switch here. */
+.pane-mini {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* The strip is as tall as the target inside it. A control smaller than the
+     app's 44px would be the one button in the app a tremor cannot hit, and
+     the reader reaches for this arrow without reading around it first. */
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--muted);
+  font-size: 0.85em;
+  letter-spacing: normal;
+}
+
+.pane-mini-toggle {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px is the accessible minimum, so the arrow is usable with a finger,
+     a tremor or a stylus - the same target the steppers and the buttons use. */
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: calc(-1 * var(--space-1));
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.pane-mini-toggle:hover,
+.pane-mini-toggle[aria-expanded="true"] {
+  color: var(--fg);
+}
+
+.pane-mini-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.pane-caret {
+  display: block;
+  font-size: 0.7rem;
+  line-height: 1;
+  transition: transform var(--motion-fast) var(--ease);
+}
+
+.pane-caret::before {
+  content: "\25B8";
+}
+
+.pane-mini-toggle[aria-expanded="true"] .pane-caret {
+  transform: rotate(90deg);
+}
+
+.pane-mini-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* display:flex above would otherwise beat the hidden attribute's own
+   display:none, and the panel would show while it is meant to be closed. */
+.pane-mini-panel[hidden] {
+  display: none;
+}
+
+.mini-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* The glyph is a label, not a word, so it is drawn here and stays out of the
+   catalogues. It sits in a fixed box so the three sliders in a row line up
+   under each other rather than starting wherever the glyph is wide. */
+.mini-icon {
+  width: 1.1em;
+  font-size: 0.95em;
+  line-height: 1;
+  text-align: center;
+  color: var(--muted);
+}
+
+.pane-mini input[type="range"] {
+  width: 96px;
+  min-width: 0;
+}
+
+/* The value reads as a number, so the digits are held to one width and the
+   slider does not shuffle sideways as the number changes length. */
+.mini-value {
+  min-width: 3.1em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--fg);
+}
+
 
 .right-column {
   flex: 1 1 auto;
@@ -426,8 +547,9 @@ input[type="range"] {
 }
 
 .editor {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   font-size: var(--font-size);
   font-weight: var(--font-weight);
   line-height: var(--line-height);
@@ -533,7 +655,11 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--fg);
-  letter-spacing: normal;
+  /* The output takes the reading setting the way the shell transcript beside
+     it already does, so a reader who widened their letter spacing gets it on
+     their program's output too. A pane given its own spacing overrides this
+     with an inline value. */
+  letter-spacing: var(--letter-spacing);
 }
 
 /* ---------- Error panel ---------- */

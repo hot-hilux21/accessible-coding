@@ -1541,6 +1541,26 @@ base,
                     "contrast test cannot measure",
                 )
 
+    def test_the_pane_toolbar_arrow_is_a_44px_target(self):
+        # The arrow opens the strip above each pane, and the reader reaches
+        # for it without reading around it first. It was drawn at 32px, which
+        # is the size this file's docstring is about: one control in the app
+        # smaller than every other, for no reason the reader could name.
+        body = self.rule(".pane-mini-toggle")
+        for dimension in ("min-width", "min-height"):
+            with self.subTest(dimension=dimension):
+                found = re.search(dimension + r":\s*([\d.]+)px", body)
+                self.assertIsNotNone(
+                    found, f".pane-mini-toggle sets no {dimension}"
+                )
+                assert found is not None  # for the type checker, not the test
+                self.assertGreaterEqual(
+                    float(found.group(1)),
+                    44.0,
+                    f"the pane arrow's {dimension} is under the 44px every "
+                    "other control in the app uses",
+                )
+
     def test_the_variants_differ_in_size_and_not_in_colour(self):
         # A small button and a normal one should be the same control at two
         # sizes. When each variant declared its own background and border,
@@ -1585,3 +1605,111 @@ base,
                     f"{selector.strip()} scales the button on press, which "
                     "is the bounce the .btn comment rules out",
                 )
+
+
+class PaneTextToolbarTests(RenderedPageFixture):
+    """The small text toolbars on the code, output and shell panes.
+
+    These are checked here rather than by the "every id the script looks up
+    exists" test above, because app.js builds the ids by joining the pane and
+    the setting together at runtime. That literal scan cannot see them, so it
+    would go on passing if the toolbars disappeared from the template
+    altogether.
+    """
+
+    PANES = ("editor", "output", "shell")
+    SETTINGS = ("font-size", "line-height", "letter-spacing")
+
+    def test_each_pane_has_a_toolbar_that_names_its_own_pane(self):
+        labels = []
+        for pane in self.PANES:
+            with self.subTest(pane=pane):
+                toggle = re.search(
+                    rf'<button[^>]*id="mini-{pane}-toggle"[^>]*>', self.html
+                )
+                self.assertIsNotNone(toggle, f"the {pane} pane has no toolbar arrow")
+                assert toggle is not None  # for the type checker, not the test
+                markup = toggle.group(0)
+                # The arrow's direction and the panel are one answer told
+                # twice, so both have to start out saying closed.
+                self.assertIn('aria-expanded="false"', markup)
+                self.assertIn(f'aria-controls="mini-{pane}-panel"', markup)
+                name = re.search(r'aria-label="([^"]+)"', markup)
+                self.assertIsNotNone(name, f"the {pane} toolbar has no name")
+                assert name is not None
+                labels.append(name.group(1))
+
+                panel = re.search(
+                    rf'<div[^>]*id="mini-{pane}-panel"[^>]*>', self.html
+                )
+                self.assertIsNotNone(panel, f"the {pane} pane has no toolbar panel")
+                assert panel is not None
+                self.assertIn("hidden", panel.group(0))
+        # Three arrows that read identically are one control to a reader who
+        # cannot see them, so each has to say which pane it belongs to.
+        self.assertEqual(
+            len(set(labels)), 3, f"the toolbars cannot be told apart: {labels}"
+        )
+
+    def test_every_pane_slider_is_named_for_the_setting_it_saves(self):
+        # The bounds test above walks CONFIG_RANGES and asks for a control
+        # named after the key, so these ids are what keep the nine new
+        # ranges checked from the page's side and not only from the server.
+        for pane in self.PANES:
+            for setting in self.SETTINGS:
+                key = f"{pane}_{setting.replace('-', '_')}"
+                control = f"{pane}-{setting}"
+                with self.subTest(key=key):
+                    self.assertIn(key, routes.CONFIG_RANGES)
+                    self.assertIn(f'id="{control}"', self.html)
+                    self.assertIn(f'<label for="{control}"', self.html)
+                    self.assertIn(f'id="{control}-value"', self.html)
+
+    def test_an_unset_pane_setting_is_rendered_empty_so_the_pane_follows(self):
+        # A pane nobody has adjusted carries nothing of its own, and that
+        # empty attribute is the whole mechanism: app.js reads it as "still
+        # following the reading settings". A template that filled these in
+        # would pin every pane on the first paint and the reader's existing
+        # font and spacing settings would quietly stop reaching them.
+        page = render_with(dict(routes.DEFAULT_CONFIG))
+        for pane in self.PANES:
+            for setting in self.SETTINGS:
+                with self.subTest(pane=pane, setting=setting):
+                    self.assertIn(f'data-{pane}-{setting}=""', page)
+
+    def test_a_pane_that_is_following_shows_the_reading_value(self):
+        page = render_with(dict(routes.DEFAULT_CONFIG, font_size=20, line_height=1.9))
+        for pane in self.PANES:
+            with self.subTest(pane=pane):
+                size = re.search(rf'<input[^>]*id="{pane}-font-size"[^>]*>', page)
+                self.assertIsNotNone(size)
+                assert size is not None
+                self.assertIn('value="20"', size.group(0))
+                height = re.search(rf'<input[^>]*id="{pane}-line-height"[^>]*>', page)
+                self.assertIsNotNone(height)
+                assert height is not None
+                self.assertIn('value="1.9"', height.group(0))
+
+    def test_a_pane_that_has_been_set_keeps_its_own_value(self):
+        page = render_with(dict(routes.DEFAULT_CONFIG, font_size=20, editor_font_size=25))
+        self.assertIn('data-editor-font-size="25"', page)
+        editor = re.search(r'<input[^>]*id="editor-font-size"[^>]*>', page)
+        self.assertIsNotNone(editor)
+        assert editor is not None
+        self.assertIn('value="25"', editor.group(0))
+        # The panes beside it are untouched: the setting belongs to one pane,
+        # not to all three, and they go on following the reading size.
+        for pane in ("output", "shell"):
+            with self.subTest(pane=pane):
+                other = re.search(rf'<input[^>]*id="{pane}-font-size"[^>]*>', page)
+                self.assertIsNotNone(other)
+                assert other is not None
+                self.assertIn('value="20"', other.group(0))
+                self.assertIn(f'data-{pane}-font-size=""', page)
+
+    def test_every_language_can_name_the_pane_toolbars(self):
+        for language in i18n.LANGUAGES:
+            with self.subTest(language=language):
+                catalogue = i18n.load_catalogue(language)
+                self.assertIn("pane.controls", catalogue)
+                self.assertTrue(catalogue["pane.controls"].strip())
