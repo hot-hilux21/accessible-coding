@@ -166,12 +166,7 @@ jobs:
             release/AccessibleIDE-Setup.exe
             release/version.json
           generate_release_notes: true
-          # Not marked as a pre-release. That box is the only thing that
-          # decides which release GitHub calls "Latest", and a release that
-          # never takes it leaves the badge pinned to whatever shipped last.
-          # The word beta comes from the tag name, not from this box, and a
-          # plain number still moves the stable channel below.
-          prerelease: false
+          prerelease: true
       # The channels the app reads. The manifest is the channel: it points at
       # the tagged release above, so the app needs no release-list API and no
       # token, only a fixed address per channel.
@@ -182,9 +177,11 @@ jobs:
       # going stale, which is how it ended up pointing at a build from weeks
       # earlier. Stable stays manifest-only; nothing links to it directly.
       #
-      # Neither channel is marked as the repository's latest release, so the
-      # "Latest" badge on the releases page stays on a real build rather than
-      # pointing a reader at a file that only says where to look.
+      # Neither channel is marked as the repository's latest release. The
+      # "Latest" badge belongs to the newest plain-number tag, so it stays
+      # empty until a stable release ships rather than pointing a reader at a
+      # file that only says where to look. A beta tag must not take it either:
+      # it is the one slot a reader reads as "the stable one".
       - name: Work out which channels this release belongs to
         id: channels
         run: |
