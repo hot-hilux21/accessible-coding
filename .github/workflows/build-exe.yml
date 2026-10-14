@@ -174,6 +174,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
       - name: Download exe
         uses: actions/download-artifact@v8
         with:
@@ -191,6 +194,18 @@ jobs:
       # every update check compared against. Readers are served by the beta
       # and stable channels in build-release.yml instead. This release is
       # for testing a build before it is tagged.
+      # The same check the tagged release runs, for the same reason: a dev
+      # build is offered to readers testing the app, and a manifest naming an
+      # address the app refuses, or a number that goes backwards, would leave
+      # them with an update they can never install.
+      - name: Check the dev channel can move
+        run: |
+          version="$(python -c 'import json; print(json.load(open("release/version.json"))["version"])')"
+          python tools/check_publish.py check \
+            --channel dev \
+            --version "$version" \
+            --url "https://github.com/${{ github.repository }}/releases/download/dev/AccessibleIDE.exe" \
+            --repo "${{ github.repository }}"
       - name: Update dev release
         env:
           GH_TOKEN: ${{ github.token }}
