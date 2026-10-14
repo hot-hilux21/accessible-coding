@@ -21,15 +21,41 @@ different things.
 """
 
 import argparse
+import importlib.util
 import json
 import pathlib
 import sys
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / 'src'))
 
-from accessible_ide import updater  # noqa: E402
+
+def _load_updater():
+    """Load ``updater.py`` from its file rather than importing the package.
+
+    The job that publishes a release installs nothing. It downloads the built
+    artifacts and moves a release tag; ``requirements.txt`` is never
+    installed there. ``accessible_ide/__init__.py`` builds the Flask
+    application, so importing the package in that job dies on ``flask``
+    before a single check runs - and because this tool runs *before* the
+    release is moved, the guard added to protect dev publishes was itself
+    what stopped the dev publish.
+
+    The updater is standard library only, which is what makes loading it this
+    way possible. It stays one module in the repository, so the ordering the
+    app applies to versions and the ordering applied here cannot drift apart.
+
+    ``updater.current_version()`` is the one function unavailable from here,
+    because it imports ``__version__`` from the package. Nothing calls it.
+    """
+    path = ROOT / 'src' / 'accessible_ide' / 'updater.py'
+    spec = importlib.util.spec_from_file_location('accessible_ide_updater', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+updater = _load_updater()
 
 
 class CheckError(Exception):

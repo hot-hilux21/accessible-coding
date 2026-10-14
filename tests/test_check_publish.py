@@ -8,6 +8,7 @@ and nobody on the newer build is ever offered anything.
 """
 
 import pathlib
+import subprocess
 import sys
 import unittest
 from unittest import mock
@@ -152,6 +153,77 @@ class CommandTests(unittest.TestCase):
                 "--url", GOOD_URL, "--repo", PINNED,
             ])
         self.assertEqual(code, 0)
+
+
+class StandaloneImportTests(unittest.TestCase):
+    """The tool has to run in the job that publishes, which installs nothing.
+
+    The publish job downloads the built artifacts and moves a release. It
+    never installs requirements.txt, so Flask is not there. Importing the
+    package to reach the updater therefore fails before any check runs - and
+    because this tool runs before the release moves, that failure blocks the
+    publish it was added to protect. That happened for real on the dev
+    channel the first time this tool ran in CI.
+    """
+
+    # Enough of the runtime that the package cannot be imported while these
+    # are blocked.
+    BLOCKER = (
+        "import importlib.abc, sys\n"
+        "BLOCKED = {'flask', 'werkzeug', 'jinja2', 'gunicorn', 'webview', 'yaml'}\n"
+        "class Blocked(importlib.abc.MetaPathFinder):\n"
+        "    def find_spec(self, fullname, path=None, target=None):\n"
+        "        if fullname.split('.')[0] in BLOCKED:\n"
+        "            raise ModuleNotFoundError('No module named ' + repr(fullname))\n"
+        "        return None\n"
+        "sys.meta_path.insert(0, Blocked())\n"
+    )
+
+    def run_without_the_app_dependencies(self, body):
+        return subprocess.run(
+            [sys.executable, "-c", self.BLOCKER + body],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_the_blocker_would_stop_the_package_import(self):
+        # Without this, the check below would pass just as well against a tool
+        # that still imported the package, and would prove nothing.
+        done = self.run_without_the_app_dependencies(
+            f"sys.path.insert(0, {str(REPO_ROOT / 'src')!r})\n"
+            "import accessible_ide\n"
+        )
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("flask", done.stderr)
+
+    def test_the_check_runs_without_the_app_dependencies(self):
+        body = (
+            f"sys.path.insert(0, {str(REPO_ROOT / 'tools')!r})\n"
+            "import check_publish\n"
+            "raise SystemExit(check_publish.main([\n"
+            "    'check', '--channel', 'beta', '--version', '0.4.0-beta',\n"
+            f"    '--url', {GOOD_URL!r}, '--repo', {PINNED!r}, '--offline',\n"
+            "]))\n"
+        )
+        done = self.run_without_the_app_dependencies(body)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("ok: beta starts at 0.4.0-beta", done.stdout)
+
+    def test_the_updater_can_name_itself_without_the_package(self):
+        # Checking a channel reads the manifest, and reading the manifest
+        # sends a request header naming the version. Going through the
+        # package for that name is what broke the dev publish the second
+        # time: the tool had loaded fine, and then died on the fetch.
+        body = (
+            f"sys.path.insert(0, {str(REPO_ROOT / 'tools')!r})\n"
+            "import check_publish\n"
+            "print(check_publish.updater.current_version())\n"
+            "print(check_publish.updater.manifest_url('dev'))\n"
+        )
+        done = self.run_without_the_app_dependencies(body)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout.strip().splitlines()[0], "unknown")
 
 
 if __name__ == "__main__":

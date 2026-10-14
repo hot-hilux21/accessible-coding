@@ -183,8 +183,24 @@ def is_frozen() -> bool:
 
 
 def current_version() -> str:
-    """The version inside the running build."""
-    from . import __version__
+    """The version inside the running build.
+
+    Read from the package rather than kept here, so the number reported is
+    the one the build was made with. There is one case where the package
+    cannot be read: ``tools/check_publish.py`` loads this module straight
+    from its file, because the job that publishes a release installs no
+    dependencies and importing the package there needs Flask. That job has
+    no running build to name, and the request header below is the only thing
+    it uses the name for, so an unknown name is honest there.
+
+    In the app the package is always present. If it ever were not, the name
+    would reach ``parse_version`` and be refused as unreadable, which is a
+    loud failure rather than a wrong comparison.
+    """
+    try:
+        from . import __version__
+    except ImportError:
+        return 'unknown'
     return __version__
 
 
