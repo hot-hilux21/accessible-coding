@@ -212,10 +212,12 @@ jobs:
             --notes "The newest tagged release, for readers who want new work as it lands. Moved by every release." \
             --prerelease \
             --repo "${{ github.repository }}" 2>/dev/null || true
-          gh release upload beta \
-            release/version.json \
-            release/AccessibleIDE.exe \
-            release/AccessibleIDE-Setup.exe \
+          gh release upload beta release/version.json \
+            --clobber --repo "${{ github.repository }}"
+          # The two builds ride along, because the README sends readers here
+          # and a download link has to land on a file rather than on the
+          # manifest that only says where the file is.
+          gh release upload beta release/AccessibleIDE.exe release/AccessibleIDE-Setup.exe \
             --clobber --repo "${{ github.repository }}"
       - name: Check the stable channel can move
         if: steps.channels.outputs.stable == 'true'
