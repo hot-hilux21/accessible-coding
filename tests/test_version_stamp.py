@@ -594,5 +594,68 @@ class InstallerPrerequisiteTests(unittest.TestCase):
                 self.assertIn("innosetup-7.1.0-x64.exe", text)
 
 
+class InstallerBrandingTests(unittest.TestCase):
+    """The pictures the wizard shows, and whether they are actually there.
+
+    Inno Setup looks for these files while it compiles and stops the build if
+    one is missing, so a missing picture is discovered on the runner partway
+    through a release rather than here. The two names are checked against the
+    files on disk instead. The panel is also checked for the 164:314 shape Inno
+    stretches to: a picture of the wrong shape is squashed to fit rather than
+    refused, which makes it the one mistake that survives every build and is
+    only ever seen by a reader.
+    """
+
+    def setting(self, name):
+        text = stamp_version.INSTALLER_FILE.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            key, _, value = line.partition("=")
+            if key.strip() == name:
+                return value.strip()
+        self.fail(f"{name} is not set in {stamp_version.INSTALLER_FILE.name}")
+
+    def path_of(self, setting):
+        # Inno is given Windows separators. The test job runs on Linux and on
+        # Windows, so they are normalised rather than assumed.
+        return REPO_ROOT / self.setting(setting).replace("\\", "/")
+
+    @staticmethod
+    def png_size(path):
+        """The size out of the PNG header, with no image library.
+
+        The test job installs flask, pywebview and pyyaml and nothing else.
+        Pillow is only needed by whoever regenerates the art, so it cannot be
+        imported here.
+        """
+        head = path.read_bytes()[:24]
+        if head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
+            raise AssertionError(f"{path.name} is not a PNG")
+        return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+
+    def test_every_wizard_image_exists(self):
+        for name in ("WizardImageFile", "WizardSmallImageFile"):
+            with self.subTest(setting=name):
+                path = self.path_of(name)
+                self.assertTrue(
+                    path.is_file(),
+                    f"{name} names a file that is not in the repository: {path}")
+
+    def test_the_panel_keeps_the_shape_inno_stretches_it_to(self):
+        width, height = self.png_size(self.path_of("WizardImageFile"))
+        self.assertAlmostEqual(width / height, 164 / 314, delta=0.01)
+
+    def test_the_panel_is_large_enough_for_a_high_dpi_screen(self):
+        # Inno's own advice is to stay above 202x386. Below that the picture
+        # is scaled up and the text in it goes soft.
+        width, height = self.png_size(self.path_of("WizardImageFile"))
+        self.assertGreater(width, 202)
+        self.assertGreater(height, 386)
+
+    def test_the_header_mark_is_square(self):
+        # The header area is square, so anything else is stretched.
+        width, height = self.png_size(self.path_of("WizardSmallImageFile"))
+        self.assertEqual(width, height)
+
+
 if __name__ == "__main__":
     unittest.main()

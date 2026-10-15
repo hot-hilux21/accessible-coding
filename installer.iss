@@ -25,7 +25,24 @@ OutputDir=installer
 OutputBaseFilename=AccessibleIDE-Setup
 Compression=lzma2
 SolidCompression=yes
-WizardStyle=modern
+; A modern, adaptive wizard. In light mode it uses the Windows 11 style, in
+; dark mode the built-in dark style, and it decides once, at startup, from the
+; reader's own Windows setting rather than from a preference of ours.
+; includetitlebar styles the title bar and borders to match the page, which is
+; as close as a native setup comes to a borderless window, and hidebevels drops
+; the horizontal rules between the header and each page. Inno turns these
+; custom styles off by itself under a high-contrast theme, and that fallback is
+; right: the reader's contrast setting outranks ours.
+WizardStyle=modern dynamic windows11 includetitlebar hidebevels
+; The panel beside the Welcome and Finished pages, and the mark in the header.
+; Both are drawn by scripts/make_wizard_images.py. PNG rather than BMP because
+; Inno keeps the alpha channel, so the header mark sits on whatever background
+; the active style gives it instead of on a rectangle of our own colour.
+WizardImageFile=installer\assets\wizard-image.png
+WizardImageBackColor=$0D0D0D
+WizardSmallImageFile=installer\assets\wizard-small.png
+; MIT, and short. The reader sees it before choosing where to install.
+LicenseFile=LICENSE
 ArchitecturesInstallIn64BitMode=x64compatible
 ; Program Files needs elevation to write to, so the whole setup runs as an
 ; administrator. {autopf} with PrivilegesRequired=lowest meant the per-user
@@ -41,12 +58,19 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
 WelcomeLabel1=Welcome to AccessibleIDE Setup
-WelcomeLabel2=This will install AccessibleIDE on your computer.%n%nAccessibleIDE is a friendly code editor made for dyslexic and neurodivergent learners. It uses dyslexia-friendly fonts, focus mode, text-to-speech, and plain-English error messages.%n%nClick Next to continue, or Cancel to exit.
+WelcomeLabel2=This will install AccessibleIDE on your computer.%n%nAccessibleIDE is a code editor made for dyslexic and neurodivergent learners. It uses dyslexia-friendly fonts, a focus mode that quiets the rest of the screen, and plain-English error messages.%n%nClick Next to continue, or Cancel to exit.
+; One label sits above the license text. Inno calls it LicenseLabel3 when a
+; license file is in use. LicenseLabel1 and LicenseLabel2 are not names this
+; version knows: using them compiles with a warning and the label shows Inno's
+; own wording instead.
+LicenseLabel3=Please read the license below, then choose whether to accept it. AccessibleIDE is free and open source. The MIT license lets you use, change, and share it, as long as the license and the copyright notice stay with any copy you pass on.
+LicenseAccepted=I &accept the license
+LicenseNotAccepted=I &do not accept the license
 FinishedLabel=Setup has finished installing AccessibleIDE on your computer.%n%nClick Finish to open AccessibleIDE.
 SelectDirLabel3=Setup will install AccessibleIDE into the following folder.%n%nTo use a different folder, type a new one or click Browse.
 ReadyLabel1=Setup is now ready to begin installing AccessibleIDE on your computer.
 ReadyLabel2a=Click Install to continue with the current settings, or click Back if you need to review or change anything.
-BeveledLabel=AccessibleIDE - a friendly IDE for everyone
+BeveledLabel=AccessibleIDE - a code editor built for dyslexic readers
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
