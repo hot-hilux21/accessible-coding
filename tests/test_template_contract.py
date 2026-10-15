@@ -1716,11 +1716,9 @@ class PaneTextToolbarTests(RenderedPageFixture):
 
     def test_the_line_number_control_belongs_to_the_editor_alone(self):
         # Line numbers are the editor's, so a tick on the output or the shell
-        # would offer to hide something those panes never had. One each, and
-        # the one is the editor's.
-        for element in ('id="line-numbers-toggle"', 'id="line-numbers-open"'):
-            with self.subTest(element=element):
-                self.assertEqual(self.html.count(element), 1)
+        # would offer to hide something those panes never had. One, and the
+        # one is the editor's.
+        self.assertEqual(self.html.count('id="line-numbers-toggle"'), 1)
         # The control has to sit inside the editor's own strip, not in a pane
         # beside it: the editor pane opens first in the page, so an editor
         # marker before the output pane's is the one in the editor's strip.
@@ -1729,74 +1727,79 @@ class PaneTextToolbarTests(RenderedPageFixture):
             self.html.index('id="mini-output-toggle"'),
         )
 
-    def test_the_tick_and_the_chevron_always_agree_with_the_saved_mode(self):
-        # The two are one setting drawn in two states. Rendering them
-        # independently is what would let a reader with the numbers hidden
-        # open the page to a tick that says they are showing.
-        def state(page):
+    def test_the_tick_agrees_with_the_saved_mode(self):
+        # The tick is the mode, drawn on the strip. Rendering it from anything
+        # else is what would let a reader with the numbers hidden open the
+        # page to a tick that says they are showing.
+        def ticked(page):
             toggle = re.search(r'<input[^>]*id="line-numbers-toggle"[^>]*>', page)
-            chevron = re.search(r'<button[^>]*id="line-numbers-open"[^>]*>', page)
             self.assertIsNotNone(toggle)
-            self.assertIsNotNone(chevron)
-            assert toggle is not None and chevron is not None
-            return (
-                re.search(r"\schecked(?=[\s>])", toggle.group(0)) is not None,
-                re.search(r"\shidden(?=[\s>])", chevron.group(0)) is not None,
-            )
+            assert toggle is not None
+            return re.search(r"\schecked(?=[\s>])", toggle.group(0)) is not None
 
-        # Both states say the same thing: when the numbers are showing the
-        # tick is on and the chevron is away; when they are hidden the tick is
-        # off and the chevron is out. A pair that disagreed would leave the
-        # reader holding two controls that claim opposite things.
         for mode, showing in (("off", True), ("lines", True), ("gutter", False)):
             with self.subTest(mode=mode):
-                ticked, chevron_hidden = state(
-                    render_with(dict(routes.DEFAULT_CONFIG, focus_mode=mode))
-                )
                 self.assertEqual(
-                    ticked,
+                    ticked(render_with(dict(routes.DEFAULT_CONFIG, focus_mode=mode))),
                     showing,
                     f"focus mode {mode} does not show the numbers, so the tick "
                     "must not say it does",
                 )
-                self.assertEqual(
-                    chevron_hidden,
-                    showing,
-                    "the chevron is the tick's stand-in, so it is away exactly "
-                    "when the tick is on",
-                )
 
-    def test_the_line_number_chevron_can_actually_be_hidden(self):
-        # The rule that draws it is display:inline-flex, which beats the
-        # hidden attribute's own display:none - the trap the pane slider panel
-        # and the trace window both fell into. Without this rule the chevron
-        # sits beside the tick it exists to replace, and both look "on".
+    def test_the_strip_offers_one_line_number_control(self):
+        # The setting is on or off, so one tick says all of it. A second
+        # control that undoes the first is read past rather than used, and it
+        # left the strip with a button the reader had to work out the meaning
+        # of before they could use the tick beside it.
+        #
+        # The label is what makes that safe: the box is drawn small, so the
+        # label carries the target the box does not. A label that stopped
+        # pointing at the box would leave a control nobody could hit reliably.
+        self.assertNotIn("line-numbers-open", self.html)
+        label = re.search(r'<label[^>]*class="pane-gutter-label"[^>]*>', self.html)
+        self.assertIsNotNone(label, "the tick has no label beside it")
+        assert label is not None
+        self.assertIn('for="line-numbers-toggle"', label.group(0))
+        # Neither file still draws or looks up the control that went away. A
+        # rule left behind in the stylesheet is dead weight a later reader has
+        # to check before they can trust either file.
         css = re.sub(
             r"/\*.*?\*/", "", STYLESHEET.read_text(encoding="utf-8"), flags=re.S
         )
-        rule = re.search(r"\.pane-gutter-open\[hidden\]\s*\{([^}]*)\}", css)
-        self.assertIsNotNone(rule, ".pane-gutter-open[hidden] has no rule of its own")
-        assert rule is not None
-        self.assertIn("display: none", rule.group(1))
+        self.assertNotIn("pane-gutter-open", css)
+        self.assertNotIn(
+            "line-numbers-open", APP_JS.read_text(encoding="utf-8")
+        )
 
-    def test_the_line_number_controls_are_44px_targets(self):
-        # The tick and the chevron are reached for the same way the arrow
-        # beside them is, so they are held to the same minimum rather than
-        # being the one control in the strip a tremor cannot hit.
+    def test_the_line_number_tick_is_drawn_small(self):
+        # The tick sits in the strip above the code the reader is reading, so
+        # it is deliberately quiet: the box and its label are both kept under
+        # the size the rest of the strip is drawn at. This is a ceiling rather
+        # than a floor because the label is the target - the box being small is
+        # the point, and the box being unreachable is not.
         css = re.sub(
             r"/\*.*?\*/", "", STYLESHEET.read_text(encoding="utf-8"), flags=re.S
         )
-        for selector in (".pane-mini-toggle", ".pane-gutter-open"):
-            with self.subTest(selector=selector):
-                rule = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", css)
-                self.assertIsNotNone(rule, f"{selector} has no rule of its own")
-                assert rule is not None
-                for dimension in ("min-width", "min-height"):
-                    found = re.search(dimension + r":\s*([\d.]+)px", rule.group(1))
-                    self.assertIsNotNone(found, f"{selector} sets no {dimension}")
-                    assert found is not None
-                    self.assertGreaterEqual(
-                        float(found.group(1)),
-                        44.0,
-                        f"{selector} is under the 44px every other control uses",
-                    )
+        box = re.search(r"\.pane-gutter-check\s*\{([^}]*)\}", css)
+        self.assertIsNotNone(box, ".pane-gutter-check has no rule of its own")
+        assert box is not None
+        for dimension in ("width", "height"):
+            found = re.search(dimension + r":\s*([\d.]+)px", box.group(1))
+            self.assertIsNotNone(found, f"the tick sets no {dimension}")
+            assert found is not None
+            self.assertLessEqual(
+                float(found.group(1)),
+                16.0,
+                "the tick is drawn larger than the quiet control it is",
+            )
+        label = re.search(r"\.pane-gutter-label\s*\{([^}]*)\}", css)
+        self.assertIsNotNone(label, ".pane-gutter-label has no rule of its own")
+        assert label is not None
+        size = re.search(r"font-size:\s*([\d.]+)rem", label.group(1))
+        self.assertIsNotNone(size, "the label sets no rem font-size")
+        assert size is not None
+        self.assertLessEqual(
+            float(size.group(1)),
+            0.85,
+            "the label is drawn at the reading size rather than smaller",
+        )

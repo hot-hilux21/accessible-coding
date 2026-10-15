@@ -671,12 +671,12 @@ input[type="range"] {
   transform: rotate(90deg);
 }
 
-/* The line-number tick and the chevron that stands in for it: one setting in
-   two states, never both on screen at once. The tick is drawn while the
-   numbers are, and pressing it off puts the chevron in its place so the way
-   back is where the control was rather than somewhere else in the app.
-   Both live in the pane's strip, above the code, so they are reachable
-   without opening the sliders first. */
+/* The line-number tick. One control, because the setting has one thing to
+   say: the numbers are showing, or they are not. It lives in the pane's strip
+   above the code, so it is reachable without opening the sliders first, and
+   it is drawn small on purpose: it sits beside the code a reader is reading,
+   and should be findable rather than loud. The label is bound to the box, so
+   the label is what carries the target the box itself is too small to carry. */
 .pane-gutter {
   flex: 0 0 auto;
   display: flex;
@@ -687,8 +687,8 @@ input[type="range"] {
 
 .pane-gutter-check {
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
+  width: 14px;
+  height: 14px;
   margin: 0;
   accent-color: var(--accent);
   cursor: pointer;
@@ -696,49 +696,9 @@ input[type="range"] {
 
 .pane-gutter-label {
   color: var(--fg);
-  font-size: 1rem;
+  font-size: 0.75rem;
   white-space: nowrap;
   cursor: pointer;
-}
-
-.pane-gutter-open {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0;
-  background: transparent;
-  color: var(--fg);
-  border: 2px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--motion-fast) var(--ease),
-              border-color var(--motion-fast) var(--ease);
-}
-
-.pane-gutter-open::before {
-  content: "\203A";
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.pane-gutter-open:hover,
-.pane-gutter-open:focus-visible {
-  background: var(--bg);
-  border-color: var(--accent);
-}
-
-.pane-gutter-open:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-/* display:inline-flex above would otherwise beat the hidden attribute's own
-   display:none, and the chevron would sit beside the tick it is meant to
-   replace. */
-.pane-gutter-open[hidden] {
-  display: none;
 }
 
 .pane-mini-panel {

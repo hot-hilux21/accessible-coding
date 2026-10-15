@@ -108,7 +108,6 @@
   "output.title": "Salida",
   "pane.controls": "Tamaño y espaciado del texto",
   "pane.line_numbers": "Números de línea",
-  "pane.line_numbers_show": "Mostrar los números de línea",
   "python.AttributeError": "Estás usando un atributo o método que no existe en este objeto.",
   "python.EOFError": "Fin de texto inesperado.",
   "python.FileNotFoundError": "El archivo que intentas abrir no existe.",

@@ -108,7 +108,6 @@
   "output.title": "आउटपुट",
   "pane.controls": "पाठ का आकार और अंतर",
   "pane.line_numbers": "लाइन नंबर",
-  "pane.line_numbers_show": "लाइन नंबर दिखाएँ",
   "python.AttributeError": "आप ऐसा गुण या तरीका इस्तेमाल कर रहे हैं जो इस चीज़ पर मौजूद नहीं है।",
   "python.EOFError": "कोड अचानक खत्म हो गया, जबकि उसे पूरा होना चाहिए था।",
   "python.FileNotFoundError": "आप जिस फ़ाइल खोलना चाह रहे हैं, वह मौजूद नहीं है।",

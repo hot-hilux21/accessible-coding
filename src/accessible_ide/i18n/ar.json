@@ -108,7 +108,6 @@
   "output.title": "المخرجات",
   "pane.controls": "حجم النص والمسافات",
   "pane.line_numbers": "أرقام الأسطر",
-  "pane.line_numbers_show": "إظهار أرقام الأسطر",
   "python.AttributeError": "أنت تستخدم خاصية أو طريقة غير موجودة على هذا العنصر.",
   "python.EOFError": "نهاية نص غير متوقعة.",
   "python.FileNotFoundError": "الملف الذي تحاول فتحه غير موجود.",

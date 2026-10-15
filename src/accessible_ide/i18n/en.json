@@ -108,7 +108,6 @@
   "output.title": "Output",
   "pane.controls": "Text size and spacing",
   "pane.line_numbers": "Line numbers",
-  "pane.line_numbers_show": "Show the line numbers",
   "python.AttributeError": "You're trying to use an attribute or method that doesn't exist on this object.",
   "python.EOFError": "Unexpected end of input.",
   "python.FileNotFoundError": "The file you're trying to open doesn't exist.",
