@@ -107,6 +107,8 @@
   "output.server_down": "الخادم لا يستجيب. الرجاء المحاولة مرة أخرى.",
   "output.title": "المخرجات",
   "pane.controls": "حجم النص والمسافات",
+  "pane.fade_amount": "مقدار التخفيت",
+  "pane.fade_lines": "تخفيت الأسطر الأخرى عند المرور",
   "pane.line_numbers": "أرقام الأسطر",
   "python.AttributeError": "أنت تستخدم خاصية أو طريقة غير موجودة على هذا العنصر.",
   "python.EOFError": "نهاية نص غير متوقعة.",

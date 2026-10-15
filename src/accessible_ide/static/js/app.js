@@ -78,6 +78,13 @@
   // it while the numbers are hidden. They are the same setting as the focus
   // mode dropdown, so the mode is what both of them read and write.
   var lineNumbersToggle = document.getElementById('line-numbers-toggle');
+  // The fade tick and its slider, in the same strip as the line-number tick.
+  // They read and write the same two settings as the Settings panel, so the
+  // two views are brought back in step whoever changed them.
+  var fadeToggle = document.getElementById('fade-toggle');
+  var fadeSlider = document.getElementById('fade-slider');
+  var fadeAmount = document.getElementById('fade-amount');
+  var fadeSliderValue = document.getElementById('fade-slider-value');
   var ttsVoice = document.getElementById('tts-voice');
   var ttsRate = document.getElementById('tts-rate');
   var ttsRateLabel = document.getElementById('tts-rate-label');
@@ -697,12 +704,23 @@
     });
   });
 
-  // 0 = barely faded, 1 = strongly faded. A 0 value would hide the other
-  // lines completely, so we keep a floor of 0.15.
+  // The stored value runs 0..1 and the reader sees it as a percentage. 0 is
+  // off: at the bottom of the slider every line stays fully legible, so the
+  // control that says fade is on cannot leave a line faded a little. 1 takes
+  // the other lines down to the floor the stylesheet clamps to.
   function applyBlurIntensity(value) {
-    var amount = 0.85 - (value * 0.7);
+    var amount = 1 - (value * 0.85);
     body.style.setProperty('--blur-amount', amount.toFixed(2));
-    blurIntensityLabel.textContent = value;
+    var percent = Math.round(value * 100) + '%';
+    if (blurIntensityLabel) blurIntensityLabel.textContent = percent;
+    if (fadeSliderValue) fadeSliderValue.textContent = percent;
+    // Both views of the setting follow whichever one moved.
+    if (blurIntensity && blurIntensity.value !== String(value)) {
+      blurIntensity.value = String(value);
+    }
+    if (fadeSlider && fadeSlider.value !== String(value)) {
+      fadeSlider.value = String(value);
+    }
   }
 
   function applyContrast(value) {
@@ -731,6 +749,11 @@
     // The tick and the Settings dropdown are two views of one setting, so
     // both are brought back in step whoever changed it.
     if (lineNumbersToggle) lineNumbersToggle.checked = mode !== 'gutter';
+    // The fade tick and its slider are the same setting seen a third way.
+    // The slider only appears while fade is the mode, so the strip stays
+    // quiet for a reader who never asked for it.
+    if (fadeToggle) fadeToggle.checked = mode === 'lines';
+    if (fadeAmount) fadeAmount.hidden = mode !== 'lines';
     if (focusMode && focusMode.value !== mode) {
       focusMode.value = mode;
       syncBlurField();
@@ -2416,7 +2439,7 @@
   });
 
   blurIntensity.addEventListener('input', function () {
-    applyBlurIntensity(blurIntensity.value);
+    applyBlurIntensity(parseFloat(blurIntensity.value));
   });
 
   blurIntensity.addEventListener('change', function () {
@@ -2600,6 +2623,27 @@
       var next = lineNumbersToggle.checked ? lastVisibleFocusMode : 'gutter';
       applyFocusMode(next);
       saveConfig({ focus_mode: next });
+    });
+  }
+
+  // Ticking fade turns the mode on and brings its slider out; unticking turns
+  // it off and takes the slider away. Unticking leaves the numbers showing,
+  // which is "off" rather than "gutter": the reader asked to stop fading, not
+  // to hide the numbers.
+  if (fadeToggle) {
+    fadeToggle.addEventListener('change', function () {
+      var next = fadeToggle.checked ? 'lines' : 'off';
+      applyFocusMode(next);
+      saveConfig({ focus_mode: next });
+    });
+  }
+
+  if (fadeSlider) {
+    fadeSlider.addEventListener('input', function () {
+      applyBlurIntensity(parseFloat(fadeSlider.value));
+    });
+    fadeSlider.addEventListener('change', function () {
+      saveConfig({ blur_intensity: parseFloat(fadeSlider.value) });
     });
   }
 

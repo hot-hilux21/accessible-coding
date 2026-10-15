@@ -107,6 +107,8 @@
   "output.server_down": "Le serveur ne répond pas. Veuillez réessayer.",
   "output.title": "Sortie",
   "pane.controls": "Taille et espacement du texte",
+  "pane.fade_amount": "Intensité de l'estompage",
+  "pane.fade_lines": "Estomper les autres lignes au survol",
   "pane.line_numbers": "Numéros de ligne",
   "python.AttributeError": "Vous utilisez un attribut ou une méthode qui n'existe pas sur cet objet.",
   "python.EOFError": "Fin de texte inattendue.",

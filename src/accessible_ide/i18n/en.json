@@ -107,6 +107,8 @@
   "output.server_down": "The server is not responding. Please try again.",
   "output.title": "Output",
   "pane.controls": "Text size and spacing",
+  "pane.fade_amount": "Fade amount",
+  "pane.fade_lines": "Fade other lines on hover",
   "pane.line_numbers": "Line numbers",
   "python.AttributeError": "You're trying to use an attribute or method that doesn't exist on this object.",
   "python.EOFError": "Unexpected end of input.",

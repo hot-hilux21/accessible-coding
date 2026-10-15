@@ -701,6 +701,63 @@ input[type="range"] {
   cursor: pointer;
 }
 
+/* The fade tick and its slider, in the same strip as the line-number tick and
+   drawn the same size, because they are the same kind of decision about the
+   same code. The slider is only in the strip while the tick is on, so a reader
+   who does not use it is not handed a control they have to read past. */
+.pane-fade {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+}
+
+.pane-fade-check {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.pane-fade-label {
+  color: var(--fg);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pane-fade-amount {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* display:flex above would otherwise beat the hidden attribute's own
+   display:none, and the slider would show while fade is off. */
+.pane-fade-amount[hidden] {
+  display: none;
+}
+
+.pane-fade-slider {
+  width: 88px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* The readout sits to the right of the thumb and keeps a fixed width, so
+   moving the slider does not push the rest of the strip sideways. */
+.pane-fade-value {
+  min-width: 4ch;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .pane-mini-panel {
   display: flex;
   flex-wrap: wrap;
@@ -809,9 +866,11 @@ input[type="range"] {
    line. At rest every line is fully legible, so the page is calm; hovering
    singles one line out and fades the rest. The line number fades with its
    line, so the gutter does not stay loud while the code goes quiet.
-   --blur-amount is written by app.js from the "How much to fade" slider,
-   and is clamped here too so a hand-edited config can never make the other
-   lines invisible. */
+   --blur-amount is written by app.js from the "How much to fade" slider.
+   It runs the other way round from the slider: 1 is no fade and 0.15 is the
+   most a line is ever taken down. So the bottom of the slider is off, and
+   the floor below keeps a hand-edited config from making the other lines
+   invisible. */
 body[data-focus-mode="lines"] .CodeMirror-line,
 body[data-focus-mode="lines"] .CodeMirror-linebackground,
 body[data-focus-mode="lines"] .CodeMirror-gutter-wrapper {
@@ -821,7 +880,7 @@ body[data-focus-mode="lines"] .CodeMirror-gutter-wrapper {
 body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-line,
 body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-linebackground,
 body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-gutter-wrapper {
-  opacity: clamp(0.15, var(--blur-amount, 0.5), 0.85);
+  opacity: clamp(0.15, var(--blur-amount, 0.5), 1);
 }
 
 body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-line:hover,

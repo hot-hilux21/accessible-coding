@@ -107,6 +107,8 @@
   "output.server_down": "El servidor no responde. Inténtalo de nuevo.",
   "output.title": "Salida",
   "pane.controls": "Tamaño y espaciado del texto",
+  "pane.fade_amount": "Cantidad de desvanecido",
+  "pane.fade_lines": "Desvanecer las otras líneas al pasar el cursor",
   "pane.line_numbers": "Números de línea",
   "python.AttributeError": "Estás usando un atributo o método que no existe en este objeto.",
   "python.EOFError": "Fin de texto inesperado.",

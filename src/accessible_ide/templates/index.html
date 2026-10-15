@@ -112,7 +112,7 @@
 
     <div class="toolbar" role="toolbar" aria-label="{{ t('nav.tools') }}">
       <button id="btn-run" class="btn btn-primary" title="{{ t('nav.run_title') }}">
-        <span aria-hidden="true">&#9654;</span> {{ t('nav.run') }}
+        <span class="btn-icon" aria-hidden="true">&#9654;</span><span class="btn-label">{{ t('nav.run') }}</span>
       </button>
 
       {# The trace table sits beside Run because it describes a run. It stays
@@ -163,7 +163,7 @@
      panes are independent. A pane starts from its own saved value and falls
      back to the reading setting it otherwise follows, so the absence of a
      saved value is what keeps an untouched pane in step with Settings. #}
-  {% macro pane_controls(pane, label, line_numbers=false) %}
+  {% macro pane_controls(pane, label, line_numbers=false, fade=false) %}
   {%- set font_key = pane ~ '_font_size' -%}
   {%- set height_key = pane ~ '_line_height' -%}
   {%- set spacing_key = pane ~ '_letter_spacing' -%}
@@ -177,15 +177,30 @@
       <span class="pane-caret" aria-hidden="true"></span>
     </button>
     {% if line_numbers %}
-    {# One tick, and nothing beside it. The numbers are either on or off, so
-       a second control that does the same job in the other direction is
-       something to read past rather than something to use. The starting state
-       is the saved focus mode, and app.js keeps this tick and the Settings
-       dropdown on the same value whoever changes it. #}
     <span class="pane-gutter">
       <input type="checkbox" class="pane-gutter-check" id="line-numbers-toggle"
              {% if config.focus_mode != 'gutter' %}checked{% endif %}>
       <label class="pane-gutter-label" for="line-numbers-toggle">{{ t('pane.line_numbers') }}</label>
+    </span>
+    {% endif %}
+    {% if fade %}
+    {# Fade other lines on hover, for the code alone, because the code is the
+       only pane whose lines are separate things. The tick turns it on; the
+       slider sets how far the other lines go down. The slider only appears
+       once the tick is on, so the strip stays quiet for the reader who never
+       asked for it. Bottom of the slider is off, so a reader who leaves it
+       there is not left with lines that are faded a little while the control
+       above them says fade is on. #}
+    <span class="pane-fade">
+      <input type="checkbox" class="pane-fade-check" id="fade-toggle"
+             {% if config.focus_mode == 'lines' %}checked{% endif %}>
+      <label class="pane-fade-label" for="fade-toggle">{{ t('pane.fade_lines') }}</label>
+      <span class="pane-fade-amount" id="fade-amount"{% if config.focus_mode != 'lines' %} hidden{% endif %}>
+        <label for="fade-slider" class="visually-hidden">{{ t('pane.fade_amount') }}</label>
+        <input type="range" class="pane-fade-slider" id="fade-slider" min="0" max="1" step="0.05"
+               value="{{ config.blur_intensity }}">
+        <output class="pane-fade-value" id="fade-slider-value" for="fade-slider">{{ (config.blur_intensity * 100) | round | int }}%</output>
+      </span>
     </span>
     {% endif %}
     <div class="pane-mini-panel" id="mini-{{ pane }}-panel" role="group"
@@ -223,7 +238,7 @@
 
   <main id="workspace" class="workspace" role="main">
     <section class="editor-pane" aria-label="{{ t('editor.label') }}">
-      {{ pane_controls('editor', t('editor.label'), line_numbers=true) }}
+      {{ pane_controls('editor', t('editor.label'), line_numbers=true, fade=true) }}
       <div id="editor" class="editor" role="textbox" aria-label="{{ t('editor.label') }}" aria-multiline="true"></div>
     </section>
 
@@ -581,7 +596,7 @@
             <label for="blur-intensity">{{ t('focus.fade') }}</label>
             <div class="field-row">
               <input type="range" id="blur-intensity" min="0" max="1" step="0.05" value="{{ config.blur_intensity }}">
-              <output id="blur-intensity-label" class="field-value" for="blur-intensity">{{ config.blur_intensity }}</output>
+              <output id="blur-intensity-label" class="field-value" for="blur-intensity">{{ (config.blur_intensity * 100) | round | int }}%</output>
             </div>
             <p class="field-help">{{ t('focus.fade_help') }}</p>
           </div>
