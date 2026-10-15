@@ -1162,7 +1162,7 @@ body[data-contrast="high"][data-theme="pastel"] {
    A native <dialog> so focus trapping, Escape and the inert background
    come from the browser rather than hand-rolled JavaScript. */
 .settings {
-  width: min(560px, calc(100vw - 2 * var(--space-4)));
+  width: min(720px, calc(100vw - 2 * var(--space-4)));
   max-height: calc(100vh - 2 * var(--space-4));
   padding: 0;
   border: 1px solid var(--panel-border);
@@ -1177,13 +1177,20 @@ body[data-contrast="high"][data-theme="pastel"] {
   background: rgba(0, 0, 0, 0.6);
 }
 
+/* The title across the top, then the sections down the left with the panel
+   they point at filling the rest. The list runs down rather than across
+   because a wrapped row of nine links is the thing that read as clutter:
+   in a column each one is on its own line and can be found by position
+   instead of by reading every one of them. */
 .settings-form {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   max-height: calc(100vh - 2 * var(--space-4));
 }
 
 .settings-header {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1193,21 +1200,26 @@ body[data-contrast="high"][data-theme="pastel"] {
   background: var(--panel-bg);
 }
 
-/* Jump links to each group. The body below scrolls, so these stay in
-   view while the reader moves between sections. */
+/* Jump links to each group. The panel beside them scrolls, so these stay in
+   view while the reader moves between sections, and they scroll themselves
+   on a window too short to show all nine. */
 .settings-nav {
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--panel-border);
+  grid-column: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+  border-right: 1px solid var(--panel-border);
   background: var(--panel-bg);
 }
 
 .settings-nav-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
+  flex-direction: column;
+  gap: var(--space-4);
   margin: 0;
   padding: 0;
   list-style: none;
+  white-space: nowrap;
 }
 
 .settings-nav-list a {
@@ -1228,9 +1240,11 @@ body[data-contrast="high"][data-theme="pastel"] {
   letter-spacing: normal;
 }
 
-/* The body scrolls, so the header and the status line stay put. */
+/* The panel scrolls beside the section list, so the header and the status
+   line stay put. */
 .settings-body {
-  flex: 1;
+  grid-column: 2;
+  min-height: 0;
   overflow-y: auto;
   padding: var(--space-4);
 }
@@ -1624,6 +1638,30 @@ body[data-contrast="high"][data-theme="pastel"] {
   }
   .divider {
     display: none;
+  }
+  /* A phone has no width to spare for a column beside the sections, so the
+     sections go back above them. They keep their own line each rather than
+     wrapping back into the row that read as clutter. */
+  .settings-form {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  .settings-header {
+    grid-column: 1;
+  }
+  .settings-nav {
+    grid-column: 1;
+    overflow-y: visible;
+    padding: var(--space-3) var(--space-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .settings-nav-list {
+    gap: var(--space-2);
+    white-space: normal;
+  }
+  .settings-body {
+    grid-column: 1;
   }
 }
 
