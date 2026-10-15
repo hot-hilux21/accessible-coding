@@ -448,8 +448,11 @@ input[type="range"] {
   padding: 0;
   width: min(560px, calc(100vw - var(--space-5) * 2));
   max-height: min(70vh, 560px);
-  display: flex;
-  flex-direction: column;
+  /* No display here. The UA hides a closed dialog with
+     `dialog:not([open]) { display: none }`, and an author `display` beats the
+     UA rule no matter how the selectors compare, so setting it here would
+     leave the empty table floating on screen before any run, and draggable by
+     a pointer that can reach it. It is set on [open] below instead. */
   /* Opaque on purpose, and deliberately not in the glass list with .settings
      and .setup-panel. That list's own rule is that nothing needing to be read
      may sit directly on a translucent surface, and this surface is nothing but
@@ -462,6 +465,9 @@ input[type="range"] {
 }
 
 .trace-window[open] {
+  /* Flex only while open, so the closed state stays display: none. */
+  display: flex;
+  flex-direction: column;
   animation: trace-arrive var(--motion-fast) var(--ease) both;
 }
 

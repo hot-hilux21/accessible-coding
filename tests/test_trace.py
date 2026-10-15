@@ -23,6 +23,7 @@ tests would be the ones that trip the limit.
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -385,6 +386,69 @@ class PackagingTests(unittest.TestCase):
             spec = (REPO_ROOT / name).read_text(encoding="utf-8")
             with self.subTest(spec=name):
                 self.assertIn("shell_bootstrap.py", spec)
+
+
+class TraceWindowStylesheetTests(unittest.TestCase):
+    """A closed dialog has to stay hidden.
+
+    The user agent hides a closed <dialog> with `dialog:not([open]) { display:
+    none }`. An author rule on the bare class outranks that, because author
+    styles beat user-agent styles whatever the selectors compare like. So a
+    `display` written on `.trace-window` instead of `.trace-window[open]` leaves
+    the empty table on the page before any run, still hit-testable and still
+    draggable by whatever the pointer finds. That shipped once.
+    """
+
+    CSS = REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+
+    # Comments are stripped before anything is read, so a comment that names a
+    # property cannot pass for the property itself.
+    COMMENTS = re.compile(r"/\*.*?\*/", re.DOTALL)
+
+    @classmethod
+    def _top_level_rule(cls, selector):
+        """The declaration block of a top-level rule, without comments."""
+        css = cls.COMMENTS.sub("", cls.CSS.read_text(encoding="utf-8"))
+        search = 0
+        while True:
+            index = css.find(selector, search)
+            if index == -1:
+                return None
+            search = index + len(selector)
+            # Exactly this selector, so `.trace-window` does not answer for
+            # `.trace-window[open]`.
+            if not css[search:].lstrip().startswith("{"):
+                continue
+            # And at the top level, so a rule inside an @media is not taken for
+            # the one the page applies everywhere.
+            if css.count("{", 0, index) != css.count("}", 0, index):
+                continue
+            start = css.index("{", index) + 1
+            depth = 1
+            end = start
+            while depth:
+                if css[end] == "{":
+                    depth += 1
+                elif css[end] == "}":
+                    depth -= 1
+                end += 1
+            return css[start:end - 1]
+
+    def test_the_closed_window_carries_no_author_display(self):
+        block = self._top_level_rule(".trace-window")
+        self.assertIsNotNone(block, ".trace-window has no rule in style.css")
+        self.assertNotIn(
+            "display",
+            block,
+            "a display on .trace-window outranks dialog:not([open]) and shows "
+            "the closed window; it belongs on .trace-window[open]",
+        )
+
+    def test_the_open_window_is_still_a_flex_column(self):
+        block = self._top_level_rule(".trace-window[open]")
+        self.assertIsNotNone(block, ".trace-window[open] has no rule")
+        self.assertIn("display: flex", block)
+        self.assertIn("flex-direction: column", block)
 
 
 if __name__ == "__main__":
