@@ -24,6 +24,10 @@ datas = [
     # Bundled as a module alone it is not on disk, --run-script is pointed at a
     # file that is not there, and every run fails in the exe.
     ('src/accessible_ide/trace_runner.py', 'accessible_ide'),
+    # The shell's bootstrap is launched by path the same way, and its own
+    # docstring says the spec lists it in datas. No spec did, so the packaged
+    # shell had nothing on disk to start from.
+    ('src/accessible_ide/shell_bootstrap.py', 'accessible_ide'),
 ]
 
 a = Analysis(

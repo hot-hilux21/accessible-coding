@@ -376,6 +376,16 @@ class PackagingTests(unittest.TestCase):
             with self.subTest(spec=name):
                 self.assertIn("trace_runner.py", spec)
 
+    def test_both_specs_bundle_the_shell_bootstrap(self):
+        # The shell reads its bootstrap from disk too, through shell.py's
+        # bootstrap_path, and that function's own docstring says the spec lists
+        # this file in datas. Until now no spec did, so the packaged shell had
+        # nothing to start from.
+        for name in self.SPECS:
+            spec = (REPO_ROOT / name).read_text(encoding="utf-8")
+            with self.subTest(spec=name):
+                self.assertIn("shell_bootstrap.py", spec)
+
 
 if __name__ == "__main__":
     unittest.main()
