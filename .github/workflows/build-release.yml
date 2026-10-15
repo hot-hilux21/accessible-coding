@@ -18,6 +18,12 @@ concurrency:
 
 permissions:
   contents: write
+  # SignPath's action fetches the artifact it has been asked to sign back out
+  # of the run, by id. Declaring permissions at all sets every scope that is
+  # not listed to none, so without this the signing step cannot read its own
+  # input and the failure looks like a missing artifact rather than a
+  # permissions problem.
+  actions: read
 
 jobs:
   test:
@@ -64,6 +70,52 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
       - name: Build exe
         run: pyinstaller AccessibleIDE.spec --noconfirm
+      # Code signing, off until it is asked for. Every step below is skipped
+      # while SIGNPATH_ORGANIZATION_ID is blank, so this workflow goes on
+      # building and releasing exactly as it did before and starts signing the
+      # moment the variable is filled in. See docs/code-signing.md.
+      #
+      # The exe is signed before the manifest is described, not after: the
+      # manifest carries the sha256 and the size of the file the app downloads,
+      # and a signature changes both. Signing afterwards would publish a
+      # manifest that refuses the build it describes.
+      - name: Upload the unsigned exe for signing
+        id: upload-unsigned-exe
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-exe
+          path: dist/AccessibleIDE.exe
+          if-no-files-found: error
+      - name: Sign the exe
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned-exe.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-exe/
+      - name: Put the signed exe back where the build left it
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        shell: pwsh
+        run: |
+          # The signing service returns the file it was handed, so the only
+          # thing to check is that it came back and that it verifies. A
+          # release that quietly ships the unsigned build would fetch a
+          # signing request, pay for a ceremony and change nothing a reader
+          # can see.
+          $signed = Get-ChildItem signed-exe -Recurse -Filter AccessibleIDE.exe |
+            Select-Object -First 1
+          if (-not $signed) { throw "the signing request returned no exe" }
+          Copy-Item $signed.FullName dist\AccessibleIDE.exe -Force
+          $signature = Get-AuthenticodeSignature dist\AccessibleIDE.exe
+          if ($signature.Status -ne 'Valid') {
+            throw "the signed exe did not verify: $($signature.Status)"
+          }
+          Write-Output "signed by $($signature.SignerCertificate.Subject)"
       - name: Describe the build for the updater
         shell: pwsh
         run: |
@@ -132,6 +184,43 @@ jobs:
           if (-not $iscc) { $iscc = Get-ChildItem "$env:LOCALAPPDATA\Programs\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 }
           if (-not $iscc) { throw "ISCC.exe not found" }
           & $iscc.FullName installer.iss
+      # Signing, and this time it is the installer itself, which is the file a
+      # reader clicks. It is signed after Inno has compiled it and before it is
+      # uploaded, because the signature has to be part of the bytes that get
+      # published and Inno's own output is what the download link points at.
+      # Skipped while SIGNPATH_ORGANIZATION_ID is blank, the same as above.
+      - name: Upload the unsigned installer for signing
+        id: upload-unsigned-setup
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-setup
+          path: installer/AccessibleIDE-Setup.exe
+          if-no-files-found: error
+      - name: Sign the installer
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned-setup.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-setup/
+      - name: Put the signed installer back where Inno left it
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        shell: pwsh
+        run: |
+          $signed = Get-ChildItem signed-setup -Recurse -Filter AccessibleIDE-Setup.exe |
+            Select-Object -First 1
+          if (-not $signed) { throw "the signing request returned no installer" }
+          Copy-Item $signed.FullName installer\AccessibleIDE-Setup.exe -Force
+          $signature = Get-AuthenticodeSignature installer\AccessibleIDE-Setup.exe
+          if ($signature.Status -ne 'Valid') {
+            throw "the signed installer did not verify: $($signature.Status)"
+          }
+          Write-Output "signed by $($signature.SignerCertificate.Subject)"
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:
