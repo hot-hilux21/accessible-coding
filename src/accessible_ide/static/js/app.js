@@ -74,6 +74,11 @@
   var themeSelect = document.getElementById('theme-select');
   var contrastSelect = document.getElementById('contrast-select');
   var focusMode = document.getElementById('focus-mode');
+  // The line-number tick in the editor's strip, and the chevron that replaces
+  // it while the numbers are hidden. They are the same setting as the focus
+  // mode dropdown, so the mode is what both of them read and write.
+  var lineNumbersToggle = document.getElementById('line-numbers-toggle');
+  var lineNumbersOpen = document.getElementById('line-numbers-open');
   var ttsVoice = document.getElementById('tts-voice');
   var ttsRate = document.getElementById('tts-rate');
   var ttsRateLabel = document.getElementById('tts-rate-label');
@@ -707,6 +712,12 @@
     applyTheme(themeSelect.value);
   }
 
+  // The last mode that showed the numbers. Hiding them is its own mode, so
+  // the tick has to remember what to put back when it is ticked again:
+  // otherwise a reader who hid the numbers while using "fade other lines"
+  // would get plain "off" back and lose a setting they never touched.
+  var lastVisibleFocusMode = 'off';
+
   function applyFocusMode(mode) {
     body.setAttribute('data-focus-mode', mode);
     // Hide the gutter through CodeMirror's native option rather than CSS
@@ -716,6 +727,16 @@
       if (editor.getOption('lineNumbers')) editor.setOption('lineNumbers', false);
     } else {
       if (!editor.getOption('lineNumbers')) editor.setOption('lineNumbers', true);
+      lastVisibleFocusMode = mode;
+    }
+    // The tick, the chevron and the Settings dropdown are three views of one
+    // setting, so all three are brought back in step whoever changed it, and
+    // exactly one of the tick and the chevron is left on screen.
+    if (lineNumbersToggle) lineNumbersToggle.checked = mode !== 'gutter';
+    if (lineNumbersOpen) lineNumbersOpen.hidden = mode !== 'gutter';
+    if (focusMode && focusMode.value !== mode) {
+      focusMode.value = mode;
+      syncBlurField();
     }
     editor.refresh();
     setTimeout(editor.refresh.bind(editor), 40);
@@ -2572,6 +2593,29 @@
     syncBlurField();
     saveConfig({ focus_mode: focusMode.value });
   });
+
+  // Unticking hides the numbers and leaves the chevron where the tick was;
+  // pressing the chevron puts them back at whichever mode hid them. Both go
+  // through applyFocusMode, so the Settings dropdown and the strip above the
+  // code are never describing two different editors.
+  if (lineNumbersToggle) {
+    lineNumbersToggle.addEventListener('change', function () {
+      var next = lineNumbersToggle.checked ? lastVisibleFocusMode : 'gutter';
+      applyFocusMode(next);
+      saveConfig({ focus_mode: next });
+    });
+  }
+
+  if (lineNumbersOpen) {
+    lineNumbersOpen.addEventListener('click', function () {
+      var next = lastVisibleFocusMode === 'gutter' ? 'off' : lastVisibleFocusMode;
+      applyFocusMode(next);
+      saveConfig({ focus_mode: next });
+      // The chevron has just been replaced by the tick, so focus follows to
+      // the control that is still there rather than staying on a hidden one.
+      if (lineNumbersToggle) lineNumbersToggle.focus();
+    });
+  }
 
   ttsVoice.addEventListener('change', function () {
     speechVoiceName = ttsVoice.value;

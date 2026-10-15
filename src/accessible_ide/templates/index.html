@@ -163,7 +163,7 @@
      panes are independent. A pane starts from its own saved value and falls
      back to the reading setting it otherwise follows, so the absence of a
      saved value is what keeps an untouched pane in step with Settings. #}
-  {% macro pane_controls(pane, label) %}
+  {% macro pane_controls(pane, label, line_numbers=false) %}
   {%- set font_key = pane ~ '_font_size' -%}
   {%- set height_key = pane ~ '_line_height' -%}
   {%- set spacing_key = pane ~ '_letter_spacing' -%}
@@ -176,6 +176,22 @@
             aria-label="{{ t('pane.controls') }}: {{ label }}">
       <span class="pane-caret" aria-hidden="true"></span>
     </button>
+    {% if line_numbers %}
+    {# One setting drawn in two states: the tick while the numbers are shown,
+       and the chevron in its place while they are not, so the strip never
+       asks the same question twice. The starting state is the saved focus
+       mode, and app.js keeps the tick, the chevron and the Settings dropdown
+       on the same value whoever changes it. #}
+    <span class="pane-gutter">
+      <input type="checkbox" class="pane-gutter-check" id="line-numbers-toggle"
+             {% if config.focus_mode != 'gutter' %}checked{% endif %}>
+      <label class="pane-gutter-label" for="line-numbers-toggle">{{ t('pane.line_numbers') }}</label>
+      <button type="button" class="pane-gutter-open" id="line-numbers-open"
+              {% if config.focus_mode != 'gutter' %}hidden{% endif %}
+              aria-label="{{ t('pane.line_numbers_show') }}"
+              title="{{ t('pane.line_numbers_show') }}"></button>
+    </span>
+    {% endif %}
     <div class="pane-mini-panel" id="mini-{{ pane }}-panel" role="group"
          aria-label="{{ label }}" hidden>
       {# A settings control is named after the key it saves under, with the
@@ -211,7 +227,7 @@
 
   <main id="workspace" class="workspace" role="main">
     <section class="editor-pane" aria-label="{{ t('editor.label') }}">
-      {{ pane_controls('editor', t('editor.label')) }}
+      {{ pane_controls('editor', t('editor.label'), line_numbers=true) }}
       <div id="editor" class="editor" role="textbox" aria-label="{{ t('editor.label') }}" aria-multiline="true"></div>
     </section>
 

@@ -120,6 +120,10 @@ const KNOWN_IDS = new Set([
   // these the toolbar would be silently absent and each check below would pass
   // while the feature did nothing at all.
   'mini-editor-toggle', 'mini-editor-panel',
+  // The editor's line-number tick and the chevron that stands in for it while
+  // the numbers are hidden. app.js looks both up on the way in, so a missing
+  // id here would leave the control silently absent.
+  'line-numbers-toggle', 'line-numbers-open',
   'editor-font-size', 'editor-line-height', 'editor-letter-spacing',
   'editor-font-size-value', 'editor-line-height-value', 'editor-letter-spacing-value',
   'mini-output-toggle', 'mini-output-panel',
@@ -3267,6 +3271,51 @@ function runPaneToolbarChecks() {
     console.log('FAIL the arrow did not close the editor toolbar again');
   } else {
     console.log('     pressing it again puts the panel away');
+  }
+
+  // ---- The line-number tick, and the chevron that stands in for it ----
+  // The tick and the chevron are one setting drawn in two states, so a check
+  // that only ever sees one of them would pass on a strip that draws both.
+  // The harness loads the page as the focus mode "off", which is the mode
+  // that shows the numbers.
+  const gutterToggle = elements.get('line-numbers-toggle');
+  const gutterOpen = elements.get('line-numbers-open');
+  const bodyAttrs = documentStub.body.__attributes;
+  if (!gutterToggle.checked || gutterOpen.hidden !== true) {
+    failed = true;
+    console.log('FAIL the line-number tick does not start in step with the focus mode');
+  } else {
+    console.log('     the tick starts ticked and the chevron stays out of the way');
+  }
+
+  gutterToggle.checked = false;
+  fire('line-numbers-toggle', 'change');
+  if (bodyAttrs['data-focus-mode'] !== 'gutter') {
+    failed = true;
+    console.log('FAIL unticking the line numbers did not hide them');
+  } else if (gutterOpen.hidden !== false) {
+    failed = true;
+    console.log('FAIL the chevron did not take the tick\'s place');
+  } else {
+    console.log('     unticking hides the numbers and leaves the chevron behind');
+  }
+
+  fire('line-numbers-open', 'click');
+  if (bodyAttrs['data-focus-mode'] === 'gutter' || gutterOpen.hidden !== true ||
+      gutterToggle.checked !== true) {
+    failed = true;
+    console.log('FAIL the chevron did not bring the line numbers back');
+  } else {
+    console.log('     the chevron brings them back, with the tick back in its place');
+  }
+
+  // The Settings dropdown is the same setting, so it must not be left saying
+  // one thing while the strip above the code says another.
+  if (elements.get('focus-mode').value !== bodyAttrs['data-focus-mode']) {
+    failed = true;
+    console.log('FAIL the focus mode dropdown and the pane disagree');
+  } else {
+    console.log('     the dropdown and the pane agree through all of it');
   }
 
   // ---- Nothing has been touched, so nothing is owned ----

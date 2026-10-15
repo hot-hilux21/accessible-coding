@@ -601,6 +601,11 @@ input[type="range"] {
 .pane-mini {
   flex: 0 0 auto;
   display: flex;
+  /* The editor's strip now carries the line-number control next to the arrow
+     and, when open, three sliders. Wrapping is what keeps that from being
+     pushed off the edge of a narrow pane, where the reader would lose a
+     control with no sign it had ever been there. */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   /* The strip is as tall as the target inside it. A control smaller than the
@@ -627,15 +632,23 @@ input[type="range"] {
   margin-left: calc(-1 * var(--space-1));
   padding: 0;
   background: transparent;
-  color: var(--muted);
+  /* Full foreground rather than the strip's muted grey. The arrow is the only
+     thing on a closed pane that says a toolbar is there at all, and at the
+     muted grey and 0.7rem it was drawn at, readers told us they walked past
+     it. Its own colour does not change on hover: what moves is the plate
+     behind it, so the glyph never gets harder to see at the moment the
+     reader is reaching for it. */
+  color: var(--fg);
   border: 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: background var(--motion-fast) var(--ease);
 }
 
 .pane-mini-toggle:hover,
+.pane-mini-toggle:focus-visible,
 .pane-mini-toggle[aria-expanded="true"] {
-  color: var(--fg);
+  background: var(--bg);
 }
 
 .pane-mini-toggle:focus-visible {
@@ -645,7 +658,7 @@ input[type="range"] {
 
 .pane-caret {
   display: block;
-  font-size: 0.7rem;
+  font-size: 1rem;
   line-height: 1;
   transition: transform var(--motion-fast) var(--ease);
 }
@@ -656,6 +669,76 @@ input[type="range"] {
 
 .pane-mini-toggle[aria-expanded="true"] .pane-caret {
   transform: rotate(90deg);
+}
+
+/* The line-number tick and the chevron that stands in for it: one setting in
+   two states, never both on screen at once. The tick is drawn while the
+   numbers are, and pressing it off puts the chevron in its place so the way
+   back is where the control was rather than somewhere else in the app.
+   Both live in the pane's strip, above the code, so they are reachable
+   without opening the sliders first. */
+.pane-gutter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+}
+
+.pane-gutter-check {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.pane-gutter-label {
+  color: var(--fg);
+  font-size: 1rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pane-gutter-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+  color: var(--fg);
+  border: 2px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease),
+              border-color var(--motion-fast) var(--ease);
+}
+
+.pane-gutter-open::before {
+  content: "\203A";
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.pane-gutter-open:hover,
+.pane-gutter-open:focus-visible {
+  background: var(--bg);
+  border-color: var(--accent);
+}
+
+.pane-gutter-open:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* display:inline-flex above would otherwise beat the hidden attribute's own
+   display:none, and the chevron would sit beside the tick it is meant to
+   replace. */
+.pane-gutter-open[hidden] {
+  display: none;
 }
 
 .pane-mini-panel {
