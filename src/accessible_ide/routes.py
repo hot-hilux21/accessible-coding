@@ -777,12 +777,70 @@ def save_config(config):
 # reading a traceback. Each one needs a python.<Name> key in every
 # catalogue; tests/test_error_translation.py checks that.
 PYTHON_ERROR_KEYS = (
-    'SyntaxError', 'IndentationError', 'NameError', 'TypeError', 'ValueError',
-    'IndexError', 'KeyError', 'AttributeError', 'ImportError',
+    'SyntaxError', 'IndentationError', 'TabError', 'NameError', 'TypeError',
+    'ValueError', 'IndexError', 'KeyError', 'AttributeError', 'ImportError',
     'ModuleNotFoundError', 'ZeroDivisionError', 'FileNotFoundError',
     'PermissionError', 'RecursionError', 'MemoryError', 'KeyboardInterrupt',
     'EOFError',
 )
+
+
+# Python writes the useful half of an error after the exception name: which
+# bracket was left open, which name was nearly right. That half used to be
+# thrown away in favour of a general sentence, which told a beginner that
+# something was wrong without ever saying what. These patterns pull it out.
+#
+# The first pattern that matches wins, so the more specific ones come first:
+# "Did you mean" is part of the same line as the name it is suggesting a fix
+# for, and matching the plain form first would throw the suggestion away.
+MISTAKE_PATTERNS = (
+    (re.compile(r"name '([^']+)' is not defined\.\s*Did you mean: '([^']+)'\?"),
+     'python.mistake.unknown_name_suggestion'),
+    (re.compile(r"name '([^']+)' is not defined"),
+     'python.mistake.unknown_name'),
+    (re.compile(r"'([\(\[\{])' was never closed"),
+     'python.mistake.unclosed_bracket'),
+    (re.compile(r'unterminated (?:triple-quoted )?string|EOL while scanning string'),
+     'python.mistake.unclosed_quote'),
+    (re.compile(r"expected ':'"),
+     'python.mistake.missing_colon'),
+    (re.compile(r"Maybe you meant '=='"),
+     'python.mistake.assignment'),
+    # "text" + 1 and 1 + "text" are the same mistake with two different
+    # messages, so both spellings point at the one sentence.
+    (re.compile(r'can only concatenate str \(not "int"\) to str'),
+     'python.mistake.text_and_number'),
+    (re.compile(r"unsupported operand type\(s\) for \S+: '(?:int|float)' and 'str'"),
+     'python.mistake.text_and_number'),
+    (re.compile(r"unsupported operand type\(s\) for \S+: 'str' and '(?:int|float)'"),
+     'python.mistake.text_and_number'),
+    (re.compile(r'inconsistent use of tabs and spaces'),
+     'python.mistake.tabs_and_spaces'),
+    (re.compile(r'expected an indented block'),
+     'python.mistake.missing_indent'),
+    (re.compile(r'unindent does not match'),
+     'python.mistake.bad_dedent'),
+    (re.compile(r'unexpected indent'),
+     'python.mistake.unexpected_indent'),
+)
+
+# Every sentence in MISTAKE_PATTERNS needs its key in every catalogue, the
+# same way the python.<Exception> keys do.
+MISTAKE_KEYS = tuple(dict.fromkeys(key for _, key in MISTAKE_PATTERNS))
+
+
+def specific_mistake(last_line, say):
+    """Name the actual mistake, or return '' when it is not one we know.
+
+    Returning '' is what keeps the general sentence for everything else: a
+    caller with nothing specific to say says the general thing rather than
+    guessing at a cause.
+    """
+    for pattern, key in MISTAKE_PATTERNS:
+        match = pattern.search(last_line)
+        if match:
+            return say(key, *match.groups())
+    return ''
 
 
 def translate_error(error_output, t=None):
@@ -818,6 +876,13 @@ def translate_error(error_output, t=None):
     
     if error_type:
         friendly = translations[error_type]
+        # Naming the actual mistake beats naming the category it belongs to,
+        # so a recognised pattern replaces the general sentence rather than
+        # being added to it. A reader who has just left a bracket open does
+        # not also need to be told that something is wrong somewhere.
+        specific = specific_mistake(last_line, say)
+        if specific:
+            friendly = specific
         # Add line number if available
         line_number = None
         for line in reversed(lines):

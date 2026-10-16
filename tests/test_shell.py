@@ -450,8 +450,11 @@ class ShellRouteTests(unittest.TestCase):
         ).get_json()
         # Plain words, not "NameError". The shell speaks the reader's language
         # the same way the runner does, so what is checked here is the
-        # sentence, not the exception name behind it.
-        self.assertIn("hasn't been defined", reply["error"])
+        # sentence, not the exception name behind it. The sentence names the
+        # name Python could not find, because that is the part a learner acts
+        # on: "kept" is either a typo or a value that was never set.
+        self.assertIn("does not know the name", reply["error"])
+        self.assertIn("kept", reply["error"])
         self.assertNotIn("Traceback", reply["error"])
 
         self.assertTrue(

@@ -10,6 +10,7 @@ Run with:  PYTHONPATH=src python -m unittest discover -s tests -t .
 """
 
 import pathlib
+import re
 import sys
 import unittest
 
@@ -26,6 +27,7 @@ from accessible_ide import i18n, routes  # noqa: E402
 EXPECTED_ENGLISH = {
     "SyntaxError": "There's a syntax error in your code. Check for missing parentheses, brackets, or quotes.",
     "IndentationError": "Indentation error. Python uses spaces to group code blocks. Make sure your indentation is consistent.",
+    "TabError": "This line mixes tabs and spaces at the start, so Python cannot tell how far it is indented.",
     "NameError": "You're using a variable or function name that hasn't been defined yet.",
     "TypeError": "You're trying to do something with the wrong type of data (like adding text to a number).",
     "ValueError": "A function received a value of the right type but an inappropriate value.",
@@ -134,6 +136,110 @@ class TranslationTests(unittest.TestCase):
             for code in i18n.LANGUAGES:
                 with self.subTest(key=key, locale=code):
                     self.assertIn(key, i18n.load_catalogue(code))
+
+
+class SpecificMistakeTests(unittest.TestCase):
+    """Python names the bracket it is missing, the name it does not know and
+    the suggestion it would make. That half of the message used to be thrown
+    away, which left a learner holding a sentence about their mistake that
+    never said what the mistake was.
+    """
+
+    def explain(self, last_line, locale="en"):
+        traceback = (
+            'Traceback (most recent call last):\n'
+            '  File "C:\\Temp\\abc.py", line 3, in <module>\n'
+            f'{last_line}\n'
+        )
+        message, _ = routes.translate_error(traceback, i18n.make_translator(locale))
+        return message
+
+    def test_an_unclosed_bracket_is_named(self):
+        message = self.explain("SyntaxError: '(' was never closed")
+        self.assertIn("(", message)
+        self.assertIn("never closed", message)
+        self.assertNotIn("SyntaxError", message)
+
+    def test_an_unclosed_quote_is_explained(self):
+        message = self.explain(
+            "SyntaxError: unterminated string literal (detected at line 1)"
+        )
+        self.assertIn("quote", message)
+        self.assertNotIn("SyntaxError", message)
+
+    def test_a_misspelled_name_keeps_pythons_own_suggestion(self):
+        # Python only offers this when the name is close to one it knows, so
+        # the test uses a typo it does suggest a fix for.
+        message = self.explain(
+            "NameError: name 'prnit' is not defined. Did you mean: 'print'?"
+        )
+        self.assertIn("prnit", message)
+        self.assertIn("print", message)
+
+    def test_a_name_with_no_suggestion_is_still_named(self):
+        message = self.explain("NameError: name 'kept' is not defined")
+        self.assertIn("kept", message)
+        self.assertNotIn("NameError", message)
+
+    def test_the_assignment_confusion_names_both_operators(self):
+        message = self.explain(
+            "SyntaxError: invalid syntax. Maybe you meant '==' or ':=' instead of '='?"
+        )
+        self.assertIn("==", message)
+
+    def test_tabs_and_spaces_are_explained_rather_than_quoted(self):
+        message = self.explain(
+            "TabError: inconsistent use of tabs and spaces in indentation"
+        )
+        self.assertNotIn("TabError", message)
+        self.assertIn("tabs", message)
+
+    def test_text_added_to_a_number_says_which_conversion_to_reach_for(self):
+        # The same mistake arrives in two spellings depending on the order.
+        for last_line in (
+            'TypeError: can only concatenate str (not "int") to str',
+            "TypeError: unsupported operand type(s) for +: 'int' and 'str'",
+        ):
+            with self.subTest(last_line=last_line):
+                self.assertIn("int()", self.explain(last_line))
+
+    def test_a_missing_colon_says_what_is_missing(self):
+        self.assertIn("colon", self.explain("SyntaxError: expected ':'"))
+
+    def test_the_general_sentence_survives_where_nothing_specific_matches(self):
+        # The contract the rest of the file leans on: naming the mistake is
+        # an improvement on the general sentence, never a trade against it
+        # in the cases we cannot diagnose.
+        for name, expected in EXPECTED_ENGLISH.items():
+            with self.subTest(exception=name):
+                message = self.explain(f"{name}: something we cannot place")
+                self.assertTrue(message.startswith(expected), message)
+
+    def test_the_line_number_still_arrives_with_a_specific_mistake(self):
+        message, line = routes.translate_error(
+            'Traceback (most recent call last):\n'
+            '  File "C:\\Temp\\abc.py", line 12, in <module>\n'
+            "SyntaxError: '(' was never closed\n"
+        )
+        self.assertEqual(line, 12)
+        self.assertIn("around line 12", message)
+
+    def test_every_mistake_sentence_exists_in_every_catalogue(self):
+        for key in routes.MISTAKE_KEYS:
+            for code in i18n.LANGUAGES:
+                with self.subTest(key=key, locale=code):
+                    self.assertIn(key, i18n.load_catalogue(code))
+
+    def test_every_mistake_sentence_keeps_its_placeholders(self):
+        # A dropped {0} leaves a hole in one language and no error anywhere,
+        # which is exactly the kind of gap that only a reader would catch.
+        english = i18n.load_catalogue("en")
+        for key in routes.MISTAKE_KEYS:
+            wanted = set(re.findall(r"\{\d\}", english[key]))
+            for code in i18n.LANGUAGES:
+                with self.subTest(key=key, locale=code):
+                    found = set(re.findall(r"\{\d\}", i18n.load_catalogue(code)[key]))
+                    self.assertEqual(found, wanted)
 
 
 if __name__ == "__main__":

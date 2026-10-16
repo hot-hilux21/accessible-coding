@@ -142,7 +142,7 @@ A glossary of the Python you will meet in this app. Each entry says what a comma
 | Command | What it does |
 | --- | --- |
 | `print("hello")` | Puts something on the screen. |
-| `input("How old are you? ")` | Asks on screen, waits for you to type, then hands back what you typed as text. |
+| `input("How old are you? ")` | Asks a question and hands back the answer as text. Reading typing while a program runs is not supported yet, so this stops as soon as it asks. |
 | `type(3.5)` | Tells you what kind of value something is. |
 
 ### Turning one kind of value into another
@@ -218,12 +218,12 @@ Most errors are not Python being difficult. They are a bracket left open, a comm
 | `if x = 5:` | `=` saves a value. `==` compares two values, and that is what belongs here. |
 | `if x == 5` | Every `if`, `elif`, `else`, `for` and `while` line ends with a colon. |
 | `print(hello)` | Text needs quote marks: `print("hello")`. Without them Python looks for a variable called `hello`. |
-| `name = input()` then `name + 1` | `input()` always hands back text. Use `int(name) + 1` when you want a sum. |
+| `age = "14"` then `age + 1` | Text and a number cannot be added together. Use `int(age) + 1` when you want a sum. |
 | A tab at the start of one line, spaces at the start of the next | Python reads the indentation as part of the structure, so the two have to match. |
 
 The three you will meet most are `SyntaxError` (something is misspelled or unbalanced), `NameError` (a name Python does not know) and `TypeError` (text where a number was needed).
 
-Anything that goes wrong is rewritten in plain English in the message under the editor, so you do not have to read the raw Python error to work out what happened.
+Anything that goes wrong is rewritten in plain English in the message under the editor, and where Python can say which bracket was left open or which name it does not know, the message says that too. You do not have to read the raw Python error to work out what happened.
 
 [↑ Back to contents](#contents) · [↓ Next: Project structure](#project-structure)
 
