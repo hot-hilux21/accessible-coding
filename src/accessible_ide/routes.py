@@ -81,6 +81,27 @@ RATE_WINDOW = 60       # seconds
 # throttle causing is.
 SHELL_RATE_MAX = 120
 
+# An answer is metered separately from a run, for the same reason a shell line
+# is.
+#
+# A run that asked a question has not finished. The reader answers, and that
+# answer is another request, and the program then asks again. So one
+# conversation is one request per question it asked, and the ten a minute a
+# fresh run gets would run out partway through answering rather than when the
+# reader next clicks Run. Both are a question box that has stopped accepting
+# answers, and the reader has no way to tell which one they hit.
+#
+# Charged to its own bucket rather than to the run bucket, so a conversation
+# does not spend the reader's runs and so a reader who has already been
+# throttled once can still finish what they are in the middle of.
+#
+# Bounded rather than free, because an answer-bearing request runs the program
+# again from the top: it is a subprocess like any other, and an uncapped
+# allowance here would make the run limit something you type your way around.
+# The ceiling is sized to a conversation and change rather than to a click -
+# MAX_ANSWERS questions plus room for the next one to start.
+ANSWER_RATE_MAX = 120
+
 # Modules that are blocked in the sandboxed web runner
 BLOCKED_IMPORTS = [
     'os', 'sys', 'subprocess', 'socket', 'requests', 'urllib', 'http',
@@ -1208,8 +1229,13 @@ def run_code():
             'code_required': True
         }), 403
 
-    # Rate limit
-    if rate_limited(client_ip()):
+    # Rate limit. A run the reader is still answering is not a fresh run, so
+    # it is not charged like one: it is the conversation continuing, and it has
+    # its own ceiling for that. Every other request - a fresh run, a restart,
+    # anything arriving with no answers to replay - costs one run as before.
+    limited = (rate_limited('answer:' + client_ip(), ANSWER_RATE_MAX)
+               if answers else rate_limited(client_ip()))
+    if limited:
         return jsonify({
             'output': '',
             'error': t('error.too_many_requests'),

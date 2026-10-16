@@ -462,6 +462,47 @@ class InteractiveRunTests(RunRouteTestCase):
         self.assertTrue(data["error"])
 
 
+class ConversationRateLimitTests(RunRouteTestCase):
+    """What one question-answering conversation costs the rate limiter.
+
+    A conversation is not a run repeated, it is one run still going: every
+    answer is another request and every request runs the program from the top
+    again. So the accounting has to answer two questions at once - a reader
+    must be able to finish what they are answering, and an answer must not be
+    a free subprocess. These tests are about both, because getting either one
+    wrong is invisible until a beginner's program has ten questions in it.
+    """
+
+    # Asked often enough that a conversation runs longer than the ten runs a
+    # minute a fresh start is allowed.
+    ASKS_MANY = "".join('input("Question %d? ")\n' % i for i in range(20))
+
+    def test_a_conversation_is_not_cut_short_by_the_run_limit(self):
+        # Charged to the run bucket, the eleventh answer of a conversation
+        # would be refused, which to the reader looks exactly like the answer
+        # box having gone dead on them mid-question.
+        for step in range(12):
+            _, data = self.run_code(self.ASKS_MANY, [str(i) for i in range(step)])
+            self.assertTrue(data["awaiting_answer"])
+
+        # And it cost one run, not twelve: the reader's runs are still theirs
+        # to spend on the next thing they write.
+        response, data = self.run_code("print('still running')\n")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(data["output"], "still running\n")
+
+    def test_a_conversation_is_still_capped(self):
+        # Answered separately does not mean free. An answer-bearing request
+        # runs the program again from the top, so past the ceiling it is
+        # refused like anything else that costs a subprocess.
+        routes.ANSWER_RATE_MAX = 3
+        self.addCleanup(setattr, routes, "ANSWER_RATE_MAX",
+                        routes.ANSWER_RATE_MAX)
+        codes = [self.run_code(self.ASKS_MANY, [str(step)] * (step + 1))[0].status_code
+                 for step in range(5)]
+        self.assertEqual(codes, [200, 200, 200, 429, 429])
+
+
 class AnswerLimitsTests(unittest.TestCase):
     """What one request may be asked to carry.
 
