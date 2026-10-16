@@ -429,7 +429,7 @@ class LocaleTests(ConfigApiTestCase):
     """The chosen interface language."""
 
     def test_every_shipped_language_round_trips(self):
-        for code in ("en", "hi", "fr", "es", "ar"):
+        for code in ("en", "hi", "fr", "es", "ar", "uk"):
             with self.subTest(locale=code):
                 self.assertEqual(self.post_settings(locale=code).status_code, 200)
                 self.assertEqual(self.get_settings()["locale"], code)
@@ -455,7 +455,7 @@ class LocaleTests(ConfigApiTestCase):
         from accessible_ide import i18n
 
         label_key = i18n.CONFIG_LABELS["contrast"]
-        for code in ("en", "hi", "fr", "es", "ar"):
+        for code in ("en", "hi", "fr", "es", "ar", "uk"):
             with self.subTest(locale=code):
                 self.assertEqual(self.post_settings(locale=code).status_code, 200)
                 error = self.post_settings(contrast="extra").get_json()["error"]

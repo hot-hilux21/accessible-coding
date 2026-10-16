@@ -115,6 +115,14 @@
         <span class="btn-icon" aria-hidden="true">&#9654;</span><span class="btn-label">{{ t('nav.run') }}</span>
       </button>
 
+      {# Shown only while a program is running. The keyboard path to the same
+         thing is Escape twice, so this is what a reader who is pointing rather
+         than typing reaches for. #}
+      <button id="btn-stop" class="btn btn-toggle" type="button" hidden
+              title="{{ t('nav.stop_title') }}">
+        <span aria-hidden="true">&#9632;</span> {{ t('nav.stop') }}
+      </button>
+
       {# The trace table sits beside Run because it describes a run. It stays
          unusable until one has happened, and the button is what somebody who
          has just run something reaches for next. #}

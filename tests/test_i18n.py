@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "src" / "accessible_ide" / "templates" / "index.html"
 APP_JS = ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
 
-LOCALES = ("en", "hi", "fr", "es", "ar")
+LOCALES = ("en", "hi", "fr", "es", "ar", "uk")
 
 
 class CatalogueCompleteness(unittest.TestCase):
@@ -115,7 +115,7 @@ class Translator(unittest.TestCase):
 
 
 class LocaleRegistry(unittest.TestCase):
-    def test_five_languages_are_registered(self):
+    def test_every_shipped_language_is_registered(self):
         self.assertEqual(sorted(i18n.LANGUAGES), sorted(LOCALES))
 
     def test_every_language_is_named_in_its_own_script(self):

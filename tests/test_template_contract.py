@@ -1083,6 +1083,118 @@ class SetupWizardTests(RenderedPageFixture):
         self.assertRegex(self.css, r"\[hidden\]\s*\{[^}]*display:\s*none\s*!important")
 
 
+class TextFieldThemeTests(RenderedPageFixture):
+    """Text fields are painted in the theme's own colours.
+
+    They were the one control left to the browser, which gave them the
+    browser's field background while their text inherited the theme's
+    foreground. On a dark theme that is light text on a light box, and the
+    reader cannot see what they typed. The rule below holds them to the
+    same pair of tokens as the select beside them, which is the pair
+    tests/test_contrast.py measures.
+    """
+
+    def _rule_for(self, selector):
+        match = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", self.css)
+        self.assertIsNotNone(match, f"no rule found for {selector}")
+        return match.group(1)
+
+    def test_a_text_field_takes_the_theme_background_and_text(self):
+        rule = self._rule_for('.field :where(input[type="text"])')
+        self.assertIn("background: var(--bg)", rule)
+        self.assertIn("color: var(--fg)", rule)
+
+    def test_the_colour_fields_keep_their_monospace_face(self):
+        # The :where() carries no weight of its own, so the hex fields' own
+        # family still wins. Without that they would come out in the reading
+        # font, where 0 and O are hard to tell apart.
+        self.assertIn(
+            "font-family: var(--font-mono)", self._rule_for(".hex-input")
+        )
+
+
+class PreviewHighlightTests(RenderedPageFixture):
+    """The preview shows the highlight colour behind the sample words."""
+
+    def _function_body(self, name):
+        start = self.js.index(f"function {name}(")
+        end = self.js.index("\n  }", start)
+        return self.js[start:end]
+
+    def test_the_sample_words_carry_the_highlight(self):
+        self.assertIn(
+            "fontPreviewText.style.backgroundColor = highlightColour(palette)",
+            self.js,
+        )
+
+    def test_a_highlight_change_repaints_the_preview(self):
+        self.assertIn(
+            "updatePreview()", self._function_body("setHighlightColor")
+        )
+
+    def test_an_unloaded_palette_does_not_produce_a_bogus_colour(self):
+        # "undefined33" is not a colour: it would be written into the rules,
+        # dropped, and the preview would silently show no highlight at all.
+        self.assertIn("if (!palette.selection)", self._function_body("highlightColour"))
+
+
+class StopControlTests(RenderedPageFixture):
+    """Stopping a program is reachable both ways the reader might reach for it.
+
+    The program runs in its own process, so a stop is a request to the server
+    naming the run it is aimed at. Two things have to be true for that to work
+    and neither is visible from the server tests: the page has to offer a
+    control, and the request has to carry the name of the run it means.
+    """
+
+    def _escape_listener(self):
+        start = self.js.index("document.addEventListener('keydown'")
+        end = self.js.index("}, true);", start)
+        return self.js[start:end]
+
+    def test_the_stop_button_is_on_the_page_and_starts_out_hidden(self):
+        self.assertIn("btn-stop", self.html_ids)
+        # Hidden until a run is in flight. A stop button with nothing behind it
+        # is a control that does nothing, which is worse than no control.
+        tag = re.search(r'<button id="btn-stop"[^>]*>', self.html)
+        self.assertIsNotNone(tag, "no button with id btn-stop in the page")
+        self.assertIn("hidden", tag.group(0))
+
+    def test_the_stop_button_is_shown_only_while_a_program_is_running(self):
+        self.assertIn("btnStop.hidden = !(currentRun && !currentRun.stopped)",
+                      self.js)
+
+    def test_the_two_controls_are_worded_in_the_reader_s_language(self):
+        # Both strings come from the catalogue rather than being written into
+        # the template, so the button changes language with the rest of the app.
+        self.assertIn("t('nav.stop_title')", self.template)
+        self.assertIn("t('nav.stop')", self.template)
+
+    def test_the_run_request_names_the_run_it_starts(self):
+        # Without this the server has no name to aim a stop at, and a stop
+        # would have to be broadcast at every running program instead of one.
+        self.assertIn("run_id: runId", self.js)
+
+    def test_stopping_posts_to_the_stop_endpoint(self):
+        self.assertIn("/api/run/stop", self.js)
+        self.assertIn("stopRun", self.js)
+
+    def test_the_escape_listener_reads_the_second_press_only(self):
+        body = self._escape_listener()
+        self.assertIn("'Escape'", body)
+        self.assertIn("DOUBLE_ESCAPE_MS", body)
+        self.assertIn("stopRun()", body)
+
+    def test_the_escape_listener_runs_before_the_editor_sees_the_key(self):
+        # Listening on the document, in the capture phase, is what makes this
+        # work wherever focus happens to be. The editor's own shortcuts fire
+        # only while the editor holds focus, and a reader who has just clicked
+        # the output is not in the editor at all.
+        start = self.js.index("document.addEventListener('keydown'")
+        closing = self.js.index("}, true);", start)
+        self.assertIn("}, true);", self.js[closing:closing + 9])
+
+
 class StaticAssetsTests(unittest.TestCase):
     def test_stylesheet_and_script_are_served(self):
         app = create_app()

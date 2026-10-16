@@ -177,16 +177,18 @@ class BundledFontTests(unittest.TestCase):
             for part in routes.FONTS[key]["family"].split(",")
         ]
 
-    def test_every_stack_carries_both_script_fallbacks(self):
-        # Mukta carries the Devanagari for Hindi, Almarai the Arabic. They
-        # sit in every stack rather than being separate choices, so a reader
-        # who picked OpenDyslexic for its Latin still gets readable Hindi
+    def test_every_stack_carries_all_script_fallbacks(self):
+        # Mukta carries the Devanagari for Hindi, Almarai the Arabic, and
+        # Nunito the Cyrillic for Ukrainian. They sit in every stack rather
+        # than being separate choices, so a reader who picked OpenDyslexic
+        # for its Latin still gets readable Hindi, Arabic or Ukrainian
         # instead of boxes.
         for key in routes.FONTS:
             with self.subTest(font=key):
                 parts = self._stack_parts(key)
                 self.assertIn("Mukta", parts, f"{key} cannot render Devanagari")
                 self.assertIn("Almarai", parts, f"{key} cannot render Arabic")
+                self.assertIn("Nunito", parts, f"{key} cannot render Cyrillic")
 
     def test_script_fallbacks_come_after_the_chosen_font(self):
         # The reader's pick has to win for the script it covers. Mukta and

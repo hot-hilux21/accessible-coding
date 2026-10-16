@@ -37,7 +37,7 @@ const TINT_VECTORS = JSON.parse(
 // that is missing here will be reported, because that is exactly the bug
 // this harness exists to catch.
 const KNOWN_IDS = new Set([
-  'btn-run', 'btn-save', 'btn-open', 'btn-read-line', 'btn-clear', 'btn-quit',
+  'btn-run', 'btn-stop', 'btn-save', 'btn-open', 'btn-read-line', 'btn-clear', 'btn-quit',
   'editor', 'output', 'error-panel', 'error-message', 'file-input',
   'settings-dialog', 'settings-title', 'settings-status', 'btn-settings',
   'btn-settings-close', 'font-select',
@@ -571,7 +571,7 @@ const SETUP_FONT_RADIOS = FONT_OPTIONS.map((option) => {
   }, { value, checked: value === 'OpenDyslexic' });
 });
 
-const SETUP_LOCALE_RADIOS = ['en', 'hi', 'fr', 'es', 'ar'].map((code) =>
+const SETUP_LOCALE_RADIOS = ['en', 'hi', 'fr', 'es', 'ar', 'uk'].map((code) =>
   makeElement(`setup-locale-${code}`, { name: 'setup-locale' },
     { value: code, checked: code === 'en' })
 );
@@ -703,7 +703,7 @@ const CATALOGUE = JSON.parse(
 // Only the ones the checks below actually speak in are loaded, so a typo
 // in a key name still shows up as a raw key rather than as empty text.
 const CATALOGUES = { en: CATALOGUE };
-for (const code of ['hi', 'fr', 'es', 'ar']) {
+for (const code of ['hi', 'fr', 'es', 'ar', 'uk']) {
   CATALOGUES[code] = JSON.parse(
     fs.readFileSync(
       path.join(__dirname, '..', 'src', 'accessible_ide', 'i18n', `${code}.json`),
@@ -747,6 +747,11 @@ const INSTALLED_VOICES = [
   { name: 'Amélie', lang: 'fr-FR', voiceURI: 'fr-004' },
   { name: 'Microsoft Henri - French (France)', lang: 'fr-FR', voiceURI: 'henri' },
   { name: 'Microsoft Denise - French (France)', lang: 'fr-FR', voiceURI: 'denise' },
+  // Ukrainian, named the way Windows and Edge name it. Ostap is the male
+  // voice and Polina the female one; neither name contains the word "male"
+  // or "female", so only the name list below can find them.
+  { name: 'Microsoft Ostap - Ukrainian (Ukraine)', lang: 'uk-UA', voiceURI: 'ostap' },
+  { name: 'Microsoft Polina - Ukrainian (Ukraine)', lang: 'uk-UA', voiceURI: 'polina' },
 ];
 
 // A page, in one language. The main checks use the English one; the
@@ -838,6 +843,10 @@ function makePage(locale, shared, bodyAttrs) {
           id === 'setup-back' ? { hidden: true } : {},
           // The four font areas start ticked, as the template renders them.
           FONT_AREA_IDS.has(id) ? { checked: true } : {},
+          // The stop button is drawn hidden, as the template renders it. It
+          // appears only while a program is running, so a check that never ran
+          // one must not find it already showing.
+          id === 'btn-stop' ? { hidden: true } : {},
           // The shell starts closed, so opening it is something a check can
           // tell has happened. Starting it open would make every later
           // check pass for the wrong reason.
@@ -865,7 +874,13 @@ function makePage(locale, shared, bodyAttrs) {
       return [];
     },
     createElement: (tag) => makeElement(tag),
-    addEventListener: noop,
+    // Kept rather than discarded, so a check can fire the document-level
+    // keydown the stop shortcut listens for. app.js also registers three mouse
+    // listeners here; they are recorded the same way and never fired.
+    __listeners: {},
+    addEventListener: function (type, handler) {
+      (this.__listeners[type] = this.__listeners[type] || []).push(handler);
+    },
     removeEventListener: noop,
     fonts: { ready: Promise.resolve() },
   };
@@ -984,6 +999,11 @@ const runBodies = [];
 // reached by walking it: the first request comes back waiting for an answer,
 // and the second comes back with the program's finished output.
 const runReplies = [];
+// What each stop request asked to stop, so a check can prove the name the
+// reader's run was given is the name the stop was aimed at. A stop sent with
+// another program's name, or with none at all, would still look like a stop
+// happened, and the reader's program would carry on running.
+const stopBodies = [];
 
 function parseBody(options) {
   try { return JSON.parse(options && options.body) || {}; } catch (e) { return {}; }
@@ -1038,6 +1058,17 @@ function fetchStub(url, options) {
   // The runner. The body is kept because the reader's answer travels in it: a
   // reply that never carried one would still look like a second request, and
   // telling those two apart is the whole point of the checks below.
+  // Before the runner branch below, and not after it: "/api/run/stop" contains
+  // "/api/run", so a stop checked afterwards would be recorded as a run and
+  // answered with a run reply. The checks would then be reading the wrong
+  // request while reporting success.
+  if (String(url).includes('/api/run/stop')) {
+    stopBodies.push(parseBody(options));
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ success: true, stopped: true }),
+    });
+  }
   if (String(url).includes('/api/run')) {
     runBodies.push(parseBody(options));
     const reply = runReplies.length
@@ -1413,6 +1444,15 @@ function fireElement(el, type, event = fakeEvent) {
   if (!el) return null;
   for (const handler of el.__listeners[type] || []) handler(event);
   return el;
+}
+
+// A listener on the document itself, which is where the stop shortcut lives:
+// it has to work while the editor does not hold focus, so it is not one of the
+// editor's own extraKeys. The handlers were recorded by the document stub.
+function fireDocument(type, event = fakeEvent) {
+  const handlers = documentStub.__listeners[type] || [];
+  for (const handler of handlers) handler(event);
+  return handlers.length;
 }
 
 function runPanelChecks() {
@@ -2018,6 +2058,7 @@ function runSpeechChecks() {
     // here as a second example of a name the matcher has to hold, not
     // because they were broken.
     ['fr', { male: 'Frédéric', female: 'Amélie' }],
+    ['uk', { male: 'Ostap', female: 'Polina' }],
   ]) {
     for (const gender of ['male', 'female']) {
       const page = makePage(code);
@@ -3790,8 +3831,95 @@ function runInteractiveChecks(done) {
         } else {
           console.log('     a bare input() leaves the transcript empty and still offers a row');
         }
-        console.log('run: 12 checks');
-        done();
+        // -----------------------------------------------------------------
+        // Stopping a running program
+        //
+        // The program runs in a process of its own, so stopping it is a
+        // request aimed at that program by name. Both paths to it are walked:
+        // the Stop button, and Escape twice. What neither may do is leave the
+        // stopped run's own reply on screen afterwards, which is the failure
+        // that would make a stopped program look like a finished one.
+        // -----------------------------------------------------------------
+        stopBodies.length = 0;
+        runBodies.length = 0;
+        runReplies.length = 0;
+        runReplies.push({
+          success: true, output: 'still going\n', error: '', error_line: null,
+          awaiting_answer: false, trace: null,
+        });
+        editorInstance.setValue('while True: pass');
+        const stopButton = elements.get('btn-stop');
+        fire('btn-run', 'click');
+
+        if (stopButton.hidden) {
+          failed = true;
+          console.log('FAIL no way to stop a program was offered while one was running');
+        } else {
+          console.log('     a running program offers a way to stop it');
+        }
+
+        fire('btn-stop', 'click');
+
+        setTimeout(() => {
+          const stopBody = stopBodies[stopBodies.length - 1] || {};
+          const runId = (runBodies[0] || {}).run_id;
+
+          if (stopBodies.length !== 1) {
+            failed = true;
+            console.log(`FAIL pressing Stop did not ask for the program to be stopped: ${stopBodies.length} requests`);
+          } else if (!runId || stopBody.run_id !== runId) {
+            failed = true;
+            console.log(`FAIL the stop was not aimed at the program that was running: sent ${JSON.stringify(stopBody.run_id)}, running ${JSON.stringify(runId)}`);
+          } else {
+            console.log('     Stop asks for the program that is running to be stopped, by name');
+          }
+
+          if (String(out.textContent) !== CATALOGUE['output.stopped']) {
+            failed = true;
+            console.log(`FAIL a stopped program was not left saying it was stopped: "${out.textContent}"`);
+          } else {
+            console.log('     a stopped program says so, and the run it stopped does not overwrite that');
+          }
+
+          if (!stopButton.hidden) {
+            failed = true;
+            console.log('FAIL the stop button stayed once the program had been stopped');
+          } else {
+            console.log('     the stop button goes once the program has been stopped');
+          }
+
+          // Escape twice, the keyboard path to the same thing.
+          stopBodies.length = 0;
+          runBodies.length = 0;
+          runReplies.length = 0;
+          runReplies.push({
+            success: true, output: 'still going\n', error: '', error_line: null,
+            awaiting_answer: false, trace: null,
+          });
+          editorInstance.setValue('while True: pass');
+          fire('btn-run', 'click');
+
+          // One Escape on its own is left alone: it is the key that closes the
+          // dialogs, and taking it would break that everywhere else.
+          fireDocument('keydown', { key: 'Escape', preventDefault: noop });
+          if (stopBodies.length !== 0) {
+            failed = true;
+            console.log('FAIL a single Escape stopped a running program');
+          } else {
+            console.log('     one Escape on its own does not stop a running program');
+          }
+
+          fireDocument('keydown', { key: 'Escape', preventDefault: noop });
+          if (stopBodies.length !== 1) {
+            failed = true;
+            console.log(`FAIL Escape twice did not stop the program: ${stopBodies.length} stop requests`);
+          } else {
+            console.log('     Escape twice stops the program');
+          }
+
+          console.log('run: 18 checks');
+          done();
+        }, 0);
       }, 10);
     }, 10);
   }, 10);

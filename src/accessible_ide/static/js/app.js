@@ -53,6 +53,7 @@
   var errorPanel = document.getElementById('error-panel');
   var errorMessage = document.getElementById('error-message');
   var btnRun = document.getElementById('btn-run');
+  var btnStop = document.getElementById('btn-stop');
   var btnClear = document.getElementById('btn-clear');
   var btnTts = document.getElementById('tts-toggle');
   var btnSave = document.getElementById('btn-save');
@@ -296,6 +297,10 @@
       return ensureHighlightReadable(
         customHighlightColor, palette.bg, palette.fg);
     }
+    // A palette that has not arrived yet carries neither key, and
+    // "undefined33" is not a colour: it would be written into the theme
+    // rules and quietly dropped, leaving no highlight at all.
+    if (!palette.selection) return palette.highlight || '';
     return palette.highlight || palette.selection + '33';
   }
 
@@ -1446,6 +1451,13 @@
       female: 'female|امرأة|woman|girl|hoda|huuda|leila|maja|female-arabic',
       male: 'male|رجل|man|boy|naayf|خليل|male-arabic',
     },
+    uk: {
+      // Windows and Edge Ukrainian: Ostap and Polina. Google names its
+      // Ukrainian voice in Ukrainian, so the endonym is matched too.
+      female: 'female|woman|girl|жінка|поліна|polina|тетяна|tetyana|'
+        + 'ukrainian-female',
+      male: 'male|man|boy|чоловік|остап|ostap|ukrainian-male',
+    },
   };
 
   // The names are matched on word boundaries, and "\\b" is the wrong tool
@@ -1653,6 +1665,57 @@
   var answerInput = document.getElementById('answer-input');
   var answerStatus = document.getElementById('answer-status');
 
+  // The program that is running now, if any. Its name lets a stop find that
+  // program and not another, and the flag stops the run's own result being
+  // read back after the reader has already stopped it.
+  var currentRun = null;
+
+  function newRunId() {
+    // Any unique name will do. It travels to the server and becomes part of a
+    // file name there, which checks it before it is used.
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
+    }
+    return 'run' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+
+  function updateStopButton() {
+    if (!btnStop) return;
+    // Only while a program is running. Once the reader stops it the program is
+    // going, so there is nothing left for the button to do.
+    btnStop.hidden = !(currentRun && !currentRun.stopped);
+  }
+
+  // Stop the program that is running. The program is a separate process from
+  // the app, so the window, the editor and the transcripts carry on exactly as
+  // they are; only the reader's code stops.
+  function stopRun() {
+    if (!currentRun || currentRun.stopped) return false;
+    var runId = currentRun.id;
+    currentRun.stopped = true;
+    updateStopButton();
+    fetch('/api/run/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        run_id: runId,
+        access_code: accessCode,
+        locale: META.locale
+      })
+    }).catch(function () {
+      // The stop travels on its own. If it cannot be sent the run still ends
+      // at its own ceiling, which is where it ended before this existed.
+    });
+    // Said straight away rather than waiting for the run to come back, because
+    // the reader has asked for it and the interface should not sit on the word
+    // "Running" while that travels.
+    rememberTrace(null);
+    answerForm.hidden = true;
+    errorPanel.hidden = true;
+    outputEl.textContent = t('output.stopped');
+    return true;
+  }
+
   function runCode() {
     pendingAnswers = [];
     answersForCode = null;
@@ -1674,6 +1737,10 @@
     answerForm.hidden = true;
     clearErrorMarkers();
 
+    var runId = newRunId();
+    currentRun = { id: runId, stopped: false };
+    updateStopButton();
+
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1681,11 +1748,22 @@
         code: code,
         access_code: accessCode,
         locale: META.locale,
-        answers: pendingAnswers
+        answers: pendingAnswers,
+        run_id: runId
       })
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
+        // The run is over by the time a result arrives, so the stop button has
+        // nothing left to act on. A run the reader stopped is not read back:
+        // its result would replace the message they asked for with a halved
+        // transcript presented as a finished program.
+        var wasStopped = currentRun && currentRun.stopped;
+        currentRun = null;
+        updateStopButton();
+        if (wasStopped) {
+          return;
+        }
         if (data.code_required) {
           if (promptForAccessCode()) {
             runCode();
@@ -1735,6 +1813,12 @@
         }
       })
       .catch(function () {
+        var wasStopped = currentRun && currentRun.stopped;
+        currentRun = null;
+        updateStopButton();
+        if (wasStopped) {
+          return;
+        }
         rememberTrace(null);
         answerForm.hidden = true;
         outputEl.textContent = t('output.runner_unreachable');
@@ -1986,6 +2070,27 @@
 
   // ---------- Event wiring ----------
   btnRun.addEventListener('click', runCode);
+  if (btnStop) btnStop.addEventListener('click', stopRun);
+
+  // Escape twice in quick succession stops the running program. A single
+  // Escape is left alone so the dialogs still close with it, and this listens
+  // on the document rather than the editor because the keyboard shortcuts are
+  // the editor's own: they fire only while it holds focus, and a reader who
+  // has clicked the output is not in the editor at all.
+  var lastEscape = 0;
+  var DOUBLE_ESCAPE_MS = 700;
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+    var now = Date.now();
+    if (now - lastEscape > DOUBLE_ESCAPE_MS) {
+      lastEscape = now;
+      return;
+    }
+    lastEscape = 0;
+    if (stopRun()) {
+      event.preventDefault();
+    }
+  }, true);
 
   btnClear.addEventListener('click', function () {
     outputEl.textContent = '';
@@ -2343,7 +2448,14 @@
     if (palette.bg) fontPreview.style.backgroundColor = palette.bg;
     fontPreview.style.color = shown;
 
-    if (fontPreviewText) fontPreviewText.textContent = sample;
+    if (fontPreviewText) {
+      fontPreviewText.textContent = sample;
+      // The sample words carry the line highlight, so the colour the reader
+      // is choosing is shown behind the words rather than only named beside
+      // them. It is the same resolved colour the editor paints, so what is
+      // shown here and what the code gets cannot drift apart.
+      fontPreviewText.style.backgroundColor = highlightColour(palette) || '';
+    }
 
     if (previewStatus) {
       previewStatus.textContent = t('try.status_theme', name);
@@ -2502,6 +2614,9 @@
     body.setAttribute('data-highlight-color', customHighlightColor);
     applyTheme(themeSelect.value);
     updateHighlightStatus();
+    // The preview shows the highlight behind the sample words, so it has to
+    // follow the colour as it is typed and not only on the next font change.
+    updatePreview();
     if (persist) saveConfig({ highlight_color: customHighlightColor });
   }
 

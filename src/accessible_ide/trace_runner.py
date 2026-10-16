@@ -57,6 +57,10 @@ import sys
 # two that can disagree.
 ENV_TARGET = 'ACCESSIBLE_IDE_TRACE_TARGET'
 ENV_OUT = 'ACCESSIBLE_IDE_TRACE_OUT'
+# Where this process records its own process id, so the app can stop the
+# reader's program. Unset when nobody asked for it, which is the case when the
+# runner is used on its own, and nothing is written then.
+ENV_PID = 'ACCESSIBLE_IDE_RUN_PID'
 
 # What the builtin raises when its input runs out, and therefore what this
 # process raises when the parent has no answer left to give it. The parent
@@ -161,6 +165,12 @@ def main(argv=None):
     out_path = os.environ.get(ENV_OUT, '')
     if not target or not os.path.isfile(target):
         return 2
+
+    # Before the reader's program starts, so a program that never finishes can
+    # still be stopped. This process is the one running that program, and this
+    # is its own id: the app stops this and nothing else, so the window, the
+    # editor and the transcripts are untouched.
+    _write_pid(os.environ.get(ENV_PID, ''))
 
     # Compared through normcase and abspath because the same file reaches this
     # process by more than one spelling - a short path, a forward slashed path -
@@ -270,6 +280,25 @@ def main(argv=None):
         sys.settrace(None)
         _write(out_path, rows, steps, truncated)
     return 0
+
+
+def _write_pid(path):
+    """Record this process id so the app can stop this program and only this.
+
+    The id written here is the one the app signals to stop the reader's
+    program. Only that program stops: the app that asked for it keeps running.
+
+    A stop that cannot be offered is not a reason to refuse to run the reader's
+    program, so a failure to write is swallowed and the run goes ahead without
+    one.
+    """
+    if not path:
+        return
+    try:
+        with open(path, 'w', encoding='utf-8') as handle:
+            handle.write(str(os.getpid()))
+    except OSError:
+        pass
 
 
 def _write(out_path, rows, steps, truncated):

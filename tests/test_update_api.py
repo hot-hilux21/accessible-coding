@@ -338,7 +338,7 @@ class ChannelSettingTests(UpdateEndpointTestCase):
         # so a missing translation would hit the first person to try it.
         self.fail_manifest(code="channel_empty",
                            message="nothing has been published on that channel yet")
-        for code in ("en", "fr", "es", "ar", "hi"):
+        for code in ("en", "fr", "es", "ar", "hi", "uk"):
             with self.subTest(locale=code):
                 body = self.check(force=True, locale=code).get_json()
                 self.assertEqual(body["error_code"], "channel_empty")
@@ -397,10 +397,10 @@ class ErrorTextTests(UpdateEndpointTestCase):
     def test_the_same_failure_reads_differently_in_each_language(self):
         self.fail_manifest()
         sentences = set()
-        for locale in ("en", "hi", "fr", "es", "ar"):
+        for locale in ("en", "hi", "fr", "es", "ar", "uk"):
             body = self.check(force=True, locale=locale).get_json()
             sentences.add(body["error_text"])
-        self.assertEqual(len(sentences), 5)
+        self.assertEqual(len(sentences), 6)
 
     def test_every_code_the_updater_raises_has_a_sentence(self):
         # A new kind of failure added to updater.py must not reach the

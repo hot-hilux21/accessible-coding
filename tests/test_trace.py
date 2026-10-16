@@ -28,6 +28,8 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from contextlib import redirect_stdout
 
@@ -319,6 +321,7 @@ class RunRouteTestCase(unittest.TestCase):
 
         app = create_app()
         app.config["TESTING"] = True
+        self.app = app
         self.client = app.test_client()
         self.addCleanup(self._restore)
 
@@ -331,6 +334,221 @@ class RunRouteTestCase(unittest.TestCase):
         response = self.client.post("/api/run", json={"code": source,
                                                       "answers": answers or []})
         return response, response.get_json()
+
+
+# A program that outlives any stop, so a run that ends early ended because it
+# was stopped rather than because it ran out of work. Deliberately longer than
+# the runner's own ten second ceiling: a stop that failed would then show up as
+# a timeout, which is the difference between this passing and passing for the
+# wrong reason.
+LONG_PROGRAM = "import time\nfor _ in range(400):\n    time.sleep(0.05)\n"
+
+
+class RunnerProcessIdTests(unittest.TestCase):
+    """The child records its own id, so a stop has something to aim at.
+
+    What is being tested is not that a stop works, it is which process the stop
+    is aimed at. The reader's program runs in a process of its own and the app
+    is a different process; the number written here is the first, and the rest
+    of the stop machinery only ever passes it along.
+    """
+
+    def test_the_id_written_is_the_running_process(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "run.pid")
+            trace_runner._write_pid(path)
+            with open(path, encoding="utf-8") as handle:
+                self.assertEqual(handle.read(), str(os.getpid()))
+
+    def test_nowhere_to_write_records_nothing_and_does_not_fail(self):
+        # An empty path is how the app says "no stop is offered for this run".
+        with tempfile.TemporaryDirectory() as tmp:
+            before = sorted(os.listdir(tmp))
+            trace_runner._write_pid("")
+            self.assertEqual(sorted(os.listdir(tmp)), before)
+
+    def test_a_path_that_cannot_be_written_does_not_stop_the_run(self):
+        # A run without a stop is worth more to the reader than no run at all,
+        # so the failure is swallowed instead of raised at the program's first
+        # line.
+        trace_runner._write_pid(os.path.join("no", "such", "place", "run.pid"))
+
+
+class StopNamingTests(unittest.TestCase):
+    """The name a stop is aimed with is checked, not cleaned up.
+
+    The name becomes part of a file name, so a name that is not already usable
+    is not repaired into one: it is simply not a run id, and the run it names
+    cannot be stopped from the browser.
+    """
+
+    def test_a_usable_name_is_kept_unchanged(self):
+        self.assertEqual(routes._safe_run_id("run-abcdefgh"), "run-abcdefgh")
+
+    def test_a_name_that_could_climb_out_is_not_used(self):
+        for hostile in ("../../secret", "..\\..\\secret", "a/b", "",
+                        "short", "name with spaces", None, 42, b"nope"):
+            with self.subTest(hostile=hostile):
+                safe = routes._safe_run_id(hostile)
+                self.assertNotEqual(safe, hostile)
+                # Anchored at the end as well as the start, so a suffix that
+                # happens to look like a name cannot stand in for one.
+                self.assertTrue(routes.RUN_ID_PATTERN.match(safe),
+                                "replacement %r is not a usable run id" % safe)
+
+    def test_a_name_that_is_too_long_is_replaced(self):
+        too_long = "a" * 65
+        self.assertNotEqual(routes._safe_run_id(too_long), too_long)
+
+    def test_two_replacements_are_not_the_same_name(self):
+        # Two runs that arrived without a usable name must not be given the
+        # same one, or stopping one would aim at the other.
+        self.assertNotEqual(routes._safe_run_id(".."),
+                            routes._safe_run_id(".."))
+
+    def test_the_run_files_are_named_inside_the_run_directory(self):
+        run_id = "run-abcdefgh"
+        for suffix in (".pid", ".stop"):
+            with self.subTest(suffix=suffix):
+                path = routes._run_file(run_id, suffix)
+                self.assertEqual(path.parent, routes._run_dir())
+                self.assertEqual(path.name, run_id + suffix)
+
+
+class StrayRunFileTests(RunRouteTestCase):
+    """What an earlier run left behind must not act on a later one."""
+
+    def test_a_stale_stop_does_not_stop_the_next_run(self):
+        # A stop left under this name would stop the new run the moment it
+        # looked, so both files are cleared before the program starts.
+        run_id = "stale-stop-0001"
+        routes._run_dir().mkdir(parents=True, exist_ok=True)
+        routes._run_file(run_id, ".stop").write_text("", encoding="utf-8")
+
+        response = self.client.post("/api/run",
+                                    json={"code": "print('ran')\n",
+                                          "run_id": run_id})
+        data = response.get_json()
+        self.assertEqual(data["output"], "ran\n")
+        self.assertFalse(data.get("stopped"))
+
+    def test_a_run_leaves_no_run_files_behind(self):
+        run_id = "cleanup-0001"
+        self.client.post("/api/run", json={"code": "print('hi')\n",
+                                           "run_id": run_id})
+        left = sorted(entry.name for entry in routes._run_dir().iterdir())
+        self.assertEqual(left, [])
+
+    def test_a_pid_left_by_an_earlier_run_is_gone_once_this_one_is_over(self):
+        run_id = "stale-pid-0001"
+        routes._run_dir().mkdir(parents=True, exist_ok=True)
+        routes._run_file(run_id, ".pid").write_text("999999999",
+                                                   encoding="utf-8")
+        self.client.post("/api/run", json={"code": "print('ok')\n",
+                                           "run_id": run_id})
+        self.assertFalse(routes._run_file(run_id, ".pid").exists())
+
+
+class StopRouteTests(RunRouteTestCase):
+    """Stopping stops the reader's program, and the run says so.
+
+    The program runs in a process of its own, so this has to be tested against
+    a real one. The run is started on a second client in a worker thread while
+    this thread aims the stop at the name that run was given, which is also the
+    only way to ask for a stop while the program is still going.
+    """
+
+    RUN_ID = "stop-route-0001"
+
+    def _start(self, source, run_id):
+        outcome = {}
+
+        def worker():
+            client = self.app.test_client()
+            outcome["data"] = client.post(
+                "/api/run", json={"code": source, "run_id": run_id}
+            ).get_json()
+
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+        return thread, outcome
+
+    def _wait_for_pid(self, run_id, timeout=8.0):
+        # The child writes its id as it starts, and that is the moment the app
+        # first knows the program exists, so this is the handshake rather than
+        # a fixed sleep that would be both slower and less reliable.
+        path = routes._run_file(run_id, ".pid")
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                if path.read_text(encoding="utf-8").strip():
+                    return True
+            except OSError:
+                pass
+            time.sleep(0.02)
+        return False
+
+    def _stop(self, run_id):
+        response = self.client.post("/api/run/stop", json={"run_id": run_id})
+        return response, response.get_json()
+
+    def test_stopping_a_running_program_ends_it_at_once(self):
+        thread, outcome = self._start(LONG_PROGRAM, self.RUN_ID)
+        self.assertTrue(self._wait_for_pid(self.RUN_ID),
+                        "the program never recorded that it had started")
+
+        started = time.time()
+        _, stop = self._stop(self.RUN_ID)
+        self.assertTrue(stop["success"])
+        self.assertTrue(stop["stopped"])
+
+        thread.join(timeout=15)
+        self.assertFalse(thread.is_alive(), "the program outlived the stop")
+        # The runner gives up on its own after ten seconds. A stop that did not
+        # reach the program would let it run to that, so how long it took is
+        # what tells a stopped run apart from one left to time out.
+        self.assertLess(time.time() - started, 8.0,
+                        "the run ended by timing out rather than by stopping")
+        self.assertTrue(outcome["data"]["stopped"])
+
+    def test_a_run_that_is_not_running_is_not_stopped(self):
+        _, stop = self._stop("no-such-run-0001")
+        self.assertTrue(stop["success"])
+        self.assertFalse(stop["stopped"])
+
+    def test_a_pid_that_is_not_a_number_is_not_stopped(self):
+        run_id = "garbage-pid-0001"
+        routes._run_dir().mkdir(parents=True, exist_ok=True)
+        routes._run_file(run_id, ".pid").write_text("not a number",
+                                                   encoding="utf-8")
+        _, stop = self._stop(run_id)
+        self.assertFalse(stop["stopped"])
+
+    def test_a_program_that_has_already_gone_is_not_stopped(self):
+        run_id = "gone-pid-0001"
+        routes._run_dir().mkdir(parents=True, exist_ok=True)
+        routes._run_file(run_id, ".pid").write_text("999999999",
+                                                   encoding="utf-8")
+        _, stop = self._stop(run_id)
+        self.assertFalse(stop["stopped"])
+
+    def test_a_name_the_app_never_issues_has_nothing_to_stop(self):
+        _, stop = self._stop("../../etc/passwd")
+        self.assertTrue(stop["success"])
+        self.assertFalse(stop["stopped"])
+
+    def test_a_stop_with_no_name_has_nothing_to_stop(self):
+        response = self.client.post("/api/run/stop", json={})
+        stop = response.get_json()
+        self.assertTrue(stop["success"])
+        self.assertFalse(stop["stopped"])
+
+    def test_stopping_is_behind_the_access_code_when_one_is_set(self):
+        routes.ACCESS_CODE = "let-me-in"
+        response = self.client.post("/api/run/stop",
+                                    json={"run_id": "stop-route-0002"})
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(response.get_json()["code_required"])
 
 
 class TraceRouteTests(RunRouteTestCase):

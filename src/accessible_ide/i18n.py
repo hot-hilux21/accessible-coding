@@ -31,6 +31,7 @@ LANGUAGES: dict[str, tuple[str, str, str]] = {
     "fr": ("Français", "French", "ltr"),
     "es": ("Español", "Spanish", "ltr"),
     "ar": ("العربية", "Arabic", "rtl"),
+    "uk": ("Українська", "Ukrainian", "ltr"),
 }
 
 # Sentences that legitimately stay in English regardless of locale, so

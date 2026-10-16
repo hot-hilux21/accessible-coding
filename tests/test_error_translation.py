@@ -96,6 +96,7 @@ class TranslationTests(unittest.TestCase):
             "es": "Estás dividiendo entre cero, lo cual no está permitido.",
             "hi": "आप किसी संख्या को शून्य से भाग दे रहे हैं, जो संभव नहीं है।",
             "ar": "أنت تقسم على صفر، وهذا غير مسموح به.",
+            "uk": "Ви ділите на нуль, а це не дозволено.",
         }
         for code, sentence in expected.items():
             with self.subTest(locale=code):

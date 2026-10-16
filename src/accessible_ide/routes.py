@@ -101,6 +101,10 @@ SHELL_RATE_MAX = 120
 # The ceiling is sized to a conversation and change rather than to a click -
 # MAX_ANSWERS questions plus room for the next one to start.
 ANSWER_RATE_MAX = 120
+# A stop is not a run. It costs nothing to serve and a reader may press it a
+# few times on purpose, so the ceiling here bounds the route rather than
+# rationing stopping.
+STOP_RATE_MAX = 120
 
 # Modules that are blocked in the sandboxed web runner
 BLOCKED_IMPORTS = [
@@ -576,14 +580,16 @@ def panel_tint_for(theme, tint_hex):
 # sensible result instead of a broken font.
 # Script fallbacks appended to every stack.
 #
-# None of the reading fonts carry Devanagari or Arabic, so without these a
-# Hindi or Arabic reader gets empty boxes no matter which font they picked.
-# The browser walks a font stack per character, which is what makes this
-# work in the reader's favour: Latin still renders in the font they chose,
-# Devanagari falls to Mukta and Arabic to Almarai, within the same line.
-# Mukta comes first because it has no Arabic; Almarai comes first in
-# Arabic only because nothing else in the stack has any.
-SCRIPT_FALLBACKS = ('"Mukta"', '"Almarai"')
+# None of the reading fonts carry Devanagari, Arabic or Cyrillic, so without
+# these a Hindi, Arabic or Ukrainian reader gets empty boxes no matter which
+# font they picked. The browser walks a font stack per character, which is
+# what makes this work in the reader's favour: Latin still renders in the
+# font they chose, Devanagari falls to Mukta, Arabic to Almarai and Cyrillic
+# to Nunito, within the same line. Mukta comes first because it has no
+# Arabic; Almarai comes first in Arabic only because nothing else in the
+# stack has any. Nunito is the only bundled face with Cyrillic, so it carries
+# Ukrainian; OpenDyslexic, Atkinson and Lexend are all Latin-only.
+SCRIPT_FALLBACKS = ('"Mukta"', '"Almarai"', '"Nunito"')
 
 
 def _stack(*families, generic='sans-serif'):
@@ -1224,6 +1230,57 @@ def read_trace(path):
     }
 
 
+# Where a running program records its own process id, and where a stop request
+# is recorded, so a stop can find the program it belongs to. One file per run,
+# named with the id the browser sent. Kept on disk rather than in memory
+# because the hosted copy serves requests from more than one worker: a stop can
+# be answered by a worker that did not start the program, and it still has to
+# find it.
+RUN_ID_PATTERN = re.compile(r'[A-Za-z0-9_-]{8,64}\Z')
+
+
+def _run_dir():
+    """The directory holding one file per running program.
+
+    Looked up on each call rather than at import, because the tests point the
+    config directory somewhere else after this module has been loaded.
+    """
+    return CONFIG_DIR / 'runs'
+
+
+def _run_file(run_id, suffix):
+    return _run_dir() / (run_id + suffix)
+
+
+def _safe_run_id(raw):
+    """The browser's name for this run, or a fresh one if it cannot be used.
+
+    The name becomes part of a file name, so it is matched against a strict
+    pattern rather than cleaned up: anything that could climb out of the
+    directory, or name a file that is not ours, is simply not a run id. A run
+    without a usable name still runs; it just cannot be stopped from the
+    browser, which is a smaller thing to lose than the run.
+    """
+    if isinstance(raw, str) and RUN_ID_PATTERN.match(raw):
+        return raw
+    return os.urandom(16).hex()
+
+
+def _terminate(pid):
+    """Stop one process. Says whether it was signalled.
+
+    SIGTERM is the request to stop, and on Windows it is delivered as a
+    terminate call on that process. Only the process named is touched, and
+    that process is the one running the reader's program.
+    """
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError, OSError):
+        # Already gone, or not ours to stop. Either way there is nothing to do.
+        return False
+    return True
+
+
 @main_bp.route('/api/run', methods=['POST'])
 def run_code():
     data = request.get_json(silent=True) or {}
@@ -1268,6 +1325,12 @@ def run_code():
         return jsonify({'output': '', 'error': sandbox_message,
                         'error_line': None, 'trace': no_trace()})
 
+    # The browser's name for this run, so a stop can be aimed at this program
+    # and not another. Validated before it is used to build a file name.
+    run_id = _safe_run_id(data.get('run_id'))
+    pid_path = _run_file(run_id, '.pid')
+    stop_path = _run_file(run_id, '.stop')
+
     # Write code to temp file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
         f.write(code)
@@ -1301,6 +1364,21 @@ def run_code():
         env[trace_runner.ENV_TARGET] = temp_file
         env[trace_runner.ENV_OUT] = trace_file
 
+        # The child records its own process id here as it starts, so a stop has
+        # something to aim at. Both files are cleared first: a pid left from an
+        # earlier run under the same name is a process that has already gone,
+        # and a stop left from one would stop this run the moment it looked.
+        try:
+            _run_dir().mkdir(parents=True, exist_ok=True)
+            pid_path.unlink()
+        except OSError:
+            pass
+        try:
+            stop_path.unlink()
+        except OSError:
+            pass
+        env[trace_runner.ENV_PID] = str(pid_path)
+
         # stdin is the reader's answers, and it being closed once they run out
         # is the point rather than a side effect: a program asking for one more
         # reads end-of-file at that moment, and that is the signal the app
@@ -1324,6 +1402,20 @@ def run_code():
         # when the program failed: a failing run is the one a reader most wants
         # to look at.
         trace = read_trace(trace_file)
+
+        if stop_path.exists():
+            # The reader stopped this program. Said plainly rather than reported
+            # as a failure, because stopping is something they asked for.
+            # Whatever the program printed before it stopped is still theirs to
+            # read, so the output is kept.
+            return jsonify({
+                'output': output,
+                'error': '',
+                'error_line': None,
+                'trace': trace,
+                'awaiting_answer': False,
+                'stopped': True,
+            })
 
         if error:
             # A program that stopped because it wanted an answer it was not
@@ -1354,7 +1446,8 @@ def run_code():
 
     except subprocess.TimeoutExpired:
         return jsonify({'output': '', 'error': t('error.timeout'),
-                        'error_line': None, 'trace': no_trace()})
+                        'error_line': None, 'trace': no_trace(),
+                        'stopped': stop_path.exists()})
     except Exception as e:
         return jsonify({'output': '', 'error': t('python.fallback', str(e)),
                         'error_line': None, 'trace': no_trace()})
@@ -1362,11 +1455,64 @@ def run_code():
         # Clean up. The sidecar goes with the code it describes: left behind,
         # the next run that produced no trace would find this one and show the
         # previous program's variables as its own.
-        for leftover in (temp_file, trace_file):
+        for leftover in (temp_file, trace_file, pid_path, stop_path):
             try:
                 os.unlink(leftover)
             except Exception:
                 pass
+
+
+@main_bp.route('/api/run/stop', methods=['POST'])
+def run_stop():
+    """Stop one running program.
+
+    The reader's program runs in its own process, separate from the app, so
+    stopping it leaves the app alone: the window, the editor and the
+    transcripts are all exactly as they were. This is the same thing the Stop
+    button does.
+    """
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_code_run'),
+            'code_required': True,
+        }), 403
+
+    raw = data.get('run_id')
+    if not isinstance(raw, str) or not RUN_ID_PATTERN.match(raw):
+        # Not a name this app ever issues, so there is no program to stop.
+        return jsonify({'success': True, 'stopped': False})
+
+    if rate_limited('stop:' + client_ip(), STOP_RATE_MAX):
+        return jsonify({'success': False,
+                        'error': t('error.too_many_requests')}), 429
+
+    pid_path = _run_file(raw, '.pid')
+    stop_path = _run_file(raw, '.stop')
+
+    # Recorded before the signal is sent, so a run being stopped reports itself
+    # as stopped even if the signal lands a moment later. Without it the two
+    # can cross and a program the reader stopped is reported as one that ended
+    # by itself.
+    try:
+        _run_dir().mkdir(parents=True, exist_ok=True)
+        stop_path.write_text('', encoding='utf-8')
+    except OSError:
+        pass
+
+    try:
+        pid = int(pid_path.read_text(encoding='utf-8').strip())
+    except (OSError, ValueError):
+        # Either the program has not reached the point of recording itself yet
+        # or it has already finished, so nothing is running under this name.
+        # Not an error: the reader asked for it to be stopped and it is not
+        # running.
+        return jsonify({'success': True, 'stopped': False})
+
+    return jsonify({'success': True, 'stopped': _terminate(pid)})
 
 
 # The Python shell.

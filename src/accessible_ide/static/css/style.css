@@ -1372,6 +1372,35 @@ body[data-contrast="high"][data-theme="pastel"] {
   border-radius: var(--radius-sm);
 }
 
+/* Text fields were the one control in the app still drawn by the browser.
+   That handed them the browser's own field background while their text
+   inherited the page colour, which is the theme's foreground: on a dark
+   theme that is light text on a light box, and the reader cannot see what
+   they typed. They now take the same two tokens as the select above them,
+   the pair the theme table is measured against, so they clear AA by the
+   same check. The :where() adds no weight of its own, which leaves
+   .hex-input free to keep the monospace face the colour fields want. */
+.field :where(input[type="text"]) {
+  font-family: inherit;
+  font-size: 1em;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg);
+  color: var(--fg);
+  border: 2px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+}
+
+.field :where(input[type="text"]):hover {
+  border-color: var(--accent);
+}
+
+.field :where(input[type="text"]):focus-visible {
+  border-color: var(--accent);
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .field select:hover {
   border-color: var(--accent);
 }

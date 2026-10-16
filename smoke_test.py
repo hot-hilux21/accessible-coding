@@ -161,6 +161,7 @@ for code, run_label, explained_word, blocked_word in (
     ('fr', 'Exécuter', 'Vous divisez par zéro',
      "Ce code utilise une fonction qui n'est pas autorisée"),
     ('ar', 'تشغيل', 'أنت تقسم على صفر', 'تستخدم هذه الشيفرة ميزة غير مسموح بها'),
+    ('uk', 'Запустити', 'Ви ділите на нуль', 'не дозволену у вебверсії'),
 ):
     assert settings(locale=code).status_code == 200, f'could not switch to {code}'
     page = c.get('/').get_data(as_text=True)
