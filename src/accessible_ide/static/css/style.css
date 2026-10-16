@@ -1014,8 +1014,14 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
 
 /* The line the reader types on, with the prompt in front of it. It carries
    no border of its own and shares the transcript's type and colour, so the
-   two read as one surface, the way a terminal does. */
-.shell-form {
+   two read as one surface, the way a terminal does.
+
+   The output pane's answer row is this same line seen again: a question
+   already printed above it and a place to answer it on. They share one rule
+   on purpose, so that the two cannot drift into looking like different parts
+   of the same app. */
+.shell-form,
+.answer-form {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
@@ -1036,7 +1042,8 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   color: var(--muted);
 }
 
-.shell-input {
+.shell-input,
+.answer-input {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
@@ -1048,6 +1055,15 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   font-size: inherit;
   line-height: inherit;
   letter-spacing: inherit;
+}
+
+/* The label on the answer row. It takes the row's own size rather than a
+   smaller one: a label set below the thing it labels is the wrong way round,
+   and it keeps the reader's letter spacing because they set that for reading.
+   The weight and the muted colour are what mark it as a label. */
+.answer-label {
+  font-weight: bold;
+  color: var(--muted);
 }
 
 /* ---------- Pane dividers ---------- */

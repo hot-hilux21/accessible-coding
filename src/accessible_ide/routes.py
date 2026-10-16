@@ -1087,6 +1087,51 @@ def _runner_env():
     return env
 
 
+# How many answers one run will take before the app stops offering to ask for
+# more. A program that wants more than this is either reading something that is
+# not there or asking in a loop that never ends, and neither is a question the
+# reader is going to answer. It also bounds how much one request can carry.
+MAX_ANSWERS = 50
+
+# What one answer may be. Long enough for a sentence, short enough that fifty
+# of them are still a small request.
+MAX_ANSWER_LEN = 500
+
+
+def answers_from(data):
+    """The answers the reader has typed, as a clean list of strings.
+
+    Treated as untrusted because it is: a JSON body can hold any shape, and all
+    of them have to end up as a list of short strings or as no list at all. A
+    single wrong entry clears the whole list rather than being dropped, because
+    a request that did not come from the page should not have part of its
+    answers treated as if it had.
+    """
+    answers = data.get('answers')
+    if answers is None:
+        return []
+    if not isinstance(answers, list):
+        return []
+    cleaned = []
+    for answer in answers[:MAX_ANSWERS]:
+        if not isinstance(answer, str):
+            return []
+        cleaned.append(answer[:MAX_ANSWER_LEN])
+    return cleaned
+
+
+def waiting_for_input(error_output):
+    """True when the program stopped because it wanted an answer it did not get.
+
+    Matched on the exact message the runner raises rather than on the exception
+    name, so that a reader's own ``raise EOFError`` stays their mistake to see
+    instead of becoming a question they are asked to answer.
+    """
+    if not error_output:
+        return False
+    return 'EOFError: ' + trace_runner.EOF_MESSAGE in error_output
+
+
 def trace_child_path():
     """Where trace_runner.py is, in a source tree and in a frozen build.
 
@@ -1147,6 +1192,10 @@ def read_trace(path):
 def run_code():
     data = request.get_json(silent=True) or {}
     code = data.get('code', '')
+    # The answers this program has already been given, one per question it has
+    # asked. Empty on a fresh run, which is also how the app finds out that the
+    # program wants to ask something.
+    answers = answers_from(data)
     t = translator_for(request_locale(data))
 
     # Access code gate (web version)
@@ -1211,10 +1260,17 @@ def run_code():
         env[trace_runner.ENV_TARGET] = temp_file
         env[trace_runner.ENV_OUT] = trace_file
 
+        # stdin is the reader's answers, and it being closed once they run out
+        # is the point rather than a side effect: a program asking for one more
+        # reads end-of-file at that moment, and that is the signal the app
+        # reports as a question. Left alone it would inherit the server's own
+        # stdin, which on a hosted copy is not something a reader's program
+        # should be able to read and is not the same thing twice.
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
+            input=''.join(answer + '\n' for answer in answers),
             timeout=10,
             cwd=tempfile.gettempdir(),
             env=env,
@@ -1229,16 +1285,31 @@ def run_code():
         trace = read_trace(trace_file)
 
         if error:
+            # A program that stopped because it wanted an answer it was not
+            # given has not failed and has not made a mistake. It is the app
+            # having run out of answers while the reader is still at the
+            # keyboard, so the run is reported as a question to answer rather
+            # than as an error, and the output so far is kept on screen with
+            # the question at the end of it where the program put it.
+            if waiting_for_input(error) and len(answers) < MAX_ANSWERS:
+                return jsonify({
+                    'output': output,
+                    'error': '',
+                    'error_line': None,
+                    'trace': trace,
+                    'awaiting_answer': True,
+                })
             error, error_line = translate_error(error, t)
             return jsonify({
                 'output': output,
                 'error': error,
                 'error_line': error_line,
                 'trace': trace,
+                'awaiting_answer': False,
             })
 
         return jsonify({'output': output, 'error': '', 'error_line': None,
-                        'trace': trace})
+                        'trace': trace, 'awaiting_answer': False})
 
     except subprocess.TimeoutExpired:
         return jsonify({'output': '', 'error': t('error.timeout'),

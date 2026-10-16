@@ -1557,16 +1557,50 @@
     editor.setCursor({ line: line, ch: 0 });
   }
 
+  // The answers this program has been given, one per question it has asked,
+  // and the code they were collected against.
+  //
+  // The program is started again from the top with all of them on every
+  // answer rather than left running while the reader types. That keeps every
+  // request the same one-shot run the app already knew how to do, with nothing
+  // alive in between to time out and nothing to clean up if a reader closes
+  // the tab halfway through answering.
+  var pendingAnswers = [];
+  var answersForCode = null;
+  var answerForm = document.getElementById('answer-form');
+  var answerInput = document.getElementById('answer-input');
+  var answerStatus = document.getElementById('answer-status');
+
   function runCode() {
+    pendingAnswers = [];
+    answersForCode = null;
+    startRun();
+  }
+
+  function startRun() {
     var code = editor.getValue();
+    // Editing the code invalidates the answers: they belong to the program
+    // that asked for them, and replaying them into a different one would give
+    // an answer to a question this version never asked. Restarting with none
+    // is the honest result, because that run asks its first question again.
+    if (code !== answersForCode) {
+      pendingAnswers = [];
+      answersForCode = code;
+    }
     outputEl.textContent = t('output.running');
     errorPanel.hidden = true;
+    answerForm.hidden = true;
     clearErrorMarkers();
 
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code, access_code: accessCode, locale: META.locale })
+      body: JSON.stringify({
+        code: code,
+        access_code: accessCode,
+        locale: META.locale,
+        answers: pendingAnswers
+      })
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
@@ -1581,7 +1615,33 @@
           return;
         }
         rememberTrace(data.trace);
-        outputEl.textContent = data.output || t('output.no_output');
+        // An empty transcript is a real state while waiting: a bare input()
+        // has printed nothing, and the row beneath it is the whole question.
+        // "(no output)" would say the program did nothing while it is in fact
+        // sat there waiting to be answered.
+        outputEl.textContent = data.output
+          || (data.awaiting_answer ? '' : t('output.no_output'));
+        if (data.awaiting_answer) {
+          // The program stopped because it wanted an answer it had not been
+          // given, which is a question rather than a failure. What it asked
+          // is already the last line of the output, so the row turns up
+          // beneath it with the cursor ready and nothing to explain.
+          errorPanel.hidden = true;
+          answerForm.hidden = false;
+          answerStatus.textContent = t('output.answer_waiting');
+          answerInput.focus();
+          if (ttsEnabled) {
+            // Only what has not been said yet. The program is started again
+            // from the top on every answer, so reading the whole output would
+            // repeat the earlier questions on each one; the question at the
+            // end of it is the only new part.
+            var question = (data.output || '').split('\n').pop().trim();
+            speak(question || t('output.answer_waiting'));
+          }
+          return;
+        }
+        answerForm.hidden = true;
+        answerStatus.textContent = '';
         if (data.error) {
           errorMessage.textContent = data.error;
           errorPanel.hidden = false;
@@ -1594,11 +1654,22 @@
       })
       .catch(function () {
         rememberTrace(null);
+        answerForm.hidden = true;
         outputEl.textContent = t('output.runner_unreachable');
         errorMessage.textContent = t('output.server_down');
         errorPanel.hidden = false;
       });
   }
+
+  // One more answer, then the program runs again from the top with all of
+  // them. The form hides immediately, so a second click or a second Enter
+  // cannot add an answer to a question the program has already been given.
+  answerForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    pendingAnswers.push(answerInput.value);
+    answerInput.value = '';
+    startRun();
+  });
 
   // ---------- Trace table ----------
   // What each line did to the reader's variables, captured while the program

@@ -33,8 +33,15 @@ A row is only written when a value actually changes. A loop body re-reading
 ``i`` on every pass would otherwise write the same row dozens of times and
 drown the one line the reader is looking for. The table is meant to answer
 "where did this change", so a repeated value is not news.
+
+The reader's program is allowed to ask questions. ``input()`` is replaced with
+a version that reads the reader's answer from stdin and writes it back out
+again, so the output pane reads like the session the reader pictured. The
+parent feeds those answers one per line and stops when it has none left, which
+is how it discovers that the program is asking for one more.
 """
 
+import builtins
 import json
 import os
 import re
@@ -50,6 +57,13 @@ import sys
 # two that can disagree.
 ENV_TARGET = 'ACCESSIBLE_IDE_TRACE_TARGET'
 ENV_OUT = 'ACCESSIBLE_IDE_TRACE_OUT'
+
+# What the builtin raises when its input runs out, and therefore what this
+# process raises when the parent has no answer left to give it. The parent
+# reads this exact wording to tell "the program is asking for another answer"
+# from "the program failed", so the spelling is a contract between the two
+# processes rather than a message for the reader.
+EOF_MESSAGE = 'EOF when reading a line'
 
 # Lines executed in the reader's own file before the trace gives up and lets
 # the program finish at full speed. Well above anything a learner writes by
@@ -107,6 +121,38 @@ def is_hidden_name(name):
     the reader's code. Their own variables are never spelled this way.
     """
     return len(name) > 4 and name.startswith('__') and name.endswith('__')
+
+
+def _reader_input(prompt=''):
+    """``input()`` that leaves a transcript behind.
+
+    Two things differ from the builtin, both of them for the sake of what the
+    reader sees.
+
+    The answer is written back out. A terminal echoes what is typed at it and a
+    pipe does not, so a program that asks a question and then prints the answer
+    would otherwise show the question and never the answer, and the reader
+    would be left wondering whether their typing had arrived at all. Echoing it
+    here is what makes the output read like the session they pictured.
+
+    Running out of answers raises an ``EOFError`` whose message is fixed by
+    EOF_MESSAGE. That message is not for the reader, who never sees it: the
+    parent ran out of answers when the reader has not been asked yet, and this
+    is how it finds out. A different spelling would make the app report the
+    program as broken instead of asking for the missing answer.
+    """
+    if prompt:
+        sys.stdout.write(str(prompt))
+        sys.stdout.flush()
+    line = sys.stdin.readline()
+    if not line:
+        raise EOFError(EOF_MESSAGE)
+    # splitlines rather than a strip: a line of spaces is an answer, and the
+    # builtin strips only the terminator, not the answer's own whitespace.
+    answer = line.splitlines()[0] if line.strip('\r\n') else ''
+    sys.stdout.write(answer + '\n')
+    sys.stdout.flush()
+    return answer
 
 
 def main(argv=None):
@@ -203,6 +249,12 @@ def main(argv=None):
                 os.path.abspath(frame.f_code.co_filename)) == wanted:
             return local_trace
         return None
+
+    # The reader's program is allowed to ask questions, and a plain
+    # ``input("Name? ")`` in their code has to reach this process's idea of
+    # input, not the interpreter's. Replacing the builtin is the only way to
+    # catch the call itself rather than a name they happened to import.
+    builtins.input = _reader_input
 
     sys.settrace(global_trace)
     try:

@@ -258,6 +258,26 @@
         </div>
         {{ pane_controls('output', t('output.title')) }}
         <pre id="output" class="output" aria-live="polite"></pre>
+
+        <!-- The line the reader answers on.
+
+             It only exists while a program is waiting for one, and the
+             question being answered is already the last line of the output
+             above, put there by the program's own input() call. So the row
+             says what to do rather than what is being asked: the reader can
+             see the question without being told about it.
+
+             The label stays visible where the shell's is hidden. The shell's
+             prompt is punctuation drawn by the stylesheet, and a word to
+             translate is better off as a word on the screen. -->
+        <form id="answer-form" class="answer-form" autocomplete="off" hidden>
+          <label for="answer-input" class="answer-label">{{ t('output.answer_label') }}</label>
+          <input id="answer-input" class="answer-input" type="text" spellcheck="false"
+                 autocomplete="off" autocapitalize="off" autocorrect="off"
+                 aria-describedby="answer-status">
+          <button class="btn btn-small" type="submit">{{ t('output.answer_send') }}</button>
+          <span id="answer-status" class="answer-status visually-hidden" role="status"></span>
+        </form>
         <div id="error-panel" class="error-panel" role="alert" hidden>
           <h3 class="error-title">&#9888; {{ t('error.title') }}</h3>
           <p id="error-message" class="error-message"></p>

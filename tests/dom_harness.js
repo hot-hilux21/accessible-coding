@@ -100,6 +100,12 @@ const KNOWN_IDS = new Set([
   // exercised, while the harness still reports success.
   'btn-shell', 'shell-pane', 'shell-input', 'shell-output', 'shell-status',
   'shell-form', 'shell-clear', 'shell-close',
+  // The answer row the output pane shows while a program is waiting to be
+  // answered. app.js looks all three up on the way in and registers the
+  // submit handler against the form, so an id missing here is not a quietly
+  // absent feature: the lookup returns null, the script throws while it is
+  // still loading, and everything defined after that point goes with it.
+  'answer-form', 'answer-input', 'answer-status',
   // The split view: the editor and the right-hand column, and the two
   // dividers between them. The dividers are separators, so the harness can
   // check the keyboard path and the drag path both work.
