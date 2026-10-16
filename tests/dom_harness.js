@@ -1107,6 +1107,29 @@ sandbox.window.location.reload = () => { reloads.push(true); };
 
 let failed = false;
 
+// Any FAIL that reaches the screen fails the run, whoever printed it.
+//
+// The checks below mostly set `failed` themselves, but a check that *throws*
+// does not go through that path: the throw abandons the rest of its callback,
+// so the stage that would have called finish() never runs, the event loop
+// drains, and node exits 0 by itself - after printing FAIL. A green run
+// reporting a broken app is worse than having no harness, so the printed line
+// is counted as well. It is the one signal no path can skip.
+const realLog = console.log.bind(console);
+console.log = (...args) => {
+  if (String(args[0]).startsWith('FAIL')) failed = true;
+  realLog(...args);
+};
+
+// The same hole approached from the other end. finish() settles the exit code
+// when a chain reaches the end of itself, and a chain that broke never gets
+// there, so the code is also settled here for a run that simply runs out of
+// work. beforeExit does not fire when process.exit() was called, so an
+// explicit finish() still has the last word.
+process.on('beforeExit', () => {
+  if (broke || failed) process.exitCode = 1;
+});
+
 // A check that throws inside a promise chain does not stop the run. The
 // rejection is swallowed, the event loop drains, and node exits 0 - so the
 // harness reports success while quietly skipping every check after the break.
