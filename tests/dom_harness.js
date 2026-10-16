@@ -40,7 +40,13 @@ const KNOWN_IDS = new Set([
   'btn-run', 'btn-save', 'btn-open', 'btn-read-line', 'btn-clear', 'btn-quit',
   'editor', 'output', 'error-panel', 'error-message', 'file-input',
   'settings-dialog', 'settings-title', 'settings-status', 'btn-settings',
-  'btn-settings-close', 'font-select', 'font-size', 'font-size-label',
+  'btn-settings-close', 'font-select',
+  // The four areas the chosen font is used in. app.js looks all four up on
+  // the way in, so an id missing from here would be reported as unknown
+  // rather than quietly skipped - and the boxes have to exist for the "an
+  // area can be unticked on its own" path to be exercised at all.
+  'font-code', 'font-output', 'font-shell', 'font-ui',
+  'font-size', 'font-size-label',
   'font-weight', 'font-weight-label',
   'line-height', 'line-height-label', 'letter-spacing',
   'letter-spacing-label', 'line-height-less', 'line-height-more',
@@ -275,6 +281,12 @@ const PANE_TOGGLES = {
   'mini-output-toggle': { 'aria-expanded': 'false' },
   'mini-shell-toggle': { 'aria-expanded': 'false' },
 };
+
+// The four areas the chosen font is used in. The template draws them ticked,
+// so the harness has to start them ticked too: applyFont reads them back, and
+// unticked boxes would clear every token and make the chosen font look as
+// though it applied nowhere.
+const FONT_AREA_IDS = new Set(['font-code', 'font-output', 'font-shell', 'font-ui']);
 
 function attributesFor(id) {
   const range = RANGE_INPUTS[id];
@@ -821,6 +833,8 @@ function makePage(locale, shared, bodyAttrs) {
           // the stub would start with it showing, and a check about it
           // hiding would pass for the wrong reason.
           id === 'setup-back' ? { hidden: true } : {},
+          // The four font areas start ticked, as the template renders them.
+          FONT_AREA_IDS.has(id) ? { checked: true } : {},
           // The shell starts closed, so opening it is something a check can
           // tell has happened. Starting it open would make every later
           // check pass for the wrong reason.
@@ -2801,10 +2815,14 @@ function runSetupChecks() {
   opendyslexic.__listeners.change.forEach((handler) =>
     handler({ target: opendyslexic, preventDefault: noop, stopPropagation: noop }));
   const wantedFamily = opendyslexic.getAttribute('data-family');
-  if (bodyStyle.fontFamily !== wantedFamily) {
+  // The font reaches the page through the token the stylesheet reads, not
+  // through an inline family on the body: the output and the shell name a
+  // token of their own, so an inline family never reached them. Checking the
+  // token is what actually proves the chosen font is in use.
+  if (bodyStyle['--font-ui'] !== wantedFamily) {
     failed = true;
-    console.log(`FAIL choosing OpenDyslexic left the page in "${bodyStyle.fontFamily}" ` +
-                `rather than "${wantedFamily}"`);
+    console.log(`FAIL choosing OpenDyslexic left the page in ` +
+                `"${bodyStyle['--font-ui']}" rather than "${wantedFamily}"`);
   } else {
     console.log('     a chosen font is applied to the page straight away');
   }
@@ -2815,6 +2833,30 @@ function runSetupChecks() {
   } else {
     console.log('     a font chosen in the setup screen is saved, not just drawn');
   }
+
+  // Each area can be turned off on its own, and turning one off hands that
+  // area back the app's own font. The token carries that, so unticking has to
+  // leave that one token unset - and must not disturb the areas still ticked.
+  // The value is not compared here: this stub's <select> reports no chosen
+  // value, so a re-apply falls back to the default stack rather than the
+  // family the radio carried. What matters is which tokens are set at all.
+  const outputTick = documentStub.getElementById('font-output');
+  const fireTick = () => (outputTick.__listeners.change || []).forEach((handler) =>
+    handler({ target: outputTick, preventDefault: noop, stopPropagation: noop }));
+  outputTick.checked = false;
+  fireTick();
+  if ('--font-output' in bodyStyle) {
+    failed = true;
+    console.log('FAIL unticking the output left it on the chosen font: ' +
+                JSON.stringify(bodyStyle['--font-output']));
+  } else if (!('--font-code' in bodyStyle) || !('--font-ui' in bodyStyle)) {
+    failed = true;
+    console.log('FAIL unticking the output took the other areas with it');
+  } else {
+    console.log('     an area can be unticked on its own');
+  }
+  outputTick.checked = true;
+  fireTick();
 
   // A theme is shown on the page too: the editor behind the wizard repaints
   // so the reader sees the theme against real code, not just the swatches.

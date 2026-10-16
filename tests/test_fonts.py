@@ -544,6 +544,109 @@ class MonospaceTests(unittest.TestCase):
         )
 
 
+class FontAreaTests(unittest.TestCase):
+    """Which part of the window each font token is used by.
+
+    The reported fault was that the chosen font never reached the output pane.
+    The output and the shell name a token of their own, so the inline family
+    the page used to set on the body was ignored by both - and by CodeMirror,
+    whose rule is marked important. These tests pin the tokens, the rules that
+    read them, and the name each tick saves under, so the fault cannot come
+    back through a one-word edit to a selector.
+    """
+
+    STYLESHEET = REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+    TEMPLATE = REPO_ROOT / "src" / "accessible_ide" / "templates" / "index.html"
+    APP_JS = REPO_ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
+
+    # The tick id, the config key it saves under, and the token its area
+    # reads. One table, because the three have to agree.
+    AREAS = (
+        ("font-code", "font_in_code", "--font-code"),
+        ("font-output", "font_in_output", "--font-output"),
+        ("font-shell", "font_in_shell", "--font-shell"),
+        ("font-ui", "font_in_ui", "--font-ui"),
+    )
+
+    def _css(self):
+        return re.sub(
+            r"/\*.*?\*/", "", self.STYLESHEET.read_text(encoding="utf-8"), flags=re.S
+        )
+
+    def _declarations(self, selector):
+        rule = re.search(
+            r"(?m)^" + re.escape(selector) + r"\s*\{([^}]*)\}", self._css()
+        )
+        self.assertIsNotNone(rule, f"no rule for {selector} in style.css")
+        assert rule is not None
+        return rule.group(1)
+
+    def test_each_area_token_starts_at_the_app_own_default(self):
+        # An unticked area keeps the font the app gives it, so the default
+        # each token falls back to is part of the feature, not decoration:
+        # the window and the code pane take the reading stack, the two
+        # transcripts take the monospace stack.
+        css = self._css()
+        for token, default in (
+            ("--font-ui", "var(--font-family)"),
+            ("--font-code", "var(--font-family)"),
+            ("--font-output", "var(--font-mono)"),
+            ("--font-shell", "var(--font-mono)"),
+        ):
+            with self.subTest(token=token):
+                self.assertIn(
+                    f"{token}: {default};",
+                    css,
+                    f"{token} does not fall back to {default}, so an unticked "
+                    "area would have no font of its own to keep",
+                )
+
+    def test_the_output_and_the_shell_read_their_own_token(self):
+        # This is the reported fault. Both named the monospace token, so the
+        # chosen font could not reach them however it was set.
+        self.assertIn(
+            "font-family: var(--font-output)", self._declarations(".output")
+        )
+        self.assertIn(
+            "font-family: var(--font-shell)", self._declarations(".shell-output")
+        )
+
+    def test_the_code_pane_and_the_window_read_their_own_token(self):
+        self.assertIn(
+            "font-family: var(--font-code)", self._declarations(".CodeMirror")
+        )
+        self.assertIn("var(--font-ui)", self._declarations("body"))
+
+    def test_the_tick_the_key_and_the_token_agree(self):
+        # A tick whose key the server does not know is a control that does
+        # nothing, and a token app.js never writes is a tick that does
+        # nothing. The three lists have to move together.
+        template = self.TEMPLATE.read_text(encoding="utf-8")
+        app_js = self.APP_JS.read_text(encoding="utf-8")
+        for tick, key, token in self.AREAS:
+            with self.subTest(tick=tick):
+                self.assertIn(key, routes.CONFIG_TYPES)
+                self.assertIn(key, routes.DEFAULT_CONFIG)
+                self.assertIn(f'id="{tick}"', template)
+                self.assertIn(f"config.{key}", template)
+                self.assertIn(f"'{tick}'", app_js)
+                self.assertIn(f"'{key}'", app_js)
+                self.assertIn(f"'{token}'", app_js)
+
+    def test_the_areas_start_ticked(self):
+        # Turning one off is a deliberate choice; a reader who never opens
+        # this group should get the font they picked everywhere, which is
+        # what the app did before the group existed.
+        for _, key, _ in self.AREAS:
+            with self.subTest(key=key):
+                self.assertIs(
+                    routes.DEFAULT_CONFIG[key],
+                    True,
+                    f"{key} does not start on, so a reader who never opens "
+                    "the Font group would lose the font on that area",
+                )
+
+
 class UploadedFontTests(unittest.TestCase):
     """Fonts the reader adds themselves.
 

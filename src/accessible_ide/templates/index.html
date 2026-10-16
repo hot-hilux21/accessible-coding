@@ -383,6 +383,7 @@
       <nav class="settings-nav" aria-label="{{ t('settings.sections') }}">
         <ul class="settings-nav-list">
           <li><a href="#group-language">{{ t('group.language') }}</a></li>
+          <li><a href="#group-font">{{ t('group.font') }}</a></li>
           <li><a href="#group-reading">{{ t('group.reading') }}</a></li>
           <li><a href="#group-colours">{{ t('group.colours') }}</a></li>
           <li><a href="#group-try">{{ t('group.try') }}</a></li>
@@ -414,13 +415,13 @@
           </div>
         </fieldset>
 
-        <fieldset class="settings-group" id="group-reading">
-          <legend class="settings-legend">{{ t('group.reading') }}</legend>
-          <p class="settings-hint" id="reading-hint">{{ t('reading.hint') }}</p>
+        <fieldset class="settings-group" id="group-font">
+          <legend class="settings-legend">{{ t('group.font') }}</legend>
+          <p class="settings-hint" id="font-hint">{{ t('font.hint') }}</p>
 
           <div class="field">
             <label for="font-select">{{ t('reading.font') }}</label>
-            <select id="font-select" aria-describedby="reading-hint">
+            <select id="font-select" aria-describedby="font-hint">
               {% for key, font in fonts.items() %}
               <option value="{{ key }}"
                       data-family="{{ font.family }}"
@@ -429,6 +430,34 @@
               {% endfor %}
             </select>
             <p class="field-help" id="font-bundled-note" hidden></p>
+          </div>
+
+          <div class="field">
+            <p class="field-label-static" id="font-areas-label">{{ t('font.areas') }}</p>
+            <!-- Four places one font can be used. They are ticks rather than a
+                 single "use everywhere" switch so a reader can put their font
+                 on the code and leave the rest of the window as it was, or the
+                 other way round. An area left unticked keeps the font the app
+                 gives that area on its own. -->
+            <div class="font-areas" role="group" aria-labelledby="font-areas-label">
+              <span class="font-area">
+                <input type="checkbox" id="font-code" {% if config.font_in_code %}checked{% endif %}>
+                <label for="font-code">{{ t('font.area_code') }}</label>
+              </span>
+              <span class="font-area">
+                <input type="checkbox" id="font-output" {% if config.font_in_output %}checked{% endif %}>
+                <label for="font-output">{{ t('output.title') }}</label>
+              </span>
+              <span class="font-area">
+                <input type="checkbox" id="font-shell" {% if config.font_in_shell %}checked{% endif %}>
+                <label for="font-shell">{{ t('shell.title') }}</label>
+              </span>
+              <span class="font-area">
+                <input type="checkbox" id="font-ui" {% if config.font_in_ui %}checked{% endif %}>
+                <label for="font-ui">{{ t('font.area_ui') }}</label>
+              </span>
+            </div>
+            <p class="field-help">{{ t('font.areas_help') }}</p>
           </div>
 
           <div class="field">
@@ -442,6 +471,11 @@
             </div>
             <p class="field-help" id="font-upload-status" role="status" aria-live="polite">{{ t('reading.upload_font_help') }}</p>
           </div>
+        </fieldset>
+
+        <fieldset class="settings-group" id="group-reading">
+          <legend class="settings-legend">{{ t('group.reading') }}</legend>
+          <p class="settings-hint" id="reading-hint">{{ t('reading.hint') }}</p>
 
           <div class="field">
             <label for="font-size">{{ t('reading.font_size') }}</label>

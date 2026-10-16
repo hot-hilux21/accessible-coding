@@ -557,17 +557,45 @@
     return rgbToHex(bg);
   }
 
+  // The four places the chosen font can be used: the checkbox in the Font
+  // group, the config key that tick saves under, and the token the
+  // stylesheet reads for that area. One table, so the four are handled the
+  // same way instead of repeating the same three lines four times.
+  var FONT_AREAS = [
+    { box: 'font-code', key: 'font_in_code', token: '--font-code' },
+    { box: 'font-output', key: 'font_in_output', token: '--font-output' },
+    { box: 'font-shell', key: 'font_in_shell', token: '--font-shell' },
+    { box: 'font-ui', key: 'font_in_ui', token: '--font-ui' }
+  ];
+
+  function fontAreaBoxes() {
+    return FONT_AREAS.map(function (area) {
+      return { area: area, box: document.getElementById(area.box) };
+    });
+  }
+
   function applyFont(fontKey, familyOverride) {
     // The wizard offers the same fonts as radios rather than as the
     // settings <select>, so it passes the stack it was rendered with.
     // Reading it from the select would quietly fall back to the default
     // family and the preview would show the wrong font.
     var family = familyOverride || fontFamilyFor(fontKey);
-    body.style.fontFamily = family;
-    editorEl.style.fontFamily = family;
-    // CodeMirror needs the font applied to its content
-    var cm = editorEl.querySelector('.CodeMirror');
-    if (cm) cm.style.fontFamily = family;
+    fontAreaBoxes().forEach(function (entry) {
+      if (!entry.box || entry.box.checked) {
+        // A ticked area takes the chosen font. It goes onto the token and
+        // not straight onto the element, because the stylesheet is what
+        // decides each pane's font: an inline family on the body was
+        // ignored by the output and the shell, which name a token of their
+        // own, and by CodeMirror, whose rule is marked important. Writing
+        // the one value once is what makes it reach all four.
+        body.style.setProperty(entry.area.token, family);
+      } else {
+        // Unticked, so the area keeps the font the stylesheet gives it on
+        // its own. Removing the value rather than writing a default back
+        // is what keeps that default in one place, in style.css.
+        body.style.removeProperty(entry.area.token);
+      }
+    });
     // Font metrics changed - recalculate the gutter width so line
     // numbers never overlap the code.
     editor.refresh();
@@ -2201,6 +2229,19 @@
     updateFontRemoveButton();
     updatePreview();
     saveConfig({ font: fontSelect.value });
+  });
+
+  // Ticking or unticking an area re-applies the font and saves the choice.
+  // applyFont reads the boxes back, so there is one place that decides what
+  // each area shows rather than one place per control.
+  fontAreaBoxes().forEach(function (entry) {
+    if (!entry.box) return;
+    entry.box.addEventListener('change', function () {
+      applyFont(fontSelect.value);
+      var saved = {};
+      saved[entry.area.key] = entry.box.checked;
+      saveConfig(saved);
+    });
   });
 
   // A theme change moves the panel colour under the tint, so the tint has to

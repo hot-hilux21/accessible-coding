@@ -40,6 +40,18 @@
      every copy of Windows, so the installer and the hosted site both get a
      real monospace with nothing downloaded. */
   --font-mono: "Consolas", "Cascadia Mono", ui-monospace, "Mukta", "Almarai", monospace;
+  /* Which font each part of the window is drawn in. Every one of these
+     starts out pointing at a default above, so nothing moves until the
+     reader ticks that area for the font they chose. app.js writes the
+     chosen family onto the token, and takes it off again when the area is
+     unticked, which is what makes an unticked area fall back to the
+     default named here instead of having to be told that default by name.
+     The two transcripts are listed separately rather than sharing one
+     token, so the output and the shell can each be decided on their own. */
+  --font-ui: var(--font-family);
+  --font-code: var(--font-family);
+  --font-output: var(--font-mono);
+  --font-shell: var(--font-mono);
   --font-size: 16px;
   /* How heavy the reading text is. 400 is the normal weight every font
      has; the reader can move it up or down from Settings. */
@@ -150,7 +162,7 @@ html, body {
 body {
   background: linear-gradient(180deg, var(--bg) 0%, var(--bg-grad) 100%);
   color: var(--fg);
-  font-family: var(--font-family);
+  font-family: var(--font-ui);
   font-size: var(--font-size);
   font-weight: var(--font-weight);
   line-height: var(--line-height);
@@ -573,7 +585,7 @@ input[type="range"] {
   top: 0;
   background: var(--panel-bg);
   color: var(--muted);
-  font-family: var(--font-family);
+  font-family: var(--font-ui);
   font-weight: 600;
 }
 
@@ -826,7 +838,7 @@ input[type="range"] {
 /* CodeMirror overrides */
 .CodeMirror {
   height: 100%;
-  font-family: var(--font-family) !important;
+  font-family: var(--font-code) !important;
   font-size: var(--font-size) !important;
   font-weight: var(--font-weight) !important;
   line-height: var(--line-height) !important;
@@ -919,7 +931,7 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   margin: 0;
   padding: var(--space-3) var(--space-4);
   overflow: auto;
-  font-family: var(--font-mono);
+  font-family: var(--font-output);
   font-size: 0.95em;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1000,7 +1012,7 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   margin: 0;
   padding: var(--space-3) var(--space-4) 0;
   overflow: auto;
-  font-family: var(--font-mono);
+  font-family: var(--font-shell);
   font-size: 0.95em;
   line-height: var(--line-height, 1.5);
   letter-spacing: var(--letter-spacing, normal);
@@ -1026,7 +1038,7 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   align-items: baseline;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-4) var(--space-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-shell);
   font-size: 0.95em;
   line-height: var(--line-height, 1.5);
   letter-spacing: var(--letter-spacing, normal);
@@ -1310,6 +1322,38 @@ body[data-contrast="high"][data-theme="pastel"] {
   margin-bottom: var(--space-1);
   font-weight: 600;
   letter-spacing: normal;
+}
+
+/* The four places the chosen font can be used. Laid out as one wrapping row
+   of ticks, because they are one decision with four answers rather than four
+   separate settings. Each keeps a full-height hit area so it can be hit with
+   a thumb as well as a pointer, the way the pane toolbars' ticks do. */
+.font-areas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+}
+
+.font-area {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+}
+
+.font-area input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.font-area label {
+  font-weight: 400;
+  letter-spacing: normal;
+  cursor: pointer;
 }
 
 .field select,

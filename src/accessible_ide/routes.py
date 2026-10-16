@@ -146,6 +146,15 @@ SETUP_TOTAL_STEPS = len(SETUP_STEPS)
 
 DEFAULT_CONFIG = {
     'font': 'OpenDyslexic',
+    # Which parts of the window the chosen font is used in. All four start
+    # switched on, so the font picked on the first-run screen is the one the
+    # whole app draws with, output and shell included. Turning one off hands
+    # that area back the font the stylesheet gives it on its own, which for
+    # the two transcripts is the monospace stack.
+    'font_in_code': True,
+    'font_in_output': True,
+    'font_in_shell': True,
+    'font_in_ui': True,
     'font_size': 16,
     # How heavy the reading text is. 400 is the normal weight every font
     # has. The range reaches the light and bold faces the bundled fonts
@@ -1527,6 +1536,10 @@ def shell_stop():
 # Allowed config keys and their expected types
 CONFIG_TYPES = {
     'font': str,
+    'font_in_code': bool,
+    'font_in_output': bool,
+    'font_in_shell': bool,
+    'font_in_ui': bool,
     'font_size': int,
     'font_weight': int,
     'highlight_color': str,
