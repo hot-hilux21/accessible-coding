@@ -23,6 +23,7 @@ Jump to any section:
 - [Key features](#key-features)
 - [Try it now](#try-it-now)
 - [Getting started](#getting-started)
+- [Where your code runs](#where-your-code-runs)
 - [Project structure](#project-structure)
 - [MVP checklist](#mvp-checklist)
 - [Roadmap](#roadmap)
@@ -106,6 +107,16 @@ Your exe is at `dist/AccessibleIDE.exe`.
 ```bash
 python smoke_test.py
 ```
+
+[↑ Back to contents](#contents) · [↓ Next: Where your code runs](#where-your-code-runs)
+
+---
+
+## Where your code runs
+
+**Windows app.** Your code runs on your own computer. Press Run and the app starts a process of its own to run your file, then prints what came out. Nothing you write is uploaded, no account is needed, and the app makes no network requests. The only thing it can go online for is checking for a new version, and that stays off until you turn it on in Settings.
+
+**Browser copy.** Your code is sent to the server hosting the site, run there, and the output is sent back. This is the only version where your code leaves your machine. That server is shared by everyone using the site, so this copy runs with a sandbox the Windows app does not: imports such as `os` and `subprocess` are refused before your program starts.
 
 [↑ Back to contents](#contents) · [↓ Next: Project structure](#project-structure)
 
