@@ -374,6 +374,65 @@ class TraceRouteTests(RunRouteTestCase):
         self.assertEqual(data["error"], "")
 
 
+class BracketMistakeRouteTests(RunRouteTestCase):
+    """A bracket mistake arrives at the reader as the bracket it is about.
+
+    Written out here rather than left to the pattern tests because what these
+    prove is the plumbing: the message the child interpreter actually writes
+    has to be the message the patterns read. Python has reworded this more than
+    once between versions, and a pattern that no longer matches is a reader
+    back to being told their syntax is wrong somewhere.
+    """
+
+    def test_a_str_left_open_says_which_bracket(self):
+        # The everyday version: the inner bracket closed and the outer one
+        # left off, which is what the app's own input() examples invite.
+        _, data = self.run_code('name = str(input("What? ")\nprint(name)\n')
+        self.assertIn("never closed", data["error"])
+        self.assertNotIn("SyntaxError", data["error"])
+        self.assertEqual(data["error_line"], 1)
+
+    def test_an_int_left_open_says_which_bracket(self):
+        _, data = self.run_code('age = int(input("Age? ")\n')
+        self.assertIn("never closed", data["error"])
+        self.assertNotIn("SyntaxError", data["error"])
+
+    def test_a_float_left_open_says_which_bracket(self):
+        _, data = self.run_code('pay = float(input("How much? ")\n')
+        self.assertIn("never closed", data["error"])
+        self.assertNotIn("SyntaxError", data["error"])
+
+    def test_one_bracket_too_many_says_which_bracket(self):
+        # The other way this is usually written: closed by eye, with the
+        # partner for the inner bracket added a second time.
+        _, data = self.run_code('print(str("x")))\n')
+        self.assertIn("never opened", data["error"])
+        self.assertNotIn("SyntaxError", data["error"])
+        self.assertEqual(data["error_line"], 1)
+
+
+class ConditionMistakeRouteTests(RunRouteTestCase):
+    """Writing = where a condition needs ==.
+
+    Python offers a fix for this one, and the sentence has to reach the reader
+    with that fix in it. Pinned end to end because the wording of Python's
+    own hint is the only thing the pattern hangs on.
+    """
+
+    def test_an_if_that_saves_instead_of_comparing_says_so(self):
+        _, data = self.run_code('x = 1\nif x = 5:\n    print("yes")\n')
+        self.assertIn("==", data["error"])
+        self.assertEqual(data["error_line"], 2)
+
+    def test_a_while_that_saves_instead_of_comparing_says_so(self):
+        _, data = self.run_code('x = 1\nwhile x = 5:\n    pass\n')
+        self.assertIn("==", data["error"])
+
+    def test_comparing_correctly_is_not_reported(self):
+        _, data = self.run_code('x = 1\nif x == 5:\n    print("yes")\n')
+        self.assertEqual(data["error"], "")
+
+
 class InteractiveRunTests(RunRouteTestCase):
     """A program that asks a question gets an answer, not an error.
 

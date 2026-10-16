@@ -821,6 +821,12 @@ MISTAKE_PATTERNS = (
      'python.mistake.unknown_name'),
     (re.compile(r"'([\(\[\{])' was never closed"),
      'python.mistake.unclosed_bracket'),
+    # The other half of the same habit. Someone closing str(input(...)) by
+    # eye adds the partner for the inner bracket and then one for the outer
+    # that it does not need, and Python names the surplus bracket rather than
+    # the bracket it did not expect.
+    (re.compile(r"unmatched '([\)\]\}])'"),
+     'python.mistake.extra_bracket'),
     (re.compile(r'unterminated (?:triple-quoted )?string|EOL while scanning string'),
      'python.mistake.unclosed_quote'),
     (re.compile(r"expected ':'"),

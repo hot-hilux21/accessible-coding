@@ -160,6 +160,37 @@ class SpecificMistakeTests(unittest.TestCase):
         self.assertIn("never closed", message)
         self.assertNotIn("SyntaxError", message)
 
+    def test_an_extra_closing_bracket_is_named(self):
+        # The mirror of the mistake above. Closing a call by eye adds the
+        # partner for the inner bracket and then one for the outer as well,
+        # and Python names the surplus one.
+        for last_line in (
+            "SyntaxError: unmatched ')'",
+            "SyntaxError: unmatched ']'",
+            "SyntaxError: unmatched '}'",
+        ):
+            with self.subTest(last_line=last_line):
+                message = self.explain(last_line)
+                self.assertIn("never opened", message)
+                self.assertNotIn("SyntaxError", message)
+
+    def test_the_assignment_confusion_says_where_it_always_happens(self):
+        # Reaching for = instead of == in a condition is the version
+        # beginners write most, so the sentence names the lines it happens on.
+        message = self.explain(
+            "SyntaxError: invalid syntax. Maybe you meant '==' or ':=' instead of '='?"
+        )
+        self.assertIn("==", message)
+        self.assertIn("if", message)
+
+    def test_the_assignment_confusion_still_matches_pythons_other_wording(self):
+        # Python words it two ways depending on what is on the left of the =.
+        message = self.explain(
+            "SyntaxError: cannot assign to function call here. "
+            "Maybe you meant '==' instead of '='?"
+        )
+        self.assertIn("==", message)
+
     def test_an_unclosed_quote_is_explained(self):
         message = self.explain(
             "SyntaxError: unterminated string literal (detected at line 1)"
