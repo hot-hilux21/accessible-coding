@@ -253,25 +253,25 @@ accessible-coding/
 
 ## MVP checklist
 
-What is done in v0.1.0-beta:
+What is done so far:
 
 - [x] Python code editor (CodeMirror)
 - [x] Built-in Python runner
+- [x] Save and open code files
 - [x] Local settings save/load (JSON)
 - [x] 4 preset themes (high contrast, dark, pastel, light)
+- [x] Custom theme builder
 - [x] Reading font choice (OpenDyslexic by default, Atkinson Hyperlegible / Lexend / Nunito also bundled)
 - [x] Focus mode (hide gutter / blur other lines)
 - [x] Error messages in plain English
+- [x] Visual error highlighting in the editor
 - [x] Flask web version
 - [x] Windows `.exe` (PyInstaller)
 - [x] GitHub public repo
 
-Coming next (v0.2):
+Coming next:
 
-- [ ] Save and open code files
-- [ ] Custom theme builder
 - [ ] More text-to-speech options
-- [ ] Visual error highlighting in the editor
 - [ ] Configurable blur zones (blocks, functions)
 
 [↑ Back to contents](#contents) · [↓ Next: Roadmap](#roadmap)
@@ -280,8 +280,8 @@ Coming next (v0.2):
 
 ## Roadmap
 
-- **v0.1 (now)** — editor, runner, fonts, focus mode, themes, plain errors
-- **v0.2** — custom themes, more TTS, file save/open, visual error highlighting
+- **Now** — editor, runner, save/open, fonts, focus mode, themes, plain errors, error line highlighting
+- **Next** — more text-to-speech options, configurable blur zones
 - **v1.0+** — linter, Jupyter, collaboration, plugins
 
 See the [full specification](#full-specification) for details.
