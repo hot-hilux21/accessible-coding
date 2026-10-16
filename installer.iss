@@ -77,7 +77,17 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 Name: "installpython"; Description: "Install Python and add it to PATH"; GroupDescription: "Python:"; Flags: checkedonce
 
 [Files]
-Source: "dist\AccessibleIDE\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; restartreplace is why this does not stop with "MoveFile failed; code 183".
+; The app is launched by the [Run] entry at the bottom of this file, so the
+; ordinary way to meet that error is to run Setup again while AccessibleIDE
+; is still open. Windows lets Setup delete a running program, but the name
+; stays taken until the last handle on it closes, so the rename that follows
+; fails with "Cannot create a file when that file already exists" and the
+; install stops partway. With this flag Inno carries on, registers the file
+; that is still in use to be replaced at the next restart, and asks for that
+; restart when it finishes. It has no effect without administrator rights,
+; which PrivilegesRequired=admin above already gives.
+Source: "dist\AccessibleIDE\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace
 Source: "installer\prereqs\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "installer\prereqs\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "installer\prereqs\python-3.13.16-amd64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: ShouldInstallPython
