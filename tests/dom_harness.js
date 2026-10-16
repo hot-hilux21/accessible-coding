@@ -957,6 +957,16 @@ const updateInstallBodies = [];
 // Every utterance the app asked for, in order. Without this the harness
 // can only prove the app ran, not that it said anything.
 const spokenUtterances = [];
+// What each run was asked to execute, in order, and the answers that went with
+// it. The answers matter as much as the code: the interactive path is only
+// right if the reader's answer travels in the *second* request, and a check
+// that only counted requests could not tell that from a request sent empty.
+const runBodies = [];
+// What the runner answers with, taken from the front of the list. A scripted
+// queue rather than one fixed reply, because the interactive path can only be
+// reached by walking it: the first request comes back waiting for an answer,
+// and the second comes back with the program's finished output.
+const runReplies = [];
 
 function parseBody(options) {
   try { return JSON.parse(options && options.body) || {}; } catch (e) { return {}; }
@@ -1007,6 +1017,19 @@ function fetchStub(url, options) {
         success: true, output: (sent.code || '') + '\n', error: '',
       }),
     });
+  }
+  // The runner. The body is kept because the reader's answer travels in it: a
+  // reply that never carried one would still look like a second request, and
+  // telling those two apart is the whole point of the checks below.
+  if (String(url).includes('/api/run')) {
+    runBodies.push(parseBody(options));
+    const reply = runReplies.length
+      ? runReplies.shift()
+      : {
+        success: true, output: '', error: '', error_line: null,
+        awaiting_answer: false, trace: null,
+      };
+    return Promise.resolve({ ok: true, json: () => Promise.resolve(reply) });
   }
   if (String(url).includes('/api/themes')) {
     return Promise.resolve({
@@ -3698,13 +3721,121 @@ function runShellChecks() {
             }
 
             console.log('shell: 15 checks');
-            // Hand over to the module checks rather than exiting here. This
-            // used to reassign finish() first, which quietly replaced the
+            // Hand over to the interactive run checks rather than exiting here.
+            // This used to reassign finish() first, which quietly replaced the
             // module stage with a plain exit - so the checks after the shell
             // never ran and the run still reported success.
-            finish();
+            //
+            // The run checks are started from inside this chain, not scheduled
+            // beside the others, because this chain is the only thing that calls
+            // finish(): anything started outside it races the exit, and losing
+            // that race is a silent pass rather than a failure.
+            runInteractiveChecks(finish);
           }, 10);
         }, 10);
+      }, 10);
+    }, 10);
+  }, 10);
+}
+
+// ---------------------------------------------------------------------------
+// A program that asks the reader a question.
+//
+// The runner is answered twice: once as a program sat at input(), and again
+// once the reader has answered it. Walking both requests is the only way to
+// prove the round trip. A double that answered everything at once would never
+// show the answer row appearing, and an answer that never reached the second
+// request would look exactly like success from the outside.
+// ---------------------------------------------------------------------------
+function runInteractiveChecks(done) {
+  const form = elements.get('answer-form');
+  const answerField = elements.get('answer-input');
+  const answerNote = elements.get('answer-status');
+  const out = elements.get('output');
+  const waitingNote = CATALOGUE['output.answer_waiting'];
+  const noOutputNote = CATALOGUE['output.no_output'];
+  const question = 'What is your name? ';
+  const finished = 'What is your name? alice\nhello alice\n';
+
+  // The reader's program is put in place rather than assumed, so the code the
+  // answers are collected against is the same on every run.
+  editorInstance.setValue('name = input("What is your name? ")\nprint("hello " + name)');
+  runBodies.length = 0;
+  runReplies.length = 0;
+  runReplies.push(
+    { success: true, output: question, error: '', error_line: null, awaiting_answer: true, trace: null },
+    { success: true, output: finished, error: '', error_line: null, awaiting_answer: false, trace: null }
+  );
+
+  fire('btn-run', 'click');
+
+  setTimeout(() => {
+    if (runBodies.length !== 1) {
+      failed = true;
+      console.log(`FAIL pressing Run did not run the program once: ${runBodies.length} requests`);
+    } else if (form.hidden) {
+      failed = true;
+      console.log('FAIL the answer row stayed hidden while the program waited for an answer');
+    } else if (String(out.textContent) !== question) {
+      failed = true;
+      console.log(`FAIL the question was not left on screen: "${out.textContent}"`);
+    } else if (String(answerNote.textContent) !== waitingNote) {
+      failed = true;
+      console.log(`FAIL the answer row said "${answerNote.textContent}" rather than "${waitingNote}"`);
+    } else {
+      console.log('     a program that asks a question shows the question, with a row to answer it');
+    }
+
+    // The answer typed the way the row's own button would submit it.
+    answerField.value = 'alice';
+    fire('answer-form', 'submit', { preventDefault: noop, stopPropagation: noop });
+
+    setTimeout(() => {
+      const carried = (runBodies[runBodies.length - 1] || {}).answers || [];
+      if (runBodies.length !== 2) {
+        failed = true;
+        console.log(`FAIL answering the question did not run the program again: ${runBodies.length} requests`);
+      } else if (carried.length !== 1 || carried[0] !== 'alice') {
+        failed = true;
+        console.log(`FAIL the answer did not travel with the second request: ${JSON.stringify(carried)}`);
+      } else if (!form.hidden) {
+        failed = true;
+        console.log('FAIL the answer row stayed on screen after the program finished');
+      } else if (String(out.textContent) !== finished) {
+        failed = true;
+        console.log(`FAIL the finished program output never reached the screen: "${out.textContent}"`);
+      } else {
+        console.log('     the answer is sent back with the program, and the row goes when it is done');
+      }
+
+      // A bare input() prints nothing, so the transcript is empty while the
+      // program waits. Saying "(no output)" there would tell the reader their
+      // program did nothing at the moment it is waiting to be answered, which
+      // is the one thing it is definitely doing.
+      runReplies.push(
+        { success: true, output: '', error: '', error_line: null, awaiting_answer: true, trace: null }
+      );
+      editorInstance.setValue('input()\nprint("done")');
+      fire('btn-run', 'click');
+
+      setTimeout(() => {
+        if (runBodies.length !== 3) {
+          failed = true;
+          console.log(`FAIL the second program did not run: ${runBodies.length} requests`);
+        } else if (form.hidden) {
+          failed = true;
+          console.log('FAIL the answer row stayed hidden for a program waiting on a bare input()');
+        } else if (String(out.textContent) === noOutputNote) {
+          failed = true;
+          console.log('FAIL a program waiting on a bare input() was reported as having no output');
+        } else if (String(out.textContent) !== '') {
+          failed = true;
+          console.log(`FAIL a waiting program left something on screen: "${out.textContent}"`);
+        } else {
+          console.log('     a bare input() leaves the transcript empty and still offers a row');
+        }
+        console.log('run: 12 checks');
+        done();
       }, 10);
     }, 10);
   }, 10);
