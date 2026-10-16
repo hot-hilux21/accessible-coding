@@ -24,6 +24,7 @@ Jump to any section:
 - [Try it now](#try-it-now)
 - [Getting started](#getting-started)
 - [Where your code runs](#where-your-code-runs)
+- [Python dictionary](#python-dictionary)
 - [Project structure](#project-structure)
 - [MVP checklist](#mvp-checklist)
 - [Roadmap](#roadmap)
@@ -118,6 +119,96 @@ python smoke_test.py
 
 **Browser copy.** Your code is sent to the server hosting the site, run there, and the output is sent back. This is the only version where your code leaves your machine. That server is shared by everyone using the site, so this copy runs with a sandbox the Windows app does not: imports such as `os` and `subprocess` are refused before your program starts.
 
+[↑ Back to contents](#contents) · [↓ Next: Python dictionary](#python-dictionary)
+
+---
+
+## Python dictionary
+
+A glossary of the Python you will meet in this app. Each entry says what a command does and shows something you can type straight into the editor and run.
+
+### Saving a value under a name
+
+| Command | What it does |
+| --- | --- |
+| `age = 14` | Saves a value under a name so you can use it again later. |
+| `age = age + 1` | Works out the right side first, then saves the answer. |
+| `age += 1` | The short way of writing the line above. |
+
+`=` saves a value. `==` compares two values. Mixing them up is the most common first mistake.
+
+### Saying something and reading an answer
+
+| Command | What it does |
+| --- | --- |
+| `print("hello")` | Puts something on the screen. |
+| `input("How old are you? ")` | Asks on screen, waits for you to type, then hands back what you typed as text. |
+| `type(3.5)` | Tells you what kind of value something is. |
+
+### Turning one kind of value into another
+
+| Command | What it does |
+| --- | --- |
+| `int("12")` | Makes a whole number out of text. `int(3.9)` gives `3`. |
+| `float("3.5")` | Makes a decimal number out of text. |
+| `str(12)` | Makes text out of anything. |
+
+### Sums
+
+| Command | What it does |
+| --- | --- |
+| `+` `-` `*` `/` | Add, subtract, multiply, divide. |
+| `7 // 2` | Divides and keeps the whole number only: `3`. |
+| `7 % 2` | The remainder after dividing: `1`. |
+| `2 ** 3` | Powers: `8`. |
+| `round(3.6)` | Rounds to the nearest whole number: `4`. |
+
+### Comparing two values
+
+| Command | What it does |
+| --- | --- |
+| `==` | Are these two the same? |
+| `!=` | Are these two different? |
+| `<` `>` `<=` `>=` | Smaller, bigger, smaller or equal, bigger or equal. |
+| `and` `or` `not` | Joins True and False answers together. |
+
+### Doing something only sometimes
+
+| Command | What it does |
+| --- | --- |
+| `if age >= 13:` | Does the lines below only when the answer is True. Note the colon at the end. |
+| `elif age == 12:` | A second check to try when the first one was False. |
+| `else:` | What to do when none of the checks worked. |
+
+### Doing something more than once
+
+| Command | What it does |
+| --- | --- |
+| `for i in range(3):` | Does the lines below three times. |
+| `for fruit in fruits:` | Goes through a list one item at a time. |
+| `while answer != "yes":` | Keeps repeating for as long as the answer stays True. |
+| `break` | Leaves the loop straight away. |
+| `continue` | Skips the rest of this round and starts the next one. |
+
+### Keeping several values together
+
+| Command | What it does |
+| --- | --- |
+| `fruits = ["apple", "pear"]` | A list: values in order, inside square brackets. |
+| `me = {"name": "Ana", "age": 14}` | A dictionary: a value stored under each name, inside curly brackets. |
+| `len(fruits)` | How many items are in a list, a dictionary or some text. |
+| `fruits.append("plum")` | Adds an item to the end of a list. |
+| `fruits[0]` | The first item of a list. Counting starts at `0`. |
+
+### Comments and mistakes
+
+| Command | What it does |
+| --- | --- |
+| `# later` | A comment. Python ignores the rest of the line. |
+| `NameError` `SyntaxError` `TypeError` | The three errors you will see most often. |
+
+Anything that goes wrong is rewritten in plain English in the message under the editor, so you do not have to read the raw Python error to work out what happened.
+
 [↑ Back to contents](#contents) · [↓ Next: Project structure](#project-structure)
 
 ---
@@ -175,7 +266,7 @@ Coming next (v0.2):
 
 - **v0.1 (now)** — editor, runner, fonts, focus mode, themes, plain errors
 - **v0.2** — custom themes, more TTS, file save/open, visual error highlighting
-- **v1.0+** — linter, Jupyter, collaboration, plugins, Linux
+- **v1.0+** — linter, Jupyter, collaboration, plugins
 
 See the [full specification](#full-specification) for details.
 
