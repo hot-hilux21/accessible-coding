@@ -2438,12 +2438,10 @@ function checkFailedDownload(status, row, closesBefore) {
       }
 
       runSetupChecks();
-      // The dev-mode and theme-builder checks post config of their own
-      // (channel changes, theme picks). They run before the update-channel
-      // checks, whose assertions land in a deferred callback and count the
-      // posts since their own snapshot; anything posted in between would
-      // look like extra channel changes.
-      runDevModeChecks();
+      // The theme-builder checks post config of their own (theme picks). They
+      // run before the update-channel checks, whose assertions land in a
+      // deferred callback and count the posts since their own snapshot;
+      // anything posted in between would look like extra channel changes.
       runThemeBuilderChecks();
       runUpdateChannelChecks();
     }, 10);
@@ -2536,93 +2534,6 @@ function runUpdateChannelChecks() {
       console.log('     the answer is refreshed for the new channel');
     }
   }, 10);
-}
-
-// ---------------------------------------------------------------------------
-// Developer mode. Hidden on purpose: right-clicking the Settings button (or
-// pressing Shift+F10 on it) adds the "dev" update channel. The checks below
-// are the only place the easter egg is expected to be visible.
-// ---------------------------------------------------------------------------
-function runDevModeChecks() {
-  const select = elements.get('update-channel');
-  const status = elements.get('update-status');
-  const store = mainPage.store;
-
-  const options = () => (select.options || []).map((o) => o.value);
-  const devOffered = () => options().includes('dev');
-
-  // The channel list starts without the dev channel. It is hidden on
-  // purpose, so it has to be absent until the easter egg is used.
-  if (devOffered()) {
-    failed = true;
-    console.log('FAIL the dev channel is offered before the easter egg is used');
-  } else {
-    console.log('     the dev channel stays hidden until asked for');
-  }
-
-  // Right-clicking the Settings button turns it on.
-  const before = configPosts.length;
-  fire('btn-settings', 'contextmenu');
-  if (!devOffered()) {
-    failed = true;
-    console.log('FAIL right-clicking Settings did not add the dev channel');
-  } else {
-    console.log('     right-clicking Settings adds the dev channel');
-  }
-  if (store.get('accessible_ide_dev_mode') !== '1') {
-    failed = true;
-    console.log('FAIL dev mode was not remembered: ' +
-      JSON.stringify(store.get('accessible_ide_dev_mode')));
-  }
-  if ((status.textContent || '') !== CATALOGUE['update.dev_mode_on']) {
-    failed = true;
-    console.log('FAIL turning dev mode on did not say so: ' +
-      JSON.stringify(status.textContent));
-  }
-
-  // Choosing the dev channel saves it like any other channel.
-  select.value = 'dev';
-  fire('update-channel', 'change');
-  const saved = configPosts.slice(before).filter((p) => 'update_channel' in p);
-  if (!saved.some((p) => p.update_channel === 'dev')) {
-    failed = true;
-    console.log('FAIL choosing the dev channel did not save it: ' +
-      JSON.stringify(saved));
-  } else {
-    console.log('     the dev channel is a real channel once offered');
-  }
-
-  // Shift+F10 turns it off again, and the channel falls back to beta so
-  // the reader is not left on a channel they can no longer see.
-  const beforeOff = configPosts.length;
-  fire('btn-settings', 'keydown', {
-    key: 'F10', shiftKey: true, preventDefault: noop, stopPropagation: noop,
-  });
-  if (devOffered()) {
-    failed = true;
-    console.log('FAIL turning dev mode off left the dev channel behind');
-  } else {
-    console.log('     turning dev mode off removes the channel');
-  }
-  if (store.get('accessible_ide_dev_mode') !== '0') {
-    failed = true;
-    console.log('FAIL dev mode off was not remembered');
-  }
-  if ((status.textContent || '') !== CATALOGUE['update.dev_mode_off']) {
-    failed = true;
-    console.log('FAIL turning dev mode off did not say so: ' +
-      JSON.stringify(status.textContent));
-  }
-  const reverted = configPosts.slice(beforeOff).filter((p) => 'update_channel' in p);
-  if (select.value === 'dev') {
-    failed = true;
-    console.log('FAIL the channel stayed on dev after dev mode was turned off');
-  } else if (reverted.some((p) => p.update_channel === 'beta')) {
-    console.log('     leaving dev mode falls back to beta');
-  } else {
-    failed = true;
-    console.log('FAIL leaving dev mode did not save the fallback to beta');
-  }
 }
 
 // ---------------------------------------------------------------------------

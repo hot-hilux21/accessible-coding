@@ -1580,7 +1580,7 @@ CONFIG_TYPES = {
 # routes that need it rather than at the top of this module. So the name is
 # written out here and a test checks the two agree, rather than importing it
 # early and changing that on purpose.
-UPDATE_CHANNELS = {'beta', 'stable', 'dev'}
+UPDATE_CHANNELS = {'beta', 'stable'}
 
 CONFIG_VALUES = {
     'font': set(FONTS.keys()),

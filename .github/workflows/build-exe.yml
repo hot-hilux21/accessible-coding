@@ -1,15 +1,15 @@
-name: Build Exe (dev build)
+name: Build Exe (beta build)
 
 # Builds the Windows exe + Setup installer on every push to main and
-# publishes them to a "dev" release for testing a build before it is
-# tagged. Readers are not pointed here by default: they are served by the
-# beta and stable channels, which build-release.yml moves when a release is
-# tagged. A reader who turns on developer mode in the app is offered this
-# channel, so the manifest below has to point at the dev release, not at
-# "latest".
+# publishes them to the "beta" release, which is the channel a reader is on
+# by default. Beta carries every push as well as every tagged release: the
+# tag moves it in build-release.yml and this workflow moves it again on each
+# push, so the build in beta is always the current one rather than a build
+# several tags old. Nothing here touches "latest", which is the one name
+# that means two different things to GitHub and to the app.
 # Download:
-#   exe:      https://github.com/hot-hilux21/accessible-coding/releases/download/dev/AccessibleIDE.exe
-#   installer: https://github.com/hot-hilux21/accessible-coding/releases/download/dev/AccessibleIDE-Setup.exe
+#   exe:      https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE.exe
+#   installer: https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE-Setup.exe
 
 on:
   push:
@@ -75,9 +75,10 @@ jobs:
           # every push carries a number that is strictly newer than the one
           # before it and says which tag it was built from.
           #
-          # These builds are published to the "dev" release, which only a
-          # reader who has turned on developer mode is offered. The number
-          # is here to say which commit someone is testing.
+          # The run number goes at the end of the suffix because that is the
+          # part the updater's version comparison reads, so the build from
+          # this push sorts above the tag it was built from and below the
+          # next tag. The number also says which commit someone is testing.
           $lastTag = (git describe --tags --abbrev=0 2>$null)
           if (-not $lastTag) { $lastTag = "v0.0.0" }
           $base = $lastTag -replace '^v', ''
@@ -94,7 +95,7 @@ jobs:
             --version "${{ steps.stamp.outputs.version }}" `
             --file dist/AccessibleIDE.exe `
             --out dist/version.json `
-            --url "https://github.com/${{ github.repository }}/releases/download/dev/AccessibleIDE.exe" `
+            --url "https://github.com/${{ github.repository }}/releases/download/beta/AccessibleIDE.exe" `
             --notes "Automatic build of the main branch."
       - name: Upload exe artifact
         uses: actions/upload-artifact@v7
@@ -168,8 +169,8 @@ jobs:
           name: AccessibleIDE-Setup
           path: installer/AccessibleIDE-Setup.exe
 
-  publish-dev:
-    name: Publish to dev release
+  publish-beta:
+    name: Publish to beta release
     needs: [build-windows, build-installer]
     runs-on: ubuntu-latest
     steps:
@@ -187,34 +188,41 @@ jobs:
         with:
           name: AccessibleIDE-Setup
           path: release/
-      # Named "dev", and only a reader who has turned on developer mode is
-      # offered it. It used to be called "latest", which is where the
-      # updater looked - so every push to main quietly replaced the address
-      # readers were checking, and a development build ended up being what
-      # every update check compared against. Readers are served by the beta
-      # and stable channels in build-release.yml instead. This release is
-      # for testing a build before it is tagged.
-      # The same check the tagged release runs, for the same reason: a dev
-      # build is offered to readers testing the app, and a manifest naming an
-      # address the app refuses, or a number that goes backwards, would leave
-      # them with an update they can never install.
-      - name: Check the dev channel can move
+      # Published to "beta", the channel a reader is on by default, so the
+      # newest main-branch build is the one sitting in the release people
+      # download from. It used to go to a separate "dev" release that the
+      # app only offered through a hidden developer mode, which left the
+      # current work buried under a release nobody was pointed at.
+      #
+      # The check runs first for the same reason the tagged release runs it:
+      # beta is a channel readers are on, and a manifest naming an address
+      # the app refuses, or a number that goes backwards, would leave them
+      # with an update they can never install. A main-branch build is stamped
+      # <newest tag>.dev.<run number>, and the run number is what puts it
+      # above the tag it was built from, so the channel moves forward on
+      # every push and steps up again when the next tag is cut.
+      - name: Check the beta channel can move
         run: |
           version="$(python -c 'import json; print(json.load(open("release/version.json"))["version"])')"
           python tools/check_publish.py check \
-            --channel dev \
+            --channel beta \
             --version "$version" \
-            --url "https://github.com/${{ github.repository }}/releases/download/dev/AccessibleIDE.exe" \
+            --url "https://github.com/${{ github.repository }}/releases/download/beta/AccessibleIDE.exe" \
             --repo "${{ github.repository }}"
-      - name: Update dev release
+      - name: Update beta release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create dev \
-            --title "Development build" \
-            --notes "Auto-built from the main branch. Offered only to readers who have turned on developer mode." \
+          # Created only when it is missing: a tagged release normally has it
+          # already, and re-creating it would take the channel off the air
+          # for as long as the uploads take. The assets are replaced one by
+          # one with --clobber, so a failed upload leaves the previous build
+          # in place rather than nothing at all.
+          gh release create beta \
+            --title "Beta channel" \
+            --notes "The newest build. Every push to main and every tagged release lands here, so this is always the current work." \
             --prerelease \
             --repo "${{ github.repository }}" 2>/dev/null || true
-          gh release upload dev release/AccessibleIDE.exe release/AccessibleIDE-Setup.exe \
+          gh release upload beta release/AccessibleIDE.exe release/AccessibleIDE-Setup.exe \
             release/version.json \
             --clobber --repo "${{ github.repository }}"

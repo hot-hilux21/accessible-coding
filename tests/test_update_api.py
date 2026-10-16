@@ -257,12 +257,12 @@ class ChannelSettingTests(UpdateEndpointTestCase):
         self.assertEqual(routes.CONFIG_TYPES["update_channel"], str)
 
     def test_every_channel_is_offered(self):
-        for name in ("beta", "stable", "dev"):
+        for name in ("beta", "stable"):
             with self.subTest(channel=name):
                 self.assertIn(name, routes.CONFIG_VALUES["update_channel"])
 
     def test_a_reader_can_choose_a_channel_and_keep_that_choice(self):
-        for name in ("stable", "beta", "dev"):
+        for name in ("stable", "beta"):
             with self.subTest(channel=name):
                 self.client.post("/api/config", json={"update_channel": name})
                 self.assertEqual(

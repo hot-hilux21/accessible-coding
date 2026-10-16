@@ -67,25 +67,26 @@ MANIFEST_NAME = 'version.json'
 
 RELEASES_BASE = f'https://github.com/{OWNER}/{REPO}/releases'
 
-# Three channels, and which one a reader is on.
+# Two channels, and which one a reader is on.
 #
-# "beta" is the working channel: every tagged release lands there, so a
-# reader on it gets each new version as soon as it is published. "stable" is
-# for a big, finished change, and only moves when one is tagged. Beta is the
-# default because this project has not shipped a stable release yet, and a
-# reader who has never chosen should be on the channel that is actually
-# being worked on rather than one waiting for a first release.
+# "beta" is the working channel and the default: every tagged release lands
+# there from build-release.yml, and every push to main lands there from
+# build-exe.yml, so a reader on it gets the newest build as soon as it is
+# made rather than waiting for the next tag. "stable" is for a big, finished
+# change, and only moves when one is tagged. Beta is the default because this
+# project has not shipped a stable release yet, and a reader who has never
+# chosen should be on the channel that is actually being worked on rather
+# than one waiting for a first release.
 #
-# "dev" is every build of the main branch, published as it is made. It is
-# not offered in the settings screen: a reader reaches it by turning on
-# developer mode, so the people who see it are the ones testing the app.
-# A dev build is stamped from the newest tag plus a run number, so it always
-# sorts above the tag it was built from.
+# A main-branch build is stamped from the newest tag plus a run number, so it
+# sorts above the tag it was built from and below the next tag. That is what
+# lets beta move forward on every push without ever asking a reader to
+# install something older than what they have.
 #
 # The channel name is also the moving release tag the manifest is published
 # under, so the app needs no release-list API and no GitHub token: it reads
 # one small file at a fixed address.
-CHANNELS = ('beta', 'stable', 'dev')
+CHANNELS = ('beta', 'stable')
 DEFAULT_CHANNEL = 'beta'
 
 

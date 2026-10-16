@@ -119,10 +119,14 @@ the original, and then checks the result with `Get-AuthenticodeSignature`. A run
 that gets as far as signing and comes back with something Windows will not accept
 fails there rather than shipping it.
 
-The development build in `.github/workflows/build-exe.yml` is left unsigned on
-purpose. It is the channel nothing links to, and a signing request per push to
-`main` would be spent on builds nobody downloads. The same three steps can be
-copied into that workflow if the dev channel ever needs to be signed too.
+The main-branch build in `.github/workflows/build-exe.yml` is left unsigned.
+When signing goes live, that workflow is the one to revisit: it now publishes
+to `beta`, the channel the README links to and the default a reader is given,
+so an unsigned build landing there is a file in front of readers that Windows
+will not vouch for. The same steps belong there, and the manifest has to be
+generated after signing rather than before it, because a signature changes
+both the `sha256` and the size it records. Until then the build is skipped the
+same way the others are, by leaving the variable unset.
 
 ## Checking a download
 

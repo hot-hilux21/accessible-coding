@@ -219,7 +219,7 @@ class StandaloneImportTests(unittest.TestCase):
             f"sys.path.insert(0, {str(REPO_ROOT / 'tools')!r})\n"
             "import check_publish\n"
             "print(check_publish.updater.current_version())\n"
-            "print(check_publish.updater.manifest_url('dev'))\n"
+            "print(check_publish.updater.manifest_url('stable'))\n"
         )
         done = self.run_without_the_app_dependencies(body)
         self.assertEqual(done.returncode, 0, done.stderr)

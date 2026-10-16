@@ -375,52 +375,61 @@ class ChannelPublishingTests(unittest.TestCase):
     """
 
     RELEASE_WORKFLOW = "build-release.yml"
-    DEV_WORKFLOW = "build-exe.yml"
+    MAIN_WORKFLOW = "build-exe.yml"
 
     def workflow(self, name):
         return (REPO_ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
 
     def test_every_channel_the_app_knows_is_published_by_a_workflow(self):
-        # beta and stable move on a tagged release; dev moves on every push
-        # to main. Each channel has to be written by at least one workflow,
-        # or the updater would point at an address nothing publishes.
+        # beta is written twice: by a tagged release, and again by every push
+        # to main, so the build sitting in it is always the current one.
+        # stable moves only on a tagged release. Each channel has to be
+        # written by at least one workflow, or the updater would point at an
+        # address nothing publishes and the failure would never raise
+        # anywhere, because there is no release-list call to notice with.
         release_text = self.workflow(self.RELEASE_WORKFLOW)
-        dev_text = self.workflow(self.DEV_WORKFLOW)
+        main_text = self.workflow(self.MAIN_WORKFLOW)
         for channel in updater.CHANNELS:
             with self.subTest(channel=channel):
                 self.assertTrue(
                     f"gh release upload {channel} " in release_text or
-                    f"gh release upload {channel} " in dev_text)
+                    f"gh release upload {channel} " in main_text)
 
-    def test_only_the_dev_channel_points_at_a_release_main_branch_overwrites(self):
-        # The one that was broken before: the updater read a release named
-        # after the moving dev build, so every push to main quietly
-        # overwrote the address every reader was checking. The dev channel
-        # is that release by design, but it is opt-in: beta and stable must
-        # never point at it.
+    def test_no_channel_points_at_the_retired_dev_release(self):
+        # The "dev" release was a tag main overwrote, kept for a hidden
+        # developer mode that has since been removed along with it. It is
+        # deleted from GitHub, so a channel still naming that address would
+        # 404 for every reader who had chosen it.
         dev_release = f"{updater.RELEASES_BASE}/download/dev/{updater.MANIFEST_NAME}"
+        self.assertNotIn("dev", updater.CHANNELS)
         for channel in updater.CHANNELS:
             with self.subTest(channel=channel):
-                if channel == "dev":
-                    self.assertEqual(updater.manifest_url(channel), dev_release)
-                else:
-                    self.assertNotEqual(updater.manifest_url(channel), dev_release)
+                self.assertNotEqual(updater.manifest_url(channel), dev_release)
 
-    def test_the_development_build_goes_to_dev_and_not_to_a_reader_channel(self):
-        text = self.workflow(self.DEV_WORKFLOW)
-        self.assertIn("gh release create dev", text)
-        self.assertIn("gh release upload dev", text)
-        # A dev build must not overwrite a release a reader is checking.
-        for channel in ("beta", "stable"):
-            with self.subTest(channel=channel):
-                self.assertNotIn(f"gh release upload {channel} ", text)
+    def test_the_main_branch_build_goes_to_beta_and_nowhere_else(self):
+        # Every push to main lands in beta, the channel a reader is on by
+        # default, so the release people download from always holds the
+        # current work. It used to go to a separate "dev" release nothing
+        # pointed at by default, which is why the newest build was buried
+        # down the releases list under a heading dated weeks earlier.
+        text = self.workflow(self.MAIN_WORKFLOW)
+        self.assertIn("gh release create beta", text)
+        self.assertIn("gh release upload beta", text)
+        # The retired release must not be written again, and a push must
+        # never touch stable, which is meant to move only when a finished
+        # version is tagged.
+        for word in ("dev", "latest"):
+            with self.subTest(word=word):
+                self.assertNotIn(f"gh release create {word}", text)
+                self.assertNotIn(f"gh release upload {word}", text)
+        self.assertNotIn("gh release upload stable ", text)
 
     def test_no_workflow_publishes_a_moving_latest_release(self):
         # "latest" is the one name that means two things: GitHub's own
         # pointer at the newest non-prerelease, and a release tag that gets
         # overwritten. Using it as a tag is what made the updater compare
         # against whatever the main branch last built.
-        for name in (self.RELEASE_WORKFLOW, self.DEV_WORKFLOW):
+        for name in (self.RELEASE_WORKFLOW, self.MAIN_WORKFLOW):
             text = self.workflow(name)
             with self.subTest(workflow=name):
                 self.assertNotIn("gh release create latest", text)
@@ -457,7 +466,7 @@ class ChannelPublishingTests(unittest.TestCase):
         # A shallow clone has no tags, so git describe finds nothing and the
         # build falls back to 0.0.0.dev.N. The version is written into the
         # manifest the app compares against, so this is not cosmetic.
-        text = self.workflow(self.DEV_WORKFLOW)
+        text = self.workflow(self.MAIN_WORKFLOW)
         self.assertIn("git describe --tags --abbrev=0", text)
         self.assertIn("fetch-depth: 0", text)
 

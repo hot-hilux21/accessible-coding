@@ -3005,70 +3005,7 @@
     });
   }
 
-  // ---------- Developer mode ----------
-  // Hidden on purpose: it is for the people building the app, not for the
-  // readers. Right-clicking the Settings button (or pressing Shift+F10 on
-  // it) adds the "dev" update channel to the channel list. The choice is
-  // remembered in localStorage, so it survives a reload but stays on this
-  // machine. Turning it off removes the channel again.
-  var devMode = false;
-
-  function ensureDevOption() {
-    if (!updateChannelEl) return;
-    var devOption = updateChannelEl.querySelector('option[value="dev"]');
-    if (devMode && !devOption) {
-      var option = document.createElement('option');
-      option.value = 'dev';
-      option.textContent = t('update.channel_dev');
-      updateChannelEl.appendChild(option);
-    } else if (!devMode && devOption) {
-      // Leaving dev mode while the dev channel is chosen would strand the
-      // reader on a channel they can no longer see. Fall back to beta, the
-      // default, and save it so the server agrees.
-      if (updateChannelEl.value === 'dev') {
-        updateChannelEl.value = 'beta';
-        saveConfig({ update_channel: 'beta' });
-      }
-      devOption.remove();
-    }
-  }
-
-  function setDevMode(on) {
-    devMode = on;
-    try {
-      localStorage.setItem('accessible_ide_dev_mode', on ? '1' : '0');
-    } catch (error) {
-      // Storage can be unavailable (private mode, some embedded browsers).
-      // The mode still works for this page load.
-    }
-    ensureDevOption();
-    say(on ? t('update.dev_mode_on') : t('update.dev_mode_off'));
-  }
-
-  function toggleDevMode() {
-    setDevMode(!devMode);
-  }
-
-  if (btnSettings) {
-    btnSettings.addEventListener('contextmenu', function (event) {
-      event.preventDefault();
-      toggleDevMode();
-    });
-    btnSettings.addEventListener('keydown', function (event) {
-      if (event.key === 'F10' && event.shiftKey) {
-        event.preventDefault();
-        toggleDevMode();
-      }
-    });
-  }
-
-  try {
-    devMode = localStorage.getItem('accessible_ide_dev_mode') === '1';
-  } catch (error) {
-    devMode = false;
-  }
-  ensureDevOption();
-
+  // ---------- Updates ----------
   if (btnCheckUpdate) {
     btnCheckUpdate.addEventListener('click', function () {
       checkForUpdates(true);
