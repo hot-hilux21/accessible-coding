@@ -24,7 +24,7 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import create_app, i18n, routes  # noqa: E402
+from accessible_ide import create_app, glossary, i18n, routes  # noqa: E402
 from accessible_ide.utils.colour import parse_hex  # noqa: E402
 
 APP_JS = REPO_ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
@@ -1092,7 +1092,13 @@ class TextFieldThemeTests(RenderedPageFixture):
     reader cannot see what they typed. The rule below holds them to the
     same pair of tokens as the select beside them, which is the pair
     tests/test_contrast.py measures.
+
+    A search input is a separate element type from a text input, so the
+    dictionary's search box is named here as well. Leaving it out is exactly
+    how the first version of this fix stopped one control short.
     """
+
+    SELECTOR = '.field :where(input[type="text"], input[type="search"])'
 
     def _rule_for(self, selector):
         match = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", self.css)
@@ -1100,7 +1106,13 @@ class TextFieldThemeTests(RenderedPageFixture):
         return match.group(1)
 
     def test_a_text_field_takes_the_theme_background_and_text(self):
-        rule = self._rule_for('.field :where(input[type="text"])')
+        rule = self._rule_for(self.SELECTOR)
+        self.assertIn("background: var(--bg)", rule)
+        self.assertIn("color: var(--fg)", rule)
+
+    def test_the_search_box_is_named_beside_the_text_field(self):
+        self.assertIn('input[type="search"]', self.SELECTOR)
+        rule = self._rule_for(self.SELECTOR)
         self.assertIn("background: var(--bg)", rule)
         self.assertIn("color: var(--fg)", rule)
 
@@ -1193,6 +1205,138 @@ class StopControlTests(RenderedPageFixture):
         start = self.js.index("document.addEventListener('keydown'")
         closing = self.js.index("}, true);", start)
         self.assertIn("}, true);", self.js[closing:closing + 9])
+
+
+class GlossaryPanelTests(RenderedPageFixture):
+    """The dictionary panel, and that its entries actually reached the page.
+
+    The entries are drawn by the server, so the panel is whole before any
+    script runs and the search box can only ever hide rows that are already
+    there. These check the page carries them, which is what proves the
+    template walks the list rather than rendering a heading over nothing.
+    """
+
+    def test_the_controls_exist(self):
+        for name in ("btn-glossary", "glossary-dialog", "btn-glossary-close",
+                     "glossary-search", "glossary-status", "glossary-empty"):
+            with self.subTest(id=name):
+                self.assertIn(name, self.html_ids)
+
+    def test_every_heading_reached_the_page(self):
+        for section in glossary.SECTIONS:
+            with self.subTest(section=section["title"]):
+                self.assertIn(section["title"], self.html)
+
+    def test_every_entry_reached_the_page(self):
+        # Compared against inline_code's own output, because that is what the
+        # template emits: the backticks are gone by now and quotes inside an
+        # entry have been escaped.
+        for section in glossary.SECTIONS:
+            for command, meaning in section["rows"]:
+                with self.subTest(command=command):
+                    self.assertIn(str(glossary.inline_code(command)), self.html)
+                    self.assertIn(str(glossary.inline_code(meaning)), self.html)
+
+    def test_the_page_carries_one_row_marker_per_entry(self):
+        self.assertEqual(
+            self.html.count("data-glossary-entry"), glossary.entry_count(),
+        )
+
+    def test_the_search_box_has_a_label(self):
+        # A box identified only by a placeholder is unnamed for a screen
+        # reader, which is how most of them lose a search field.
+        self.assertRegex(self.html, r'<label for="glossary-search">\s*\S')
+
+    def test_the_search_filters_as_the_reader_types(self):
+        self.assertRegex(
+            self.js,
+            r"glossarySearch\.addEventListener\('input', filterGlossary\)",
+        )
+
+    def test_the_count_is_announced(self):
+        # Spoken, because a reader who cannot see the list shrink has no other
+        # way to tell that their typing did anything.
+        self.assertRegex(
+            self.html,
+            r'id="glossary-status"[^>]*aria-live="polite"',
+        )
+        self.assertIn("glossaryStatus.textContent", self.js)
+
+    def test_the_panel_is_displayed_only_while_open(self):
+        # A bare `display` on .glossary would beat the browser's own
+        # `dialog:not([open]) { display: none }`, which is the only thing
+        # hiding a closed dialog, and the panel would sit on the page over the
+        # editor permanently. The [hidden] guard at the top of the file does
+        # not cover it, because a closed dialog carries no hidden attribute.
+        self.assertNotRegex(self.css, r"\.glossary\s*\{[^}]*display:")
+        self.assertRegex(self.css, r"\.glossary\[open\]\s*\{[^}]*display:\s*flex")
+
+    def test_the_search_box_is_painted_by_the_theme(self):
+        # The same defect the text fields had: the browser's own field
+        # background with the theme's foreground over it, which on a dark
+        # theme is light text on a light box. A search input is not a text
+        # input, so it has to be named in the rule as well.
+        match = re.search(r"\.field :where\(([^)]*)\)\s*\{([^}]*)\}", self.css)
+        self.assertIsNotNone(match, "no themed field rule found")
+        self.assertIn('input[type="search"]', match.group(1))
+        self.assertIn("background: var(--bg)", match.group(2))
+        self.assertIn("color: var(--fg)", match.group(2))
+
+    def test_the_terms_use_the_code_font(self):
+        # Not the mono fallback the transcripts use: somebody who put a
+        # reading font on the code area did it because they read code in it,
+        # and this panel is entirely code they are reading.
+        self.assertRegex(self.css, r"\.glossary-term\s*\{[^}]*--font-code")
+
+
+class QuitConfirmTests(RenderedPageFixture):
+    """Quitting asks first, and the question is in the app's language."""
+
+    def test_the_controls_exist(self):
+        for name in ("quit-dialog", "btn-quit", "btn-quit-keep",
+                     "btn-quit-confirm"):
+            with self.subTest(id=name):
+                self.assertIn(name, self.html_ids)
+
+    def test_the_quit_button_stays_hidden_until_checked(self):
+        # It only works on the installed app, so a reader on the hosted site
+        # must not be offered it before that check has run.
+        self.assertRegex(self.html, r'<button id="btn-quit"[^>]*hidden')
+
+    def test_the_button_opens_the_dialog_rather_than_shutting_down(self):
+        # If the visible button could reach /api/shutdown directly the dialog
+        # would be decoration, and the reader would never see the question.
+        start = self.js.index("if (btnQuit &&")
+        body = self.js[start:self.js.index("if (btnQuitKeep)", start)]
+        self.assertIn("quitDialog.showModal()", body)
+        self.assertNotIn("/api/shutdown", body)
+
+    def test_confirming_is_what_shuts_the_server_down(self):
+        start = self.js.index("if (btnQuitConfirm) {")
+        body = self.js[start:self.js.index("if (quitDialog) {", start)]
+        self.assertIn("quitApp()", body)
+        # quitApp is the only thing that posts the shutdown, so the reply to
+        # the question is the one action that can end the session.
+        self.assertIn("fetch('/api/shutdown', { method: 'POST' })", self.js)
+
+    def test_confirming_twice_cannot_post_twice(self):
+        body = self.js[self.js.index("if (btnQuitConfirm) {"):]
+        self.assertIn("btnQuitConfirm.disabled = true", body)
+
+    def test_the_way_back_is_the_last_button(self):
+        # Somebody answering by keyboard reaches the safe answer first.
+        keep = self.html.index('id="btn-quit-keep"')
+        confirm = self.html.index('id="btn-quit-confirm"')
+        self.assertLess(keep, confirm)
+
+    def test_the_question_is_not_written_into_the_page(self):
+        # The words come from the catalogue like every other visible word, so
+        # a reader who chose Ukrainian is asked in Ukrainian.
+        self.assertIn("{{ t('quit.title') }}", self.template)
+        self.assertIn("{{ t('quit.body') }}", self.template)
+
+    def test_the_panel_is_displayed_only_while_open(self):
+        self.assertNotRegex(self.css, r"\.confirm\s*\{[^}]*display:")
 
 
 class StaticAssetsTests(unittest.TestCase):

@@ -115,6 +115,14 @@ const KNOWN_IDS = new Set([
   // absent feature: the lookup returns null, the script throws while it is
   // still loading, and everything defined after that point goes with it.
   'answer-form', 'answer-input', 'answer-status',
+  // The Python dictionary and the quit question. The dictionary's rows are
+  // drawn by the server, so the harness builds a small one of its own below
+  // with real rows in it: a stub whose querySelectorAll answered with nothing
+  // would let the filter run over an empty list, and every search check would
+  // report success without a row ever being hidden.
+  'glossary-dialog', 'btn-glossary', 'btn-glossary-close', 'glossary-search',
+  'glossary-status', 'glossary-empty',
+  'quit-dialog', 'btn-quit-keep', 'btn-quit-confirm',
   // The split view: the editor and the right-hand column, and the two
   // dividers between them. The dividers are separators, so the harness can
   // check the keyboard path and the drag path both work.
@@ -658,6 +666,65 @@ function resetSetup() {
 
 SETUP_DIALOG.__modalOpens = 0;
 
+// ---------------------------------------------------------------------------
+// The Python dictionary. Real rows, because hiding them is the only thing the
+// dialog does. Two sections, so the check that a section left with no visible
+// entry goes with them has something to catch - the failure that would leave a
+// heading standing over nothing.
+// ---------------------------------------------------------------------------
+
+function makeGlossaryRow(label, text) {
+  return makeElement('glossary-entry', { 'data-glossary-entry': '' }, {
+    textContent: text,
+    label,
+  });
+}
+
+function makeGlossarySection(title, rows) {
+  const section = makeElement('glossary-section', { 'data-glossary-section': '' }, {
+    textContent: title,
+    // app.js asks each section whether it still holds a visible entry. A stub
+    // that always answered "yes" would leave every heading in place, which is
+    // the state the check exists to rule out.
+    querySelector: (selector) => (
+      selector === '[data-glossary-entry]:not([hidden])'
+        ? rows.find((row) => !row.hidden) || null
+        : null
+    ),
+  });
+  section.__rows = rows;
+  return section;
+}
+
+const GLOSSARY_ROWS = [
+  makeGlossaryRow('print', 'print("hello") Puts something on the screen.'),
+  makeGlossaryRow('input', 'input("How old are you? ") Asks a question.'),
+  makeGlossaryRow('len', 'len(fruits) How many items are in a list.'),
+  makeGlossaryRow('break', 'break Leaves the loop straight away.'),
+];
+const GLOSSARY_SECTIONS = [
+  makeGlossarySection('Saying something and reading an answer',
+    GLOSSARY_ROWS.slice(0, 2)),
+  makeGlossarySection('Doing something more than once',
+    GLOSSARY_ROWS.slice(2)),
+];
+
+const GLOSSARY_DIALOG = makeElement('glossary-dialog',
+  { 'data-total': String(GLOSSARY_ROWS.length) }, {
+    querySelectorAll: (selector) => {
+      if (selector === '[data-glossary-entry]') return GLOSSARY_ROWS;
+      if (selector === '[data-glossary-section]') return GLOSSARY_SECTIONS;
+      return [];
+    },
+  });
+GLOSSARY_DIALOG.__entries = GLOSSARY_ROWS;
+GLOSSARY_DIALOG.__sections = GLOSSARY_SECTIONS;
+
+// The quit question. It only has to record that it opened: the checks are that
+// nothing is shut down until its own button is pressed, and that the request
+// that finally goes out is a POST.
+const QUIT_DIALOG = makeElement('quit-dialog');
+
 // The editor keeps its value, so a check can tell an append from an
 // overwrite. A stub that discarded what was written could not tell the
 // difference, and losing a reader's work is the failure that matters most
@@ -826,6 +893,17 @@ function makePage(locale, shared, bodyAttrs) {
         if (!found.has(id)) found.set(id, SETUP_DIALOG);
         return found.get(id);
       }
+      if (id === 'glossary-dialog') {
+        // A dialog holding real rows, for the same reason as the wizard above:
+        // the generic stub answers querySelectorAll with nothing, and a filter
+        // with no rows to hide proves nothing while reporting success.
+        if (!found.has(id)) found.set(id, GLOSSARY_DIALOG);
+        return found.get(id);
+      }
+      if (id === 'quit-dialog') {
+        if (!found.has(id)) found.set(id, QUIT_DIALOG);
+        return found.get(id);
+      }
       if (!KNOWN_IDS.has(id)) return null;
       if (!found.has(id)) {
         // Settings the template renders as a dropdown carry its real values,
@@ -847,6 +925,16 @@ function makePage(locale, shared, bodyAttrs) {
           // appears only while a program is running, so a check that never ran
           // one must not find it already showing.
           id === 'btn-stop' ? { hidden: true } : {},
+          // Also drawn hidden, and revealed by app.js only once it has
+          // confirmed this is the installed app. Starting it visible would let
+          // "the button was revealed" pass before anything had run.
+          id === 'btn-quit' ? { hidden: true } : {},
+          // Rendered hidden, and shown only when a search matches nothing.
+          id === 'glossary-empty' ? { hidden: true } : {},
+          // A search box starts empty. Every other element takes an
+          // OpenDyslexic value by default, and a filter run against that word
+          // would be filtering on something nobody typed.
+          id === 'glossary-search' ? { value: '' } : {},
           // The shell starts closed, so opening it is something a check can
           // tell has happened. Starting it open would make every later
           // check pass for the wrong reason.
@@ -1004,6 +1092,11 @@ const runReplies = [];
 // another program's name, or with none at all, would still look like a stop
 // happened, and the reader's program would carry on running.
 const stopBodies = [];
+// Every request to shut the app down, with the method used. Counting them is
+// the only way to tell "the question was asked first" from "the app went down
+// the moment the button was pressed", and the method is part of it: a shutdown
+// sent as a GET could be triggered by any link or prefetch.
+const shutdowns = [];
 
 function parseBody(options) {
   try { return JSON.parse(options && options.body) || {}; } catch (e) { return {}; }
@@ -1018,6 +1111,16 @@ const fetchMethods = [];
 function fetchStub(url, options) {
   fetchCalls.push(url);
   fetchMethods.push({ url: String(url), method: (options && options.method) || 'GET' });
+  // Quitting. Recorded rather than answered and forgotten: the checks below are
+  // that it is never reached before the reader has answered, and that it is a
+  // POST.
+  if (String(url).includes('/api/shutdown')) {
+    shutdowns.push((options && options.method) || 'GET');
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ success: true }),
+    });
+  }
   // The shell, before the catch-all /api/config branch, because the session
   // id it is handed has to be echoed back or a check cannot tell that one
   // command's output reached the next.
@@ -3925,6 +4028,160 @@ function runInteractiveChecks(done) {
   }, 10);
 }
 
+// ---------------------------------------------------------------------------
+// The Python dictionary. Every row is in the page before the script runs, so
+// the only thing to check is that the search hides rather than loses: the
+// counts are read back off the rows, which is what makes "the filter ran"
+// different from "the filter was wired up".
+// ---------------------------------------------------------------------------
+
+function runGlossaryChecks() {
+  const status = elements.get('glossary-status');
+  const empty = elements.get('glossary-empty');
+  const search = elements.get('glossary-search');
+  const visible = () => GLOSSARY_ROWS.filter((row) => !row.hidden);
+
+  const openedBefore = GLOSSARY_DIALOG.__open;
+  fire('btn-glossary', 'click');
+  if (GLOSSARY_DIALOG.__open === openedBefore) {
+    failed = true;
+    console.log('FAIL the dictionary button did not open the dictionary');
+  } else {
+    console.log('     the dictionary opens from its button');
+  }
+
+  // A word that appears in one entry and in no other.
+  search.value = 'print';
+  fire('glossary-search', 'input');
+  if (visible().length !== 1) {
+    failed = true;
+    console.log(`FAIL searching for one word left ${visible().length} entries showing`);
+  } else {
+    console.log('     searching hides the entries that do not match');
+  }
+
+  // A heading with nothing under it reads as an empty section rather than as a
+  // search that found nothing, so the section goes with its entries.
+  if (GLOSSARY_SECTIONS[1].hidden !== true) {
+    failed = true;
+    console.log('FAIL a section with no matching entry kept its heading');
+  } else if (GLOSSARY_SECTIONS[0].hidden === true) {
+    failed = true;
+    console.log('FAIL the section the match is in was hidden too');
+  } else {
+    console.log('     a section with no matching entry goes with them');
+  }
+
+  // Spoken, because a reader who cannot see the list shrink has no other way to
+  // know their typing did anything.
+  const expected = String(CATALOGUE['glossary.count'])
+    .split('{0}').join('1')
+    .split('{1}').join(String(GLOSSARY_ROWS.length));
+  if (!status || String(status.textContent) !== expected) {
+    failed = true;
+    console.log(`FAIL the number of matches was not announced: "${status && status.textContent}"`);
+  } else {
+    console.log('     the number of matches is announced');
+  }
+
+  // A search that matches nothing.
+  search.value = 'zzzz';
+  fire('glossary-search', 'input');
+  if (!empty || empty.hidden !== false) {
+    failed = true;
+    console.log('FAIL nothing said that no entry matched');
+  } else {
+    console.log('     a search that matches nothing says so');
+  }
+  if (String(status.textContent) !== CATALOGUE['glossary.empty']) {
+    failed = true;
+    console.log(`FAIL the empty result was not announced: "${status.textContent}"`);
+  }
+
+  // And clearing brings everything back, which is what proves the filter is not
+  // one way: nothing may be lost by looking for something.
+  search.value = '';
+  fire('glossary-search', 'input');
+  const sectionsBack = GLOSSARY_SECTIONS.filter((section) => !section.hidden);
+  if (visible().length !== GLOSSARY_ROWS.length ||
+      sectionsBack.length !== GLOSSARY_SECTIONS.length) {
+    failed = true;
+    console.log(`FAIL clearing the search left ${visible().length} entries and ` +
+                `${sectionsBack.length} sections showing`);
+  } else {
+    console.log('     clearing the search brings every entry back');
+  }
+  if (empty.hidden !== true) {
+    failed = true;
+    console.log('FAIL the empty message stayed after the search was cleared');
+  }
+
+  console.log('glossary: 6 checks');
+}
+
+// ---------------------------------------------------------------------------
+// Quitting. The order is the whole point: the question is asked, and the app
+// stays up until the answer is the one that leaves.
+// ---------------------------------------------------------------------------
+
+function runQuitChecks() {
+  const before = shutdowns.length;
+  const quitButton = elements.get('btn-quit');
+
+  // It is only for the installed app, so app.js has to have finished checking
+  // before it can be showing.
+  if (!quitButton || quitButton.hidden) {
+    failed = true;
+    console.log('FAIL the quit button was never revealed on the installed app');
+  } else {
+    console.log('     the quit button is offered on the installed app');
+  }
+
+  fire('btn-quit', 'click');
+  if (QUIT_DIALOG.__open !== true) {
+    failed = true;
+    console.log('FAIL quitting did not ask first');
+  } else {
+    console.log('     quitting asks before it does anything');
+  }
+  if (shutdowns.length !== before) {
+    failed = true;
+    console.log('FAIL the shutdown was sent before the reader answered');
+  } else {
+    console.log('     nothing is shut down until the reader answers');
+  }
+
+  // The way back.
+  fire('btn-quit-keep', 'click');
+  if (QUIT_DIALOG.__open !== false) {
+    failed = true;
+    console.log('FAIL saying no did not close the question');
+  } else {
+    console.log('     saying no leaves the app running');
+  }
+  if (shutdowns.length !== before) {
+    failed = true;
+    console.log('FAIL saying no still shut the app down');
+  }
+
+  // And the way out.
+  fire('btn-quit', 'click');
+  fire('btn-quit-confirm', 'click');
+  if (shutdowns.length !== before + 1) {
+    failed = true;
+    console.log(`FAIL confirming did not shut the app down: ` +
+                `${shutdowns.length - before} requests`);
+  } else {
+    console.log('     confirming shuts the app down, and only then');
+  }
+  if (shutdowns[shutdowns.length - 1] !== 'POST') {
+    failed = true;
+    console.log(`FAIL the shutdown went out as ${shutdowns[shutdowns.length - 1]}`);
+  }
+
+  console.log('quit: 6 checks');
+}
+
 setTimeout(() => {
   runPanelChecks();
   runStepperChecks();
@@ -3943,6 +4200,9 @@ setTimeout(() => {
   // Also synchronous, and deliberately after the stepper checks: those move
   // the reading settings, and this proves a following pane kept up with them.
   runPaneToolbarChecks();
+  // Both synchronous, like the layout checks above: neither waits on a reply.
+  runGlossaryChecks();
+  runQuitChecks();
   // Last, because it asserts on the final exit and the checks above are
   // still in flight when it starts.
   setTimeout(runShellChecks, 200);

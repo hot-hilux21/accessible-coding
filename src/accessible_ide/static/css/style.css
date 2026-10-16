@@ -1379,8 +1379,12 @@ body[data-contrast="high"][data-theme="pastel"] {
    they typed. They now take the same two tokens as the select above them,
    the pair the theme table is measured against, so they clear AA by the
    same check. The :where() adds no weight of its own, which leaves
-   .hex-input free to keep the monospace face the colour fields want. */
-.field :where(input[type="text"]) {
+   .hex-input free to keep the monospace face the colour fields want.
+
+   The search box in the dictionary is in this list for the same reason. It
+   is the same defect, and a search box whose text cannot be seen is a
+   dictionary that cannot be searched. */
+.field :where(input[type="text"], input[type="search"]) {
   font-family: inherit;
   font-size: 1em;
   min-height: 44px;
@@ -1391,11 +1395,11 @@ body[data-contrast="high"][data-theme="pastel"] {
   border-radius: var(--radius-sm);
 }
 
-.field :where(input[type="text"]):hover {
+.field :where(input[type="text"], input[type="search"]):hover {
   border-color: var(--accent);
 }
 
-.field :where(input[type="text"]):focus-visible {
+.field :where(input[type="text"], input[type="search"]):focus-visible {
   border-color: var(--accent);
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
@@ -2206,6 +2210,178 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 .setup-tour-text {
   margin: 0;
   line-height: 1.6;
+}
+
+/* ---------- The Python dictionary ---------- */
+
+/* Same construction as the settings dialog, because it is the same kind of
+   thing: a panel somebody opens, reads and closes.
+
+   Nothing here sets a font family or a size. The entries inherit the reading
+   font, size and line spacing, and that inheritance is the reason the
+   dictionary is in the app and not only in the README: a README is laid out
+   by the browser or the code host, so a reader who needs OpenDyslexic, or a
+   larger size, or more room between lines cannot have any of them there. */
+
+.glossary {
+  width: min(680px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100vh - 2 * var(--space-4));
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+
+/* display is set only while the panel is open. A bare `display` on the class
+   would beat the browser's own `dialog:not([open]) { display: none }`, which
+   is the only thing hiding a closed dialog, and the dictionary would sit on
+   the page permanently. The [hidden] guard at the top of this file covers the
+   attribute; a closed dialog has no attribute to cover. */
+.glossary[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.glossary::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* Header, intro and search box stay put; only the entries scroll. A search
+   box that scrolls away from the list it filters is worse than none. */
+.glossary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+}
+
+.glossary-intro {
+  margin: 0;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.glossary-english {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) 0;
+  color: var(--muted);
+}
+
+.glossary-searchbar {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.glossary-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.glossary-heading {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: 1.05em;
+  font-weight: 700;
+}
+
+/* The first heading would otherwise carry the margin the scroll area's own
+   padding already provides, and the panel would open on a gap. */
+.glossary-section:first-child .glossary-heading {
+  margin-top: var(--space-4);
+}
+
+.glossary-aside {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+}
+
+/* A description list, because that is what an entry is: a term and what it
+   means. Rows are separated by a line, not boxed. Forty cards in a column is
+   the clutter this app exists to avoid, and a border round each one would
+   also compete with the code inside it. */
+.glossary-list {
+  margin: 0;
+}
+
+.glossary-entry {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.glossary-entry:last-child {
+  border-bottom: 0;
+}
+
+/* The term is code, so it takes the reader's code font rather than the mono
+   fallback the transcripts use. Somebody who put OpenDyslexic on the code
+   area did it because they read code in it, and this panel is entirely code
+   they are reading. Styled as code, not merely coloured as code: the entry
+   has to look like something you could type. */
+.glossary-term {
+  font-family: var(--font-code);
+  font-weight: 700;
+}
+
+.glossary-term code {
+  font-family: inherit;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 1px var(--space-2);
+}
+
+.glossary-meaning code {
+  font-family: var(--font-code);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
+
+.glossary-meaning {
+  margin: var(--space-1) 0 0;
+}
+
+.glossary-empty {
+  margin: var(--space-4) 0 0;
+  color: var(--muted);
+}
+
+/* ---------- Quitting ---------- */
+
+/* One question, one way back, one way out. No display is set, for the reason
+   given above the dictionary. */
+
+.confirm {
+  width: min(440px, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-5);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow-3);
+}
+
+.confirm::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.confirm-body {
+  margin: var(--space-3) 0 0;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
 }
 
 /* ---------- The bar along the bottom ---------- */

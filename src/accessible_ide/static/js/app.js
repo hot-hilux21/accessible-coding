@@ -112,6 +112,15 @@
   var btnSettingsClose = document.getElementById('btn-settings-close');
   var settingsStatus = document.getElementById('settings-status');
   var btnQuit = document.getElementById('btn-quit');
+  var quitDialog = document.getElementById('quit-dialog');
+  var btnQuitKeep = document.getElementById('btn-quit-keep');
+  var btnQuitConfirm = document.getElementById('btn-quit-confirm');
+  var glossaryDialog = document.getElementById('glossary-dialog');
+  var btnGlossary = document.getElementById('btn-glossary');
+  var btnGlossaryClose = document.getElementById('btn-glossary-close');
+  var glossarySearch = document.getElementById('glossary-search');
+  var glossaryStatus = document.getElementById('glossary-status');
+  var glossaryEmpty = document.getElementById('glossary-empty');
   var fontBundledNote = document.getElementById('font-bundled-note');
   var fontUpload = document.getElementById('font-upload');
   var btnRemoveFont = document.getElementById('btn-remove-font');
@@ -870,6 +879,85 @@
     // users are not dropped at the top of the page.
     if (settingsOpener && typeof settingsOpener.focus === 'function') {
       settingsOpener.focus();
+    }
+  }
+
+  // ---------- The Python dictionary ----------
+  // Every entry is already in the page, put there by the server, so the only
+  // thing below does is hide rows. That is deliberate: the panel is whole
+  // before any script runs, and nothing here can lose an entry.
+  var glossaryOpener = null;
+  var glossaryRowCache = null;
+
+  function collectGlossaryRows() {
+    // Read once and keep. The list cannot change while the page is up.
+    if (glossaryRowCache) return glossaryRowCache;
+    glossaryRowCache = [];
+    if (!glossaryDialog) return glossaryRowCache;
+    var entries = glossaryDialog.querySelectorAll('[data-glossary-entry]');
+    for (var i = 0; i < entries.length; i++) {
+      glossaryRowCache.push({
+        entry: entries[i],
+        // textContent rather than a copy of the entry text: it is what the
+        // reader can actually see, with the backticks already turned into
+        // code elements by the server.
+        text: (entries[i].textContent || '').toLowerCase()
+      });
+    }
+    return glossaryRowCache;
+  }
+
+  function filterGlossary() {
+    if (!glossaryDialog) return;
+    var needle = (glossarySearch ? glossarySearch.value : '').trim().toLowerCase();
+    var rows = collectGlossaryRows();
+    var shown = 0;
+    var i;
+    for (i = 0; i < rows.length; i++) {
+      var keep = !needle || rows[i].text.indexOf(needle) !== -1;
+      rows[i].entry.hidden = !keep;
+      if (keep) shown++;
+    }
+    // A heading left over nothing reads as an empty section rather than as a
+    // search that found nothing, so a section with no visible entry goes with
+    // its entries.
+    var sections = glossaryDialog.querySelectorAll('[data-glossary-section]');
+    for (i = 0; i < sections.length; i++) {
+      sections[i].hidden = !sections[i].querySelector('[data-glossary-entry]:not([hidden])');
+    }
+    if (glossaryEmpty) glossaryEmpty.hidden = shown !== 0;
+    // Spoken as well as drawn, because for a reader who cannot see the list
+    // the count is the only feedback that the typing did anything.
+    if (glossaryStatus) {
+      var total = parseInt(glossaryDialog.getAttribute('data-total'), 10) || rows.length;
+      glossaryStatus.textContent = shown === 0
+        ? t('glossary.empty')
+        : t('glossary.count', shown, total);
+    }
+  }
+
+  function openGlossary() {
+    if (!glossaryDialog) return;
+    glossaryOpener = document.activeElement;
+    if (typeof glossaryDialog.showModal === 'function') {
+      glossaryDialog.showModal();
+    } else {
+      glossaryDialog.setAttribute('open', '');
+    }
+    // Land on the search box. Somebody who opens a dictionary is looking
+    // something up, and typing at it is the shortest way there.
+    if (glossarySearch) glossarySearch.focus();
+  }
+
+  function closeGlossary() {
+    if (!glossaryDialog) return;
+    if (typeof glossaryDialog.close === 'function') {
+      glossaryDialog.close();
+    } else {
+      glossaryDialog.removeAttribute('open');
+    }
+    if (glossaryOpener && typeof glossaryOpener.focus === 'function') {
+      glossaryOpener.focus();
     }
   }
 
@@ -3268,6 +3356,31 @@
     });
   }
 
+  // ---------- The Python dictionary ----------
+  if (btnGlossary) {
+    btnGlossary.addEventListener('click', openGlossary);
+  }
+
+  if (btnGlossaryClose) {
+    btnGlossaryClose.addEventListener('click', function (event) {
+      event.preventDefault();
+      closeGlossary();
+    });
+  }
+
+  if (glossaryDialog) {
+    glossaryDialog.addEventListener('cancel', function (event) {
+      // Escape was pressed. Let the dialog close itself, then put focus back
+      // on the button that opened it, as the settings dialog does.
+      event.preventDefault();
+      closeGlossary();
+    });
+  }
+
+  if (glossarySearch) {
+    glossarySearch.addEventListener('input', filterGlossary);
+  }
+
   // ---------- Resizable panes ----------
   // The workspace is a split view: the editor on the left, the output on
   // the right, and the shell below the output when it is open. The dividers
@@ -3573,16 +3686,55 @@
   // ---------- Quit (desktop app only) ----------
   // The Quit button only appears when running on the local desktop app,
   // where it stops the background server cleanly.
+  function quitApp() {
+    fetch('/api/shutdown', { method: 'POST' })
+      .then(function () {
+        window.close();
+      })
+      .catch(function () {
+        window.close();
+      });
+  }
+
   if (btnQuit && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')) {
     btnQuit.hidden = false;
     btnQuit.addEventListener('click', function () {
-      fetch('/api/shutdown', { method: 'POST' })
-        .then(function () {
-          window.close();
-        })
-        .catch(function () {
-          window.close();
-        });
+      // Asked in the app's own language, which is the whole reason this is a
+      // dialog and not window.confirm. The buttons on window.confirm are
+      // drawn by the browser in whatever language the operating system is
+      // set to, so a reader who chose Ukrainian here would be asked in
+      // something else, at the moment they are deciding whether to leave.
+      if (quitDialog && typeof quitDialog.showModal === 'function') {
+        quitDialog.showModal();
+        // The way back takes focus first. Leaving is the last button, and it
+        // has to be meant.
+        if (btnQuitKeep) btnQuitKeep.focus();
+        return;
+      }
+      if (window.confirm(t('quit.body'))) quitApp();
+    });
+  }
+
+  if (btnQuitKeep) {
+    btnQuitKeep.addEventListener('click', function (event) {
+      event.preventDefault();
+      if (quitDialog) quitDialog.close();
+    });
+  }
+
+  if (btnQuitConfirm) {
+    btnQuitConfirm.addEventListener('click', function () {
+      // One press is one shutdown. Without this, a second press while the
+      // request is still in flight would post the same thing again.
+      btnQuitConfirm.disabled = true;
+      quitApp();
+    });
+  }
+
+  if (quitDialog) {
+    quitDialog.addEventListener('close', function () {
+      // The panel can be opened again, so the button has to be live for it.
+      if (btnQuitConfirm) btnQuitConfirm.disabled = false;
     });
   }
 

@@ -142,7 +142,7 @@ A glossary of the Python you will meet in this app. Each entry says what a comma
 | Command | What it does |
 | --- | --- |
 | `print("hello")` | Puts something on the screen. |
-| `input("How old are you? ")` | Asks a question and hands back the answer as text. Reading typing while a program runs is not supported yet, so this stops as soon as it asks. |
+| `input("How old are you? ")` | Asks a question and hands back the answer as text. The program pauses here, a box appears for the answer, and it carries on when you send it. |
 | `type(3.5)` | Tells you what kind of value something is. |
 
 ### Turning one kind of value into another

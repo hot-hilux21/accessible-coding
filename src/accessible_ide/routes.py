@@ -13,6 +13,7 @@ import signal
 import threading
 from pathlib import Path
 
+from . import glossary
 from . import i18n
 from . import packages
 from . import trace_runner
@@ -1110,6 +1111,14 @@ def index():
                          setup_open=not config.get('setup_complete', False),
                          setup_step=step,
                          setup_total=SETUP_TOTAL_STEPS,
+                         # The Python dictionary, drawn inside the app rather
+                         # than only living in the README. Passed as data so
+                         # the dialog renders without script, and the entry
+                         # text goes through inline_code because the entries
+                         # mark the code parts with backticks.
+                         glossary=glossary.SECTIONS,
+                         glossary_entries=glossary.entry_count(),
+                         inline_code=glossary.inline_code,
                          t=i18n.make_translator(locale))
 
 

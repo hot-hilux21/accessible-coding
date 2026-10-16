@@ -157,6 +157,17 @@
 
       <input type="file" id="file-input" accept=".py,.txt" class="visually-hidden">
 
+      {# The dictionary sits beside Settings rather than with the run tools,
+         because it is a reference and not a control. A reader who meets an
+         unfamiliar word halfway through a line should not have to leave the
+         window, or the font they chose, to look it up. #}
+      <div class="tool-group">
+        <button id="btn-glossary" class="btn btn-toggle" type="button" aria-haspopup="dialog"
+                title="{{ t('glossary.button_title') }}">
+          <span aria-hidden="true">&#128214;</span> {{ t('glossary.button') }}
+        </button>
+      </div>
+
       <div class="tool-group">
         <button id="btn-settings" class="btn btn-toggle" aria-haspopup="dialog"
                 title="{{ t('nav.settings_title') }}">
@@ -885,6 +896,83 @@
       </div>
 
       <p id="settings-status" class="settings-status" role="status" aria-live="polite"></p>
+    </div>
+  </dialog>
+
+  <!-- The Python dictionary. Modal, unlike the trace table: looking a word up
+       is a detour away from the code, not something done while reading it,
+       so the page behind can go inert and the browser's focus handling is
+       wanted rather than fought.
+
+       Every entry is rendered by the server, so the dictionary is complete
+       before any script runs and the search box only ever hides rows that
+       are already there. The entries are in English in every language for
+       now, and the panel says so on screen: a reader who cannot tell a
+       careful translation from a plausible wrong one is worse off than one
+       who is told which language they are reading. -->
+  <dialog id="glossary-dialog" class="glossary" aria-labelledby="glossary-title"
+          data-total="{{ glossary_entries }}">
+    <header class="glossary-header">
+      <h2 id="glossary-title" class="settings-title">{{ t('glossary.title') }}</h2>
+      <button id="btn-glossary-close" class="btn btn-small" type="button"
+              aria-label="{{ t('settings.close_label') }}">{{ t('settings.close') }}</button>
+    </header>
+
+    <p class="glossary-intro">{{ t('glossary.intro') }}</p>
+    <p class="glossary-english">{{ t('glossary.english_note') }}</p>
+
+    <div class="glossary-searchbar">
+      <div class="field">
+        <label for="glossary-search">{{ t('glossary.search_label') }}</label>
+        <input id="glossary-search" type="search" spellcheck="false"
+               autocomplete="off" aria-describedby="glossary-status">
+      </div>
+    </div>
+
+    <!-- How many entries the search left, spoken. A reader who cannot see the
+         list shrink needs to be told, and the same sentence answers "did my
+         typing do anything" for everyone else. -->
+    <p id="glossary-status" class="visually-hidden" role="status" aria-live="polite"></p>
+
+    <div class="glossary-scroll" id="glossary-scroll">
+      {% for section in glossary %}
+      <section class="glossary-section" data-glossary-section>
+        <h3 class="glossary-heading">{{ section.title }}</h3>
+        {% if section.note %}
+        <p class="glossary-aside">{{ inline_code(section.note) }}</p>
+        {% endif %}
+        <dl class="glossary-list">
+          {% for command, meaning in section.rows %}
+          <div class="glossary-entry" data-glossary-entry>
+            <dt class="glossary-term">{{ inline_code(command) }}</dt>
+            <dd class="glossary-meaning">{{ inline_code(meaning) }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+        {% if section.after %}
+        <p class="glossary-aside">{{ inline_code(section.after) }}</p>
+        {% endif %}
+      </section>
+      {% endfor %}
+      <p class="glossary-empty" id="glossary-empty" hidden>{{ t('glossary.empty') }}</p>
+    </div>
+  </dialog>
+
+  <!-- Quitting. A native dialog rather than window.confirm, because the
+       buttons on window.confirm are drawn by the browser in the operating
+       system's language. A reader who chose Ukrainian in this app would be
+       handed a prompt in whatever Windows is set to, at the one moment they
+       are deciding whether to leave. This panel is in the app's language,
+       like every other word in it.
+
+       The way out is the last button, so somebody answering by keyboard
+       reaches the safe answer first. -->
+  <dialog id="quit-dialog" class="confirm" aria-labelledby="quit-title">
+    <h2 id="quit-title" class="settings-title">{{ t('quit.title') }}</h2>
+    <p class="confirm-body">{{ t('quit.body') }}</p>
+    <div class="confirm-actions">
+      <button id="btn-quit-keep" class="btn" type="button">{{ t('quit.keep') }}</button>
+      <button id="btn-quit-confirm" class="btn btn-primary" type="button">{{ t('nav.quit') }}</button>
     </div>
   </dialog>
 
