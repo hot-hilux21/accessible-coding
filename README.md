@@ -200,12 +200,28 @@ A glossary of the Python you will meet in this app. Each entry says what a comma
 | `fruits.append("plum")` | Adds an item to the end of a list. |
 | `fruits[0]` | The first item of a list. Counting starts at `0`. |
 
-### Comments and mistakes
+### Comments
 
 | Command | What it does |
 | --- | --- |
 | `# later` | A comment. Python ignores the rest of the line. |
-| `NameError` `SyntaxError` `TypeError` | The three errors you will see most often. |
+
+### Mistakes everyone makes
+
+Most errors are not Python being difficult. They are a bracket left open, a command spelled slightly wrong, or a number needed where text turned up.
+
+| What you typed | What is wrong |
+| --- | --- |
+| `prnit("hi")` | `prnit` is not a command. Python only knows the word it was given, so check the spelling of the part it did not understand. |
+| `print("hi"` | A bracket or a quote mark was opened and never closed. |
+| `((1 + 2)` | The same mistake with a doubled bracket. Brackets have to pair up, so count them. |
+| `if x = 5:` | `=` saves a value. `==` compares two values, and that is what belongs here. |
+| `if x == 5` | Every `if`, `elif`, `else`, `for` and `while` line ends with a colon. |
+| `print(hello)` | Text needs quote marks: `print("hello")`. Without them Python looks for a variable called `hello`. |
+| `name = input()` then `name + 1` | `input()` always hands back text. Use `int(name) + 1` when you want a sum. |
+| A tab at the start of one line, spaces at the start of the next | Python reads the indentation as part of the structure, so the two have to match. |
+
+The three you will meet most are `SyntaxError` (something is misspelled or unbalanced), `NameError` (a name Python does not know) and `TypeError` (text where a number was needed).
 
 Anything that goes wrong is rewritten in plain English in the message under the editor, so you do not have to read the raw Python error to work out what happened.
 
