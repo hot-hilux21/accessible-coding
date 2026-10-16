@@ -90,6 +90,9 @@ const KNOWN_IDS = new Set([
   'btn-install-update',
   'font-bundled-note', 'sample-text', 'font-preview', 'font-preview-text',
   'font-upload', 'btn-remove-font', 'font-upload-status',
+  // The same font choice offered on the first-run screen. app.js looks both
+  // up on the way in, so an id missing here would be reported as unknown.
+  'setup-font-upload', 'setup-font-upload-status',
   'preview-status', 'btn-reset-config',
   'btn-export-config', 'btn-import-config', 'config-file-input', 'backup-status',
   'highlight-color-hex', 'highlight-color-picker', 'highlight-error',

@@ -895,6 +895,38 @@ class SetupWizardTests(RenderedPageFixture):
             with self.subTest(legend=legend):
                 self.assertIn(f"t('{legend}')", self.template)
 
+    def test_the_font_step_offers_a_reader_their_own_file(self):
+        # Offered last, after the faces the app ships with, and the formats
+        # the picker accepts are written out and are the ones the server will
+        # really take: a file dialog that greys out every file the reader has
+        # is the worst way to find out what was wanted.
+        panel = re.search(
+            r'<section id="setup-panel-font".*?</section>', self.html, re.S
+        )
+        self.assertIsNotNone(panel, "no font step in the setup screen")
+        assert panel is not None
+        body = panel.group(0)
+        self.assertRegex(body, r'<input type="file" id="setup-font-upload"')
+        # The picker's own accept list, not just the sentence under it: the
+        # dialog is what greys the reader's files out, so it is the list that
+        # has to match what the server will really take.
+        accept = re.search(r'accept="([^"]+)"', body)
+        self.assertIsNotNone(accept, "the picker does not say what it accepts")
+        assert accept is not None
+        for extension in routes.USER_FONT_EXTENSIONS:
+            with self.subTest(extension=extension):
+                self.assertIn(extension, accept.group(1))
+        # Said in words as well, because the words are what a reader reads
+        # before opening the dialog.
+        self.assertIn("reading.upload_font_help", self.template)
+        # The picker comes after the bundled choices, so the app's own fonts
+        # are the first thing read on this step.
+        self.assertGreater(
+            body.index("setup-font-upload"),
+            body.index('name="setup-font"'),
+            "the reader's own font should be offered after the bundled ones",
+        )
+
     def test_every_font_is_shown_in_its_own_font_before_it_is_chosen(self):
         # This is the whole point of the step. A list of names, all set in
         # the same typeface, asks the reader to trust a label.

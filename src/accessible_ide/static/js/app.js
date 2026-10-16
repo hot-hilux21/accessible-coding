@@ -115,6 +115,10 @@
   var fontUpload = document.getElementById('font-upload');
   var btnRemoveFont = document.getElementById('btn-remove-font');
   var fontUploadStatus = document.getElementById('font-upload-status');
+  // The same choice offered on the first-run screen, for a reader who has not
+  // settled on one of the bundled fonts yet.
+  var setupFontUpload = document.getElementById('setup-font-upload');
+  var setupFontUploadStatus = document.getElementById('setup-font-upload-status');
   var sampleText = document.getElementById('sample-text');
   var fontPreview = document.getElementById('font-preview');
   var fontPreviewText = document.getElementById('font-preview-text');
@@ -992,22 +996,72 @@
       });
     });
 
+    // Choosing a font applies it to the whole page, wizard included, rather
+    // than to a snippet in isolation: the point is to see the font against
+    // the real interface before agreeing to it. Saved straight away, so a
+    // reader who chooses a font and then skips does not lose the choice.
+    // Shared with a font the reader adds, so the two cannot come to mean
+    // different things.
+    function chooseSetupFont(key, family) {
+      applyFont(key, family);
+      body.setAttribute('data-font', key);
+      saveConfig({ font: key }).then(function (result) {
+        if (!result || !result.ok) setupError();
+      });
+    }
+
+    // A font the reader adds joins the list as one more choice, and is
+    // ticked, so the group still holds exactly one answer rather than
+    // showing none while a font is plainly in use.
+    function addSetupFontRadio(key, font) {
+      var choices = setupDialog.querySelector('#setup-panel-font .setup-choices');
+      if (!choices) return null;
+      var family = (font && font.family) || '';
+      var label = document.createElement('label');
+      label.className = 'setup-choice setup-choice-font';
+      label.innerHTML =
+        '<input type="radio" name="setup-font">' +
+        '<span class="setup-choice-text">' +
+        '<span class="setup-choice-name"></span>' +
+        '<code class="setup-sample"></code>' +
+        '</span>';
+      var radio = label.querySelector('input');
+      var name = label.querySelector('.setup-choice-name');
+      var sample = label.querySelector('.setup-sample');
+      if (radio) {
+        radio.value = key;
+        radio.setAttribute('data-family', family);
+      }
+      if (name) name.textContent = (font && font.name) || key;
+      if (sample) {
+        // Written in the font it is demonstrating, like the ones the server
+        // rendered, so it can be judged the same way rather than taken on
+        // trust.
+        sample.textContent = t('setup.font_sample');
+        sample.style.fontFamily = family;
+      }
+      choices.appendChild(label);
+      if (radio) radio.checked = true;
+      return radio;
+    }
+
     var fontRadios = setupDialog.querySelectorAll('input[name="setup-font"]');
     Array.prototype.forEach.call(fontRadios, function (radio) {
       radio.addEventListener('change', function () {
-        var family = radio.getAttribute('data-family');
-        // Applied to the whole page, wizard included, rather than to a
-        // snippet in isolation: the point is to see the font against the
-        // real interface before agreeing to it.
-        applyFont(radio.value, family);
-        body.setAttribute('data-font', radio.value);
-        // Saved straight away, so a reader who chooses a font and then
-        // skips does not lose the choice.
-        saveConfig({ font: radio.value }).then(function (result) {
-          if (!result || !result.ok) setupError();
-        });
+        chooseSetupFont(radio.value, radio.getAttribute('data-family'));
       });
     });
+
+    if (setupFontUpload) {
+      setupFontUpload.addEventListener('change', function () {
+        uploadFontFile(setupFontUpload, setupFontUploadStatus, function (data) {
+          addSetupFontRadio(data.key, data.font);
+          chooseSetupFont(data.key, data.font && data.font.family);
+          showStatus(
+            setupFontUploadStatus, t('font.upload_success', data.key), false);
+        });
+      });
+    }
 
     var themeRadios = setupDialog.querySelectorAll('input[name="setup-theme"]');
     Array.prototype.forEach.call(themeRadios, function (radio) {
@@ -2300,10 +2354,48 @@
   // A font the reader adds joins the list as a normal option, so the same
   // change handler applies it. The file is posted as a form, not as JSON,
   // because it is a file.
+  function showStatus(element, message, isError) {
+    if (!element) return;
+    element.textContent = message;
+    element.classList.toggle('is-error', !!isError);
+  }
+
   function showFontStatus(message, isError) {
-    if (!fontUploadStatus) return;
-    fontUploadStatus.textContent = message;
-    fontUploadStatus.classList.toggle('is-error', !!isError);
+    showStatus(fontUploadStatus, message, isError);
+  }
+
+  // Both places a font can be added post the file the same way: the Settings
+  // picker and the first-run screen. One function, so an upload cannot work
+  // in one place and quietly fail in the other, and so the checks the server
+  // makes are described in one voice.
+  function uploadFontFile(inputEl, statusEl, onSuccess) {
+    var file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    var form = new FormData();
+    form.append('font', file);
+    form.append('access_code', accessCode);
+    form.append('locale', META.locale);
+    fetch('/api/fonts/upload', { method: 'POST', body: form })
+      .then(function (res) {
+        return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+      })
+      .then(function (result) {
+        // Reset the input either way, so choosing the same file a second
+        // time still counts as a change.
+        inputEl.value = '';
+        if (!result.ok) {
+          showStatus(
+            statusEl,
+            (result.data && result.data.error) || t('font.upload_failed'),
+            true);
+          return;
+        }
+        onSuccess(result.data);
+      })
+      .catch(function () {
+        inputEl.value = '';
+        showStatus(statusEl, t('font.upload_failed'), true);
+      });
   }
 
   // The remove button is only offered while one of the reader's own fonts
@@ -2341,33 +2433,11 @@
 
   if (fontUpload) {
     fontUpload.addEventListener('change', function () {
-      var file = fontUpload.files && fontUpload.files[0];
-      if (!file) return;
-      var form = new FormData();
-      form.append('font', file);
-      form.append('access_code', accessCode);
-      form.append('locale', META.locale);
-      fetch('/api/fonts/upload', { method: 'POST', body: form })
-        .then(function (res) {
-          return res.json().then(function (data) { return { ok: res.ok, data: data }; });
-        })
-        .then(function (result) {
-          // Reset the input either way, so choosing the same file a second
-          // time still counts as a change.
-          fontUpload.value = '';
-          if (!result.ok) {
-            showFontStatus(
-              (result.data && result.data.error) || t('font.upload_failed'), true);
-            return;
-          }
-          addFontOption(result.data.key, result.data.font);
-          chooseFont(result.data.key);
-          showFontStatus(t('font.upload_success', result.data.key), false);
-        })
-        .catch(function () {
-          fontUpload.value = '';
-          showFontStatus(t('font.upload_failed'), true);
-        });
+      uploadFontFile(fontUpload, fontUploadStatus, function (data) {
+        addFontOption(data.key, data.font);
+        chooseFont(data.key);
+        showFontStatus(t('font.upload_success', data.key), false);
+      });
     });
   }
 

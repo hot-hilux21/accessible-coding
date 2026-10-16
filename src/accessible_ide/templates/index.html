@@ -951,6 +951,23 @@
               </label>
               {% endfor %}
             </div>
+
+            <!-- The reader's own font, offered last. A file from their own
+                 computer is a deliberate extra rather than a place to start,
+                 so the app's own faces stay the first thing read. The file
+                 formats the picker accepts are written out under it, because
+                 a file dialog that silently greys out every file the reader
+                 has is the worst way to learn what was wanted. -->
+            <div class="field setup-font-custom">
+              <label for="setup-font-upload">{{ t('reading.upload_font') }}</label>
+              <div class="field-row">
+                <input type="file" id="setup-font-upload"
+                       accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
+                       aria-describedby="setup-font-upload-help setup-font-upload-status">
+              </div>
+              <p class="field-help" id="setup-font-upload-help">{{ t('reading.upload_font_help') }}</p>
+              <p class="field-help" id="setup-font-upload-status" role="status" aria-live="polite"></p>
+            </div>
           </fieldset>
         </section>
 
