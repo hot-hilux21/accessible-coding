@@ -1803,3 +1803,108 @@ class PaneTextToolbarTests(RenderedPageFixture):
             0.85,
             "the label is drawn at the reading size rather than smaller",
         )
+
+
+class SetupWizardLayoutTests(unittest.TestCase):
+    """The wizard stacks its three parts; it does not borrow the settings grid.
+
+    The first-run dialog reuses .settings-form. df51e3d turned that class into a
+    two-column grid so the settings list could sit down the left, and pinned
+    .settings-body to the second column. The wizard has no list, so its three
+    children were laid into those two columns: the question was pushed into the
+    narrow right-hand column and the footer was auto-placed beside it on the
+    left. The reader's question sat off to one side with Back and Next next to
+    it instead of under it. Nothing in the headless harness measures grid
+    placement, so the rule is pinned here instead.
+    """
+
+    def setUp(self):
+        # Comments come out first, so a property named in a comment cannot
+        # answer for the property itself.
+        self.css = re.sub(
+            r"/\*.*?\*/", "", STYLESHEET.read_text(encoding="utf-8"), flags=re.S
+        )
+
+    def rule(self, selector):
+        match = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", self.css)
+        self.assertIsNotNone(match, f"{selector} has no rule of its own")
+        assert match is not None  # narrow the type for checkers
+        return match.group(1)
+
+    @staticmethod
+    def _tracks(value):
+        """A track list split on the spaces between tracks.
+
+        minmax(0, 1fr) is one track and holds a space of its own, so splitting
+        on every space would count the wizard's single column as two.
+        """
+        tracks, depth, current = [], 0, ""
+        for char in value:
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+            if char.isspace() and depth == 0:
+                if current:
+                    tracks.append(current)
+                    current = ""
+                continue
+            current += char
+        if current:
+            tracks.append(current)
+        return tracks
+
+    def test_the_wizard_form_lays_out_in_one_column(self):
+        # A second column is what put the question beside the buttons, and the
+        # wizard has no section list for that column to belong to.
+        body = self.rule(".setup .settings-form")
+        columns = re.search(r"grid-template-columns:\s*([^;]+)", body)
+        self.assertIsNotNone(
+            columns,
+            "the wizard's form sets no grid-template-columns of its own, so it "
+            "keeps the settings dialog's two columns",
+        )
+        assert columns is not None
+        tracks = self._tracks(columns.group(1))
+        self.assertEqual(
+            len(tracks),
+            1,
+            "the wizard lays its header, question and footer out in "
+            f"{len(tracks)} columns; the second one belongs to the settings "
+            "list this dialog does not have",
+        )
+
+    def test_the_wizard_footer_stays_at_the_foot(self):
+        # The middle row takes the free height, so the question is the part
+        # that grows and the footer keeps to the bottom edge.
+        body = " ".join(self.rule(".setup .settings-form").split())
+        self.assertIn(
+            "grid-template-rows: auto minmax(0, 1fr) auto",
+            body,
+            "the wizard's rows no longer give the question the free height, so "
+            "the footer floats up under it instead of staying at the foot",
+        )
+
+    def test_the_wizard_question_is_not_pinned_to_the_second_column(self):
+        # Inherited from .settings-body, and the reason the content was narrow
+        # and to the right whatever the grid around it said.
+        body = " ".join(self.rule(".setup .settings-body").split())
+        self.assertIn(
+            "grid-column: 1",
+            body,
+            "the wizard's step content inherits grid-column: 2 from the "
+            "settings dialog, which is what pushed it to the right",
+        )
+
+    def test_the_settings_dialog_keeps_the_grid_its_list_needs(self):
+        # The override above is only safe while the dialog it is scoped away
+        # from still has the two columns its list was given.
+        self.assertIn(
+            "auto minmax(0, 1fr)",
+            self.rule(".settings-form"),
+            "the settings list has lost the column it was given",
+        )
+        base = re.search(r"(?<!\.setup )\.settings-body\s*\{([^}]*)\}", self.css)
+        self.assertIsNotNone(base, "the base .settings-body rule is gone")
+        assert base is not None
+        self.assertIn("grid-column: 2", base.group(1))

@@ -1946,6 +1946,20 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   width: min(680px, calc(100vw - 2 * var(--space-4)));
 }
 
+/* The wizard has no section list, so it does not inherit the dialog's
+   two-column grid. Borrowing it put the step content in the narrow right-hand
+   column and left the footer beside it, so the question sat off to one side
+   with the buttons next to it instead of under it. One column, in the order
+   they are read; the step keeps the height so the footer stays at the foot. */
+.setup .settings-form {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.setup .settings-body {
+  grid-column: 1;
+}
+
 /* The title is long in some languages, so the progress line drops
    under it rather than squeezing it into an unreadable column. */
 .setup-header {
