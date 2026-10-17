@@ -93,6 +93,11 @@ CONFIG_LABELS = {
     "theme_custom_number": "theme.custom_number",
     "theme_custom_function": "theme.custom_function",
     "theme_gradient": "theme.gradient",
+    # Named after the labels these two already carry in Settings, so the
+    # rejection reads as the setting the reader changed rather than as a key
+    # name nobody has ever seen on the page.
+    "run_key": "keys.run",
+    "stop_key": "keys.stop",
     "tts_enabled": "speak.toggle",
     "tts_engine": "speak.voice",
     "tts_voice": "speak.voice",

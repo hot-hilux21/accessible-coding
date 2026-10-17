@@ -107,6 +107,18 @@
   var updateInstallRow = document.getElementById('update-install-row');
   var btnInstallUpdate = document.getElementById('btn-install-update');
   var updateChannelEl = document.getElementById('update-channel');
+  // What runs the program, what stops one, the record button beside each
+  // list, and the line under each that says what happened. Read from the
+  // lists rather than kept in parallel beside them, so a setting on screen
+  // and the press that fires cannot drift apart.
+  var runKeyEl = document.getElementById('run-key');
+  var stopKeyEl = document.getElementById('stop-key');
+  var btnRecordRun = document.getElementById('btn-record-run');
+  var btnRecordStop = document.getElementById('btn-record-stop');
+  var recordRunText = document.getElementById('record-run-text');
+  var recordStopText = document.getElementById('record-stop-text');
+  var keyRunStatus = document.getElementById('keys-run-status');
+  var keyStopStatus = document.getElementById('keys-stop-status');
   var settingsDialog = document.getElementById('settings-dialog');
   var btnSettings = document.getElementById('btn-settings');
   var btnSettingsClose = document.getElementById('btn-settings-close');
@@ -2160,25 +2172,283 @@
   btnRun.addEventListener('click', runCode);
   if (btnStop) btnStop.addEventListener('click', stopRun);
 
-  // Escape twice in quick succession stops the running program. A single
-  // Escape is left alone so the dialogs still close with it, and this listens
-  // on the document rather than the editor because the keyboard shortcuts are
-  // the editor's own: they fire only while it holds focus, and a reader who
-  // has clicked the output is not in the editor at all.
+  // ---------- Key presses: what runs the program, and what stops it ----------
+
+  // Both presses come from the two lists in Settings rather than being
+  // written into this file, so what the reader chose on screen is what fires.
+  // They are handled here, on the document, and not in the editor's own key
+  // map: one place to look, one press that can never be handled twice, and a
+  // stop that reaches the program from wherever focus happens to be.
   var lastEscape = 0;
   var DOUBLE_ESCAPE_MS = 700;
-  document.addEventListener('keydown', function (event) {
-    if (event.key !== 'Escape') return;
-    var now = Date.now();
-    if (now - lastEscape > DOUBLE_ESCAPE_MS) {
-      lastEscape = now;
+
+  function currentRunKey() {
+    return runKeyEl ? runKeyEl.value : 'Ctrl+Enter';
+  }
+
+  function currentStopKey() {
+    return stopKeyEl ? stopKeyEl.value : 'Escape Escape';
+  }
+
+  // Escape pressed twice is the one stop that is not a single combination,
+  // and it is the default. Spelled with a space so it reads the same in the
+  // list, in the config file and on screen.
+  function keyParts(combo) {
+    if (combo === 'Escape Escape') return { base: 'Escape', mods: [] };
+    var pieces = String(combo == null ? '' : combo).split('+');
+    return {
+      base: pieces[pieces.length - 1],
+      mods: pieces.slice(0, pieces.length - 1)
+    };
+  }
+
+  function pressMatches(combo, event) {
+    var wanted = keyParts(combo);
+    // Running is always Enter and stopping is always Escape. Any other key
+    // is one this app does not use, and never matches.
+    if (wanted.base !== 'Enter' && wanted.base !== 'Escape') return false;
+    if (event.key !== wanted.base) return false;
+    // Ctrl and Cmd are the same key here. The list says Ctrl because that
+    // is the key on the Windows build, and the same press is Cmd when the
+    // app is opened in a browser.
+    var ctrl = event.ctrlKey === true || event.metaKey === true;
+    if (ctrl !== (wanted.mods.indexOf('Ctrl') !== -1)) return false;
+    if ((event.altKey === true) !== (wanted.mods.indexOf('Alt') !== -1)) return false;
+    if ((event.shiftKey === true) !== (wanted.mods.indexOf('Shift') !== -1)) return false;
+    return true;
+  }
+
+  function editorHasFocus() {
+    // The editor's own answer where it offers one. It keeps a field of its
+    // own over the code, which is easy to mistake for anything else, so
+    // reading whichever element happens to have focus would be a guess.
+    if (editor && typeof editor.hasFocus === 'function') return !!editor.hasFocus();
+    var active = document.activeElement;
+    return !!(active && editorEl && editorEl.contains && editorEl.contains(active));
+  }
+
+  // What the reader just pressed, written the way the lists write it. A key
+  // this app does not bind comes back as null, and is refused below rather
+  // than stored and left doing nothing.
+  function spellPress(event) {
+    var mods = [];
+    if (event.ctrlKey === true || event.metaKey === true) mods.push('Ctrl');
+    if (event.altKey === true) mods.push('Alt');
+    if (event.shiftKey === true) mods.push('Shift');
+    if (event.key !== 'Enter' && event.key !== 'Escape') return null;
+    mods.push(event.key);
+    return mods.join('+');
+  }
+
+  // The same rule the server checks, written out rather than asked for, so a
+  // press it would refuse is not offered to the reader in the first place.
+  function pressIsSupported(which, combo) {
+    if (!combo) return false;
+    if (combo === 'Escape Escape') return which === 'stop';
+    var pieces = combo.split('+');
+    // No modifier at all is refused: Enter has to keep meaning a new line,
+    // and Escape has to keep meaning the key that closes a box.
+    if (pieces.length < 2) return false;
+    return pieces[pieces.length - 1] === (which === 'run' ? 'Enter' : 'Escape');
+  }
+
+  var RECORD_ROWS = {
+    run: {
+      select: runKeyEl, text: recordRunText, status: keyRunStatus,
+      button: btnRecordRun, config: 'run_key'
+    },
+    stop: {
+      select: stopKeyEl, text: recordStopText, status: keyStopStatus,
+      button: btnRecordStop, config: 'stop_key'
+    }
+  };
+
+  var recording = null;
+
+  // The record button, for a reader who would rather press the keys than read
+  // for them. Its own words become what the button says while it is waiting,
+  // and they are what a screen reader reads too.
+  function startRecording(which) {
+    if (recording) stopRecording();
+    var row = RECORD_ROWS[which];
+    if (!row || !row.select) return;
+    recording = which;
+    if (row.button) {
+      row.button.classList.add('is-recording');
+      row.button.setAttribute('aria-label', t('keys.recording'));
+    }
+    if (row.text) row.text.textContent = t('keys.recording');
+    if (row.status) row.status.textContent = t('keys.recording');
+  }
+
+  // Ended by the press itself, by clicking the same button again, or by the
+  // dialog that offered it closing. Whichever of the three it was, the row
+  // goes back to how it looked before the reader started.
+  function stopRecording() {
+    var which = recording;
+    recording = null;
+    if (!which) return null;
+    var row = RECORD_ROWS[which];
+    if (row.button) {
+      row.button.classList.remove('is-recording');
+      row.button.removeAttribute('aria-label');
+    }
+    if (row.text) row.text.textContent = t('keys.record');
+    return row;
+  }
+
+  function optionFor(select, value) {
+    var options = select.options || [];
+    for (var i = 0; i < options.length; i++) {
+      if (options[i].value === value) return options[i];
+    }
+    return null;
+  }
+
+  function applyPress(which, combo) {
+    var row = RECORD_ROWS[which];
+    var select = row.select;
+    // A recorded press is not one of the offered ones, so it is added to the
+    // list rather than left out of it. The list has to show what is in use,
+    // or the setting looks like it never took.
+    if (!optionFor(select, combo)) {
+      var option = document.createElement('option');
+      option.value = combo;
+      option.textContent = combo;
+      select.appendChild(option);
+    }
+    select.value = combo;
+    if (row.status) row.status.textContent = t('settings.saved');
+    var payload = {};
+    payload[row.config] = combo;
+    saveConfig(payload);
+  }
+
+  function handleRecordKey(event) {
+    var which = recording;
+    var row = RECORD_ROWS[which];
+    var modHeld = event.ctrlKey === true || event.metaKey === true
+      || event.altKey === true || event.shiftKey === true;
+    // A modifier on its own is half a press. The reader has not finished, so
+    // it is neither recorded nor a way out of the recording.
+    if (event.key === 'Control' || event.key === 'Alt' || event.key === 'Shift'
+        || event.key === 'Meta') {
+      event.preventDefault();
       return;
     }
-    lastEscape = 0;
-    if (stopRun()) {
+    // Escape with nothing held down means never mind. It is not offered as a
+    // press to record for the same reason it is not offered bare in the list:
+    // it is already the key that closes a box. Stopping it here is also what
+    // keeps the dialog open while the reader changes their mind.
+    if (event.key === 'Escape' && !modHeld) {
+      stopRecording();
+      if (row && row.status) row.status.textContent = '';
       event.preventDefault();
+      return;
+    }
+    // Everything else is taken as the press being recorded, and kept from
+    // reaching anything else on the way.
+    event.preventDefault();
+    event.stopPropagation();
+    var combo = spellPress(event);
+    stopRecording();
+    if (!pressIsSupported(which, combo)) {
+      if (row && row.status) row.status.textContent = t('keys.rejected');
+      return;
+    }
+    applyPress(which, combo);
+  }
+
+  // Escape twice in quick succession stops the running program. A single
+  // Escape is left alone so the dialogs still close with it, and this listens
+  // on the document rather than the editor because focus may be anywhere: a
+  // reader who has clicked the output to read it is not in the editor at all.
+  // Running is read in the same listener, and fires only while the editor has
+  // focus, which is where it has always fired.
+  document.addEventListener('keydown', function (event) {
+    // A recording takes the next press for itself, and nothing else fires: a
+    // press that also ran the program while the reader was binding it would
+    // be a surprising thing to have happen.
+    if (recording) {
+      handleRecordKey(event);
+      return;
+    }
+
+    if (event.key === 'Escape' && currentStopKey() === 'Escape Escape') {
+      var now = Date.now();
+      if (now - lastEscape > DOUBLE_ESCAPE_MS) {
+        lastEscape = now;
+        return;
+      }
+      lastEscape = 0;
+      if (stopRun()) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (pressMatches(currentStopKey(), event)) {
+      if (stopRun()) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (pressMatches(currentRunKey(), event) && editorHasFocus()) {
+      // Stopped here as well as handled here: the editor's own handler would
+      // put a new line under the cursor for the one press that means "run
+      // what is already there".
+      event.preventDefault();
+      event.stopPropagation();
+      runCode();
     }
   }, true);
+
+  // A recording belongs to the dialog that offered it. Closing the dialog
+  // ends it, or the next press anywhere would be read as the one the reader
+  // meant to bind with while they were doing something else entirely.
+  if (settingsDialog) settingsDialog.addEventListener('close', stopRecording);
+
+  // Choosing from the list and recording a press write the same setting, so
+  // neither can show the other one's choice as something different.
+  if (runKeyEl) {
+    runKeyEl.addEventListener('change', function () {
+      if (keyRunStatus) keyRunStatus.textContent = '';
+      saveConfig({ run_key: runKeyEl.value });
+    });
+  }
+
+  if (stopKeyEl) {
+    stopKeyEl.addEventListener('change', function () {
+      if (keyStopStatus) keyStopStatus.textContent = '';
+      saveConfig({ stop_key: stopKeyEl.value });
+    });
+  }
+
+  // Clicking the same button again is the way out that needs no keyboard, for
+  // a reader who has started a recording and decided against it with the
+  // pointer rather than Escape.
+  if (btnRecordRun) {
+    btnRecordRun.addEventListener('click', function () {
+      if (recording === 'run') {
+        stopRecording();
+        if (keyRunStatus) keyRunStatus.textContent = '';
+      } else {
+        startRecording('run');
+      }
+    });
+  }
+
+  if (btnRecordStop) {
+    btnRecordStop.addEventListener('click', function () {
+      if (recording === 'stop') {
+        stopRecording();
+        if (keyStopStatus) keyStopStatus.textContent = '';
+      } else {
+        startRecording('stop');
+      }
+    });
+  }
 
   btnClear.addEventListener('click', function () {
     outputEl.textContent = '';
@@ -3677,11 +3947,10 @@
     });
   }
 
-  // Keyboard shortcut: Ctrl+Enter to run
-  editor.setOption('extraKeys', {
-    'Ctrl-Enter': runCode,
-    'Cmd-Enter': runCode
-  });
+  // The shortcut for running used to be registered here, in the editor's own
+  // key map. It is the document listener in the event wiring section now,
+  // because the press is a setting the reader can change and because a press
+  // that is handled in two places is a press that can run the program twice.
 
   // ---------- Quit (desktop app only) ----------
   // The Quit button only appears when running on the local desktop app,

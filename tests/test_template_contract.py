@@ -91,6 +91,15 @@ REQUIRED_SETTINGS_IDS = (
     "btn-import-config",
     "config-file-input",
     "backup-status",
+    # Keypress settings.
+    "run-key",
+    "stop-key",
+    "btn-record-run",
+    "btn-record-stop",
+    "record-run-text",
+    "record-stop-text",
+    "keys-run-status",
+    "keys-stop-status",
 )
 
 

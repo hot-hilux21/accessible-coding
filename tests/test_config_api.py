@@ -1025,5 +1025,144 @@ class ConfigBackupTests(ConfigApiTestCase):
         self.assertEqual(stored["contrast"], "high")
 
 
+class KeypressSettingsTests(ConfigApiTestCase):
+    """The two key presses the reader can change, and the rule that guards them.
+
+    Running is always Enter with a modifier and stopping is always Escape, so
+    the two can never mean each other. On their own both keys keep the meaning
+    they already had, which is why no bare press is ever accepted from the
+    API: a config file that bound one would take away the newline and the
+    Escape key that closes dialogs, and the reader would have no way to undo
+    that from the keyboard.
+    """
+
+    def test_the_shipped_presses_are_the_ones_the_app_has_always_had(self):
+        stored = self.get_settings()
+        self.assertEqual(stored["run_key"], "Ctrl+Enter")
+        self.assertEqual(stored["stop_key"], "Escape Escape")
+
+    def test_a_chosen_press_is_stored_and_read_back(self):
+        self.assertEqual(self.post_settings(run_key="Shift+Enter").status_code, 200)
+        self.assertEqual(self.post_settings(stop_key="Ctrl+Alt+Escape").status_code, 200)
+        stored = self.get_settings()
+        self.assertEqual(stored["run_key"], "Shift+Enter")
+        self.assertEqual(stored["stop_key"], "Ctrl+Alt+Escape")
+
+    def test_every_press_the_app_offers_is_one_the_server_accepts(self):
+        # The list in Settings and the rule on the server are written in two
+        # places. A press on the list that the server refused would be offered
+        # to the reader and then rejected the moment they chose it, which is
+        # the worst kind of broken: it looks like it worked.
+        for combo in routes.RUN_KEYS:
+            with self.subTest(combo=combo):
+                self.assertTrue(
+                    routes._valid_key_combo("run_key", combo),
+                    f"Settings offers {combo!r} for running but the server refuses it",
+                )
+        for combo in routes.STOP_KEYS:
+            with self.subTest(combo=combo):
+                self.assertTrue(
+                    routes._valid_key_combo("stop_key", combo),
+                    f"Settings offers {combo!r} for stopping but the server refuses it",
+                )
+
+    def test_a_press_for_running_is_always_enter_and_a_press_for_stopping_escape(self):
+        for combo in routes.RUN_KEYS:
+            if combo == routes.ESCAPE_TWICE:
+                continue
+            with self.subTest(combo=combo):
+                self.assertTrue(combo.endswith("Enter"))
+        for combo in routes.STOP_KEYS:
+            if combo == routes.ESCAPE_TWICE:
+                continue
+            with self.subTest(combo=combo):
+                self.assertTrue(combo.endswith("Escape"))
+
+    def test_bare_enter_and_bare_escape_are_both_refused(self):
+        # Enter on its own starts a new line and Escape on its own closes a
+        # dialog. Binding either would take that away with no way back.
+        for value in ("Enter", "Escape"):
+            with self.subTest(value=value):
+                self.assertFalse(routes._valid_key_combo("run_key", value))
+                self.assertFalse(routes._valid_key_combo("stop_key", value))
+                self.assertEqual(self.post_settings(run_key=value).status_code, 400)
+                self.assertEqual(self.post_settings(stop_key=value).status_code, 400)
+
+    def test_a_press_meant_for_one_setting_is_refused_by_the_other(self):
+        self.assertFalse(routes._valid_key_combo("run_key", "Ctrl+Escape"))
+        self.assertFalse(routes._valid_key_combo("stop_key", "Ctrl+Enter"))
+        # Escape twice is the one stop that is not a single combination. It is
+        # not a way to run anything.
+        self.assertFalse(routes._valid_key_combo("run_key", routes.ESCAPE_TWICE))
+
+    def test_each_modifier_is_written_once_and_in_one_order(self):
+        # Two spellings of the same press would be two settings that look
+        # identical on screen and fail to match each other on the way in.
+        for value in ("Ctrl+Ctrl+Enter", "Ctrl+Alt+Ctrl+Enter", "Alt+Ctrl+Enter"):
+            with self.subTest(value=value):
+                self.assertFalse(
+                    routes._valid_key_combo("run_key", value),
+                    f"{value!r} is a second spelling of a press that already has one",
+                )
+
+    def test_a_press_this_app_has_no_use_for_is_refused(self):
+        for value in ("Ctrl+K", "Ctrl+A", "Ctrl+Tab", "F5", "Ctrl+Shift+P"):
+            with self.subTest(value=value):
+                self.assertFalse(routes._valid_key_combo("run_key", value))
+                self.assertFalse(routes._valid_key_combo("stop_key", value))
+
+    def test_a_press_that_is_not_a_string_is_refused(self):
+        for value in (None, 4, True, ["Ctrl+Enter"]):
+            with self.subTest(value=value):
+                self.assertFalse(routes._valid_key_combo("run_key", value))
+
+    def test_a_refused_press_leaves_the_one_that_was_working_in_place(self):
+        self.post_settings(run_key="Shift+Enter")
+        response = self.post_settings(run_key="Enter")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.get_settings()["run_key"], "Shift+Enter")
+
+    def test_the_refusal_names_the_setting_the_reader_changed(self):
+        response = self.post_settings(run_key="Enter")
+        self.assertEqual(response.status_code, 400)
+        error = response.get_json()["error"]
+        # Named by the label the reader saw, not the config key they never
+        # saw, and not a dump of the regular expression.
+        self.assertIn("Run the code", error)
+        self.assertNotIn("run_key", error)
+        self.assertNotIn("Traceback", error)
+
+    def test_the_settings_panel_offers_both_lists(self):
+        page = self.client.get("/").get_data(as_text=True)
+        self.assertIn('id="run-key"', page)
+        self.assertIn('id="stop-key"', page)
+        for combo in routes.RUN_KEYS:
+            with self.subTest(combo=combo):
+                self.assertIn(f'value="{combo}"', page)
+        for combo in routes.STOP_KEYS:
+            with self.subTest(combo=combo):
+                self.assertIn(f'value="{combo}"', page)
+
+    def test_the_panel_shows_the_press_that_is_in_use(self):
+        # A press recorded by hand is not one of the offered ones, and a list
+        # that did not show it would look like the setting never took.
+        recorded = "Alt+Shift+Enter"
+        self.assertTrue(routes._valid_key_combo("run_key", recorded))
+        self.post_settings(run_key=recorded)
+        page = self.client.get("/").get_data(as_text=True)
+        block = page.split('id="run-key"', 1)[1].split("</select>", 1)[0]
+        self.assertIn('value="%s" selected' % recorded, block)
+
+    def test_both_groups_are_named_in_every_language(self):
+        for language in i18n.LANGUAGES:
+            with self.subTest(language=language):
+                catalogue = i18n.load_catalogue(language)
+                for key in ("group.keys", "keys.hint", "keys.run", "keys.stop",
+                            "keys.record", "keys.recording", "keys.rejected",
+                            "config.error_key_combo"):
+                    self.assertIn(key, catalogue)
+                    self.assertTrue(catalogue[key].strip())
+
+
 if __name__ == "__main__":
     unittest.main()

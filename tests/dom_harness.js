@@ -115,6 +115,12 @@ const KNOWN_IDS = new Set([
   // absent feature: the lookup returns null, the script throws while it is
   // still loading, and everything defined after that point goes with it.
   'answer-form', 'answer-input', 'answer-status',
+  // The two keypress settings and their record buttons. The selects carry
+  // explicit values below rather than the font-name default a stub hands
+  // out, because every press check is written against the real defaults:
+  // Ctrl+Enter runs, Escape twice stops.
+  'run-key', 'stop-key', 'btn-record-run', 'btn-record-stop',
+  'record-run-text', 'record-stop-text', 'keys-run-status', 'keys-stop-status',
   // The Python dictionary and the quit question. The dictionary's rows are
   // drawn by the server, so the harness builds a small one of its own below
   // with real rows in it: a stub whose querySelectorAll answered with nothing
@@ -730,6 +736,10 @@ const QUIT_DIALOG = makeElement('quit-dialog');
 // difference, and losing a reader's work is the failure that matters most
 // here.
 let editorValue = 'print("hi")';
+// The reader is not in the code at the moment the page loads. A run press
+// has to find them there, so starting them elsewhere is what makes that
+// check mean something.
+let editorFocused = false;
 const editorInstance = {
   getValue: () => editorValue,
   setValue: (value) => { editorValue = value; },
@@ -743,7 +753,15 @@ const editorInstance = {
   operation: (fn) => fn(),
   getDoc: () => ({ getLine: () => '', getSelection: () => '' }),
   replaceSelection: noop,
+  // Whether the editor holds focus, so the run press can be checked to fire
+  // only while the reader is in the code and not while they are elsewhere on
+  // the page. Set through setEditorFocused() below.
+  hasFocus: () => editorFocused,
 };
+
+// Lets a check put the reader in the code, or take them out of it, without
+// having to reach into the stub itself.
+function setEditorFocused(focused) { editorFocused = !!focused; }
 
 function CodeMirror() { return editorInstance; }
 // The theme app.js applies is written into a <style> element in the head
@@ -925,6 +943,12 @@ function makePage(locale, shared, bodyAttrs) {
           // appears only while a program is running, so a check that never ran
           // one must not find it already showing.
           id === 'btn-stop' ? { hidden: true } : {},
+          // The two keypress lists, carrying the defaults the template puts
+          // in them. The general stub rule hands every element a font name,
+          // and the press checks are written against the real defaults: one
+          // press of Ctrl+Enter runs, two presses of Escape stop.
+          id === 'run-key' ? { value: 'Ctrl+Enter' } : {},
+          id === 'stop-key' ? { value: 'Escape Escape' } : {},
           // Also drawn hidden, and revealed by app.js only once it has
           // confirmed this is the installed app. Starting it visible would let
           // "the button was revealed" pass before anything had run.
@@ -1409,6 +1433,16 @@ if (sandbox.AccessibleTint) {
 // proves the top half of the file parsed; the wiring is in these handlers.
 // ---------------------------------------------------------------------------
 const fakeEvent = { preventDefault: noop, stopPropagation: noop };
+
+// A keypress, written the way the reader makes one. The handler looks at
+// event.key and the modifier flags, so a stub that answered only for one
+// named key could not stand in for a press the reader can change.
+function press(key, flags = {}) {
+  return Object.assign({}, fakeEvent, {
+    key,
+    ctrlKey: false, altKey: false, shiftKey: false, metaKey: false,
+  }, flags);
+}
 
 // A browser sets currentTarget to the element whose handler is running.
 // A handler that reads it - to find which filter was pressed, say - would
@@ -3848,6 +3882,24 @@ function runShellChecks() {
 // request would look exactly like success from the outside.
 // ---------------------------------------------------------------------------
 function runInteractiveChecks(done) {
+
+  // A press the reader makes, written the way the handler reads it. The
+  // listener is registered against the document, so a press has to be fired
+  // there to reach it.
+  function press(key, mods) {
+    var event = { key: key, preventDefault: function () { this.defaultPrevented = true; }, stopPropagation: function () {} };
+    event.ctrlKey = false; event.altKey = false; event.shiftKey = false; event.metaKey = false;
+    if (mods) { for (var k in mods) event[k] = mods[k]; }
+    return event;
+  }
+  function pressDoc(event) {
+    var handlers = documentStub.__listeners.keydown || [];
+    for (var i = 0; i < handlers.length; i++) handlers[i](event);
+    return event;
+  }
+  function setEditorFocused(on) { editorFocused = !!on; }
+  function clearPresses() { runBodies.length = 0; stopBodies.length = 0; }
+
   const form = elements.get('answer-form');
   const answerField = elements.get('answer-input');
   const answerNote = elements.get('answer-status');
@@ -4020,7 +4072,253 @@ function runInteractiveChecks(done) {
             console.log('     Escape twice stops the program');
           }
 
-          console.log('run: 18 checks');
+          console.log('     Escape twice stops the program');
+
+          // -------------------------------------------------------------
+          // What the reader chose in Settings is what fires
+          //
+          // Both presses are settings now, not lines written into the
+          // script, so what is in the two lists is what the next press has
+          // to obey: choosing from a list, recording a press, and the press
+          // itself all have to agree, and a press the reader is not in the
+          // code for must not run anything at all.
+          // -------------------------------------------------------------
+          stopBodies.length = 0;
+          runBodies.length = 0;
+          runReplies.length = 0;
+          runReplies.push({
+            success: true, output: 'ran\n', error: '', error_line: null,
+            awaiting_answer: false, trace: null,
+          });
+          editorInstance.setValue('print("hi")');
+
+          // The reader is somewhere else on the page. Enter with Ctrl held
+          // down is still the press that runs the code, but not while they
+          // are not in the code: it would run something they cannot see.
+          setEditorFocused(false);
+          fireDocument('keydown', press('Enter', { ctrlKey: true }));
+          if (runBodies.length !== 0) {
+            failed = true;
+            console.log(`FAIL the run press fired while the reader was not in the code: ${runBodies.length} requests`);
+          } else {
+            console.log('     the run press leaves the reader alone while they are not in the code');
+          }
+
+          // Now they are in the code, and the same press runs it.
+          setEditorFocused(true);
+          fireDocument('keydown', press('Enter', { ctrlKey: true }));
+          if (runBodies.length !== 1) {
+            failed = true;
+            console.log(`FAIL the run press did not run the code while the reader was in it: ${runBodies.length} requests`);
+          } else {
+            console.log('     the run press runs the code while the reader is in it');
+          }
+
+          // Ctrl with a different key is not the press that runs anything.
+          fireDocument('keydown', press('a', { ctrlKey: true }));
+          if (runBodies.length !== 1) {
+            failed = true;
+            console.log('FAIL a key that is not the run press ran the code');
+          } else {
+            console.log('     a Ctrl press on any other key is left alone');
+          }
+
+          // The reader is still in the code. Enter with nothing held down
+          // still starts a new line, and must not run what is there.
+          fireDocument('keydown', press('Enter'));
+          if (runBodies.length !== 1) {
+            failed = true;
+            console.log('FAIL Enter on its own ran the code instead of starting a new line');
+          } else {
+            console.log('     Enter on its own still starts a new line and does not run the code');
+          }
+
+          // Ctrl+Shift+Enter is a listed choice, and is not the press that
+          // is in use. A listed choice that does nothing when pressed would
+          // leave the reader choosing from a list of things that do not work.
+          const runSelect = elements.get('run-key');
+          runSelect.value = 'Ctrl+Shift+Enter';
+          fireElement(runSelect, 'change');
+          runBodies.length = 0;
+          fireDocument('keydown', press('Enter', { ctrlKey: true, shiftKey: true }));
+          if (runBodies.length !== 1) {
+            failed = true;
+            console.log(`FAIL the run press chosen from the list did not run the code: ${runBodies.length} requests`);
+          } else {
+            console.log('     a run press chosen from the list is the one that fires');
+          }
+
+          // ...and the one that is no longer chosen has stopped working.
+          fireDocument('keydown', press('Enter', { ctrlKey: true }));
+          if (runBodies.length !== 1) {
+            failed = true;
+            console.log('FAIL the old run press still ran the code after a new one was chosen');
+          } else {
+            console.log('     the run press that was replaced has stopped working');
+          }
+          runSelect.value = 'Ctrl+Enter';
+          fireElement(runSelect, 'change');
+
+          // -------------------------------------------------------------
+          // Recording a press
+          //
+          // For a reader who would rather press the keys than read a list.
+          // The button takes the next press, that press becomes the setting,
+          // and the list has to end up showing it.
+          // -------------------------------------------------------------
+          const recordRunButton = elements.get('btn-record-run');
+          const recordRunText = elements.get('record-run-text');
+          const runStatus = elements.get('keys-run-status');
+
+          fireElement(recordRunButton, 'click');
+          if (!recordRunButton.classList.contains('is-recording')) {
+            failed = true;
+            console.log('FAIL the record button did not show it was waiting for a press');
+          } else {
+            console.log('     the record button shows it is waiting for a press');
+          }
+          if (String(recordRunText.textContent) !== CATALOGUE['keys.recording']) {
+            failed = true;
+            console.log(`FAIL the record button did not say it was waiting: "${recordRunText.textContent}"`);
+          } else {
+            console.log('     the record button says what it is waiting for');
+          }
+
+          // A modifier on its own is half a press. The reader has not
+          // finished, so it is neither recorded nor a way out.
+          runBodies.length = 0;
+          fireDocument('keydown', press('Shift', {}));
+          if (!recordRunButton.classList.contains('is-recording')) {
+            failed = true;
+            console.log('FAIL a modifier on its own ended the recording');
+          } else if (runBodies.length !== 0) {
+            failed = true;
+            console.log('FAIL a modifier on its own was stored as the run press');
+          } else {
+            console.log('     a modifier on its own is not taken as the press');
+          }
+
+          // Ctrl+Alt+Enter is a press this app can use. It is recorded, it
+          // becomes the setting, and the list shows it even though it was
+          // not offered there to begin with.
+          fireDocument('keydown', press('Enter', { ctrlKey: true, altKey: true }));
+          const recordedSave = configPosts[configPosts.length - 1] || {};
+          if (recordedSave.run_key !== 'Ctrl+Alt+Enter') {
+            failed = true;
+            console.log(`FAIL the recorded press was not saved: ${JSON.stringify(recordedSave)}`);
+          } else {
+            console.log('     a recorded press becomes the setting');
+          }
+          if (runSelect.value !== 'Ctrl+Alt+Enter') {
+            failed = true;
+            console.log(`FAIL the recorded press was not put in the list: "${runSelect.value}"`);
+          } else if (!runSelect.options.some((o) => o.value === 'Ctrl+Alt+Enter')) {
+            failed = true;
+            console.log('FAIL the recorded press was not added to the list it is shown in');
+          } else {
+            console.log('     the recorded press is in the list the reader picks from');
+          }
+          if (recordRunButton.classList.contains('is-recording')) {
+            failed = true;
+            console.log('FAIL the record button kept waiting after the press was recorded');
+          } else {
+            console.log('     the recording ends with the press that was recorded');
+          }
+          if (String(runStatus.textContent) !== CATALOGUE['settings.saved']) {
+            failed = true;
+            console.log(`FAIL the reader was not told the new press was saved: "${runStatus.textContent}"`);
+          } else {
+            console.log('     the reader is told the new press was saved');
+          }
+
+          // The press that was just recorded is the one that fires now, and
+          // recording it must not have run the code by itself.
+          runBodies.length = 0;
+          fireDocument('keydown', press('Enter', { ctrlKey: true, altKey: true }));
+          if (runBodies.length !== 1) {
+            failed = true;
+            console.log(`FAIL the recorded press did not run the code: ${runBodies.length} requests`);
+          } else {
+            console.log('     the press that was just recorded is the one that runs the code');
+          }
+
+          // -------------------------------------------------------------
+          // A press this app cannot use
+          //
+          // Recorded the same way, and refused rather than stored and left
+          // doing nothing. What the reader had stays as it was.
+          // -------------------------------------------------------------
+          fireElement(recordRunButton, 'click');
+          const keyBefore = runSelect.value;
+          fireDocument('keydown', press('a', {}));
+          if (String(runStatus.textContent) !== CATALOGUE['keys.rejected']) {
+            failed = true;
+            console.log(`FAIL a press this app cannot use was not refused: "${runStatus.textContent}"`);
+          } else {
+            console.log('     a press this app cannot use is refused in words');
+          }
+          if (runSelect.value !== keyBefore) {
+            failed = true;
+            console.log(`FAIL a refused press replaced the one that was working: "${runSelect.value}"`);
+          } else {
+            console.log('     a refused press leaves the one that was working in place');
+          }
+          if (recordRunButton.classList.contains('is-recording')) {
+            failed = true;
+            console.log('FAIL the record button kept waiting after a press was refused');
+          } else {
+            console.log('     a refused press still ends the recording');
+          }
+
+          // -------------------------------------------------------------
+          // Escape, both while recording and while a program runs
+          //
+          // Escape with nothing held down cancels a recording and keeps the
+          // dialog open, and a listed stop press stops the program from
+          // wherever the reader happens to be.
+          // -------------------------------------------------------------
+          fireElement(recordRunButton, 'click');
+          const escapeEvent = press('Escape', {});
+          fireDocument('keydown', escapeEvent);
+          if (escapeEvent.defaultPrevented !== true) {
+            failed = true;
+            console.log('FAIL Escape did not stop the box closing while a recording was cancelled');
+          } else {
+            console.log('     Escape cancels the recording and stays in the box');
+          }
+          if (recordRunButton.classList.contains('is-recording')) {
+            failed = true;
+            console.log('FAIL the record button kept waiting after Escape');
+          } else {
+            console.log('     the recording ends with Escape');
+          }
+
+          // A stop press chosen from the list works from anywhere, the
+          // reader being in the code or not.
+          stopBodies.length = 0;
+          runBodies.length = 0;
+          runReplies.length = 0;
+          runReplies.push({
+            success: true, output: 'still going\n', error: '', error_line: null,
+            awaiting_answer: false, trace: null,
+          });
+          editorInstance.setValue('while True: pass');
+          setEditorFocused(false);
+          const stopSelect = elements.get('stop-key');
+          stopSelect.value = 'Shift+Escape';
+          fireElement(stopSelect, 'change');
+          fire('btn-run', 'click');
+
+          fireDocument('keydown', press('Escape', { shiftKey: true }));
+          if (stopBodies.length !== 1) {
+            failed = true;
+            console.log(`FAIL the stop press chosen from the list did not stop the program: ${stopBodies.length} requests`);
+          } else {
+            console.log('     a stop press chosen from the list stops the program, from anywhere');
+          }
+
+          setEditorFocused(false);
+          console.log('run: 32 checks');
           done();
         }, 0);
       }, 10);

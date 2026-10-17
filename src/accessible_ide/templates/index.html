@@ -408,6 +408,7 @@
           <li><a href="#group-try">{{ t('group.try') }}</a></li>
           <li><a href="#group-focus">{{ t('group.focus') }}</a></li>
           <li><a href="#group-motion">{{ t('group.motion') }}</a></li>
+          <li><a href="#group-keys">{{ t('group.keys') }}</a></li>
           <li><a href="#group-speak">{{ t('group.speak') }}</a></li>
           <li><a href="#group-updates">{{ t('group.updates') }}</a></li>
           <li><a href="#group-reset">{{ t('group.reset') }}</a></li>
@@ -726,6 +727,69 @@
             <p class="field-error" id="glass-tint-error" role="alert" hidden></p>
           </div>
           <p class="settings-hint">{{ t('glass.help') }}</p>
+        </fieldset>
+
+        {# What starts the program, and what stops one that is running.
+           Two ways into each setting rather than one: a list of the presses
+           worth showing, and a button for a reader who would rather press the
+           keys than read for them. The list always carries what is in use,
+           including a press that was recorded rather than chosen, because a
+           list that does not show the current setting is a list the reader
+           cannot trust. #}
+        <fieldset class="settings-group" id="group-keys">
+          <legend class="settings-legend">{{ t('group.keys') }}</legend>
+          <p class="settings-hint" id="keys-hint">{{ t('keys.hint') }}</p>
+
+          {% set run_key = config.get('run_key', 'Ctrl+Enter') %}
+          <div class="field">
+            <label for="run-key" id="run-key-label">{{ t('keys.run') }}</label>
+            <div class="field-row key-row">
+              <select id="run-key" aria-labelledby="run-key-label" aria-describedby="keys-hint keys-run-status">
+                {% for combo in run_keys %}
+                <option value="{{ combo }}"{% if run_key == combo %} selected{% endif %}>{{ combo }}</option>
+                {% endfor %}
+                {% if run_key not in run_keys %}
+                <option value="{{ run_key }}" selected>{{ run_key }}</option>
+                {% endif %}
+              </select>
+              {# No aria-label of its own. The name is these two elements
+                 together, so the button is named after the setting it
+                 changes instead of turning up twice as "Change" in a screen
+                 reader. The icon before it is decoration. #}
+              <button id="btn-record-run" type="button" class="btn btn-small"
+                      aria-labelledby="record-run-text run-key-label"
+                      aria-describedby="keys-hint keys-run-status">
+                <svg class="record-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="5"></circle></svg>
+                <span id="record-run-text">{{ t('keys.record') }}</span>
+              </button>
+            </div>
+            {# Space for one line, always taken. The explanation underneath
+               stays put whether a message is showing or not, so nothing
+               moves when one arrives. #}
+            <p class="field-help key-status" id="keys-run-status" role="status"></p>
+          </div>
+
+          {% set stop_key = config.get('stop_key', 'Escape Escape') %}
+          <div class="field">
+            <label for="stop-key" id="stop-key-label">{{ t('keys.stop') }}</label>
+            <div class="field-row key-row">
+              <select id="stop-key" aria-labelledby="stop-key-label" aria-describedby="keys-hint keys-stop-status">
+                {% for combo in stop_keys %}
+                <option value="{{ combo }}"{% if stop_key == combo %} selected{% endif %}>{{ combo }}</option>
+                {% endfor %}
+                {% if stop_key not in stop_keys %}
+                <option value="{{ stop_key }}" selected>{{ stop_key }}</option>
+                {% endif %}
+              </select>
+              <button id="btn-record-stop" type="button" class="btn btn-small"
+                      aria-labelledby="record-stop-text stop-key-label"
+                      aria-describedby="keys-hint keys-stop-status">
+                <svg class="record-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="5"></circle></svg>
+                <span id="record-stop-text">{{ t('keys.record') }}</span>
+              </button>
+            </div>
+            <p class="field-help key-status" id="keys-stop-status" role="status"></p>
+          </div>
         </fieldset>
 
         <fieldset class="settings-group" id="group-speak">

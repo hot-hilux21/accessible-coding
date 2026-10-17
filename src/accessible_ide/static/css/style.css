@@ -1431,6 +1431,56 @@ body[data-contrast="high"][data-theme="pastel"] {
   cursor: pointer;
 }
 
+/* A key press and the button that records a different one sit on one line,
+   the same line pattern the slider above uses. The list takes the room and
+   the button keeps its own width, so the button does not grow wider as the
+   reader picks a longer name. The list is not full width here, which is what
+   .field select asks for on its own: it shares the line. */
+.key-row select {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.key-row .btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Space for one line, always taken. A message that arrived by being shown
+   would push everything below it down while the reader is reading, so the
+   line is held open whether it says anything or not. It matches the line the
+   help text uses, being the same class at the same size. */
+.key-status {
+  min-height: 1.5em;
+}
+
+/* A ring is the conventional mark for "this waits for your press", which is
+   what the button does. Drawn at the size of the words beside it rather than
+   at a fixed number of pixels, so it grows with the reader's font size like
+   every other mark in the app. The button's own words carry the meaning, so
+   the ring is decoration and is hidden from assistive technology. */
+.record-icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+/* The same accent fill the toolbar toggles use when they are on, so a state
+   that is happening now looks like the one state it is everywhere else
+   rather than being invented a second time for these two buttons. */
+.btn.is-recording,
+.btn.is-recording:hover {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
 /* A slider between two buttons, so the value can be notched along one step
    at a time. Dragging a thumb is a small target for a shaky hand and a poor
    one behind a screen magnifier, and the arrow keys only work once the

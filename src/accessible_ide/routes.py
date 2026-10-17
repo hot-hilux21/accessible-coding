@@ -149,6 +149,45 @@ USER_FONT_DIR = CONFIG_DIR / 'fonts'
 SETUP_STEPS = ('language', 'font', 'theme', 'tour')
 SETUP_TOTAL_STEPS = len(SETUP_STEPS)
 
+# The two key presses a reader can change: what starts the program, and what
+# stops one that is already running.
+#
+# Both are handled in the browser by one listener of our own rather than by
+# the editor's own key map. That was not the first design: running was an
+# editor binding, and stopping was a listener. Keeping them in two places
+# meant the same press could be handled twice, and it meant a press was only
+# live when the code pane happened to have focus. One listener, one place to
+# look, and a test can drive it.
+#
+# Running is always Enter with a modifier, and stopping is always Escape.
+# The two families cannot collide, so no press can mean both things, and
+# Enter on its own stays a newline and Escape on its own stays the key that
+# closes a dialog. Neither of those bare presses is ever offered.
+KEY_COMBO_KEYS = frozenset({'run_key', 'stop_key'})
+
+# What the Settings dialog offers. This is not the whole of what is allowed:
+# a reader can record their own combination with the record button beside the
+# list, and that is stored if it is one of the shapes below. These are the
+# ones worth showing, and every one of them is a press that Windows and the
+# browser leave alone. Left out on purpose, because they are taken before the
+# page ever sees them: Ctrl+Escape opens the Start menu, Ctrl+Shift+Escape
+# opens the Task Manager, and Alt+Escape switches to another window.
+RUN_KEYS = ('Ctrl+Enter', 'Shift+Enter', 'Ctrl+Shift+Enter', 'Ctrl+Alt+Enter')
+STOP_KEYS = ('Escape Escape', 'Shift+Escape', 'Ctrl+Alt+Escape')
+
+# Stopping by pressing Escape twice is what the app shipped with, and it is
+# still the default. It is written out rather than built from the rules below
+# because it is the one press that is not a single combination.
+ESCAPE_TWICE = 'Escape Escape'
+
+# A press is written in one order with each modifier at most once, so the
+# same press cannot be stored in two different spellings and then fail to
+# match itself. At least one modifier is required, which is what keeps bare
+# Enter and bare Escape out without a second rule.
+_MODIFIER = r'(?:Ctrl\+(?:Alt\+)?(?:Shift\+)?|Alt\+(?:Shift\+)?|Shift\+)'
+RUN_KEY_RE = re.compile(r'^' + _MODIFIER + r'Enter$')
+STOP_KEY_RE = re.compile(r'^' + _MODIFIER + r'Escape$')
+
 DEFAULT_CONFIG = {
     'font': 'OpenDyslexic',
     # Which parts of the window the chosen font is used in. All four start
@@ -185,6 +224,11 @@ DEFAULT_CONFIG = {
     'highlight_color': '',
     'line_height': 1.6,
     'letter_spacing': 0.5,
+    # What starts the program, and what stops one that is running. Written as
+    # a reader would say them out loud, which is also how the Settings list
+    # shows them and how the recorded press is written back.
+    'run_key': 'Ctrl+Enter',
+    'stop_key': ESCAPE_TWICE,
     'theme': 'high-contrast',
     'focus_mode': 'gutter',
     'blur_intensity': 0.5,
@@ -1119,6 +1163,11 @@ def index():
                          glossary=glossary.SECTIONS,
                          glossary_entries=glossary.entry_count(),
                          inline_code=glossary.inline_code,
+                         # The presses offered for running and stopping, handed
+                         # over as data so the list the reader sees and the
+                         # list the server accepts are the same list.
+                         run_keys=RUN_KEYS,
+                         stop_keys=STOP_KEYS,
                          t=i18n.make_translator(locale))
 
 
@@ -1698,6 +1747,8 @@ CONFIG_TYPES = {
     'font_size': int,
     'font_weight': int,
     'highlight_color': str,
+    'run_key': str,
+    'stop_key': str,
     'locale': str,
     'setup_complete': bool,
     'setup_step': int,
@@ -1828,6 +1879,24 @@ CONFIG_HEX_COLORS = {
 HEX_COLOR_RE = re.compile(r'^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$')
 
 
+def _valid_key_combo(key, value) -> bool:
+    """Whether a stored key press is one this app can actually honour.
+
+    Two shapes are allowed: Escape pressed twice, and a single combination of
+    modifiers ending in Enter (for running) or Escape (for stopping). A
+    combination is refused when it has no modifier, because Enter on its own
+    has to stay a newline and Escape on its own has to stay the key that
+    closes a dialog, and a press that swallowed either would be a bug the
+    reader could not undo from the keyboard.
+    """
+    if not isinstance(value, str):
+        return False
+    if key == 'stop_key' and value == ESCAPE_TWICE:
+        return True
+    pattern = RUN_KEY_RE if key == 'run_key' else STOP_KEY_RE
+    return bool(pattern.match(value))
+
+
 def _describe(key, value, t):
     """Plain explanation of why a setting was rejected.
 
@@ -1842,6 +1911,11 @@ def _describe(key, value, t):
         return t('config.error_range', label, low, high)
     if key in CONFIG_MAX_LENGTHS:
         return t('config.error_too_long', label)
+    if key in KEY_COMBO_KEYS:
+        # The list of presses is deliberately not quoted back here: the reader
+        # can also record one of their own, so naming the offered ones would
+        # read as the whole rule when it is only the shortlist.
+        return t('config.error_key_combo', label)
     if key in CONFIG_VALUES:
         # Sorted by text, and joined as text. The allowed values are not
         # all words: setup_step is a set of numbers, and building the
@@ -1903,6 +1977,9 @@ def _validate_config(data, t):
                 continue
         if key in CONFIG_MAX_LENGTHS and isinstance(value, str) \
                 and len(value) > CONFIG_MAX_LENGTHS[key]:
+            invalid.append(_describe(key, value, t))
+            continue
+        if key in KEY_COMBO_KEYS and not _valid_key_combo(key, value):
             invalid.append(_describe(key, value, t))
             continue
     return invalid
