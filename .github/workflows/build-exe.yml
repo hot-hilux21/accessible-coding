@@ -10,6 +10,8 @@ name: Build Exe (beta build)
 # Download:
 #   exe:      https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE.exe
 #   installer: https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE-Setup.exe
+# The manifest beside them, version.json, describes the installer: that is
+# what the app downloads when it offers an update to someone who installed it.
 
 on:
   push:
@@ -88,22 +90,16 @@ jobs:
           "Stamping version $version"
       - name: Build onefile exe
         run: pyinstaller AccessibleIDE.spec --noconfirm
-      - name: Describe the build for the updater
-        shell: pwsh
-        run: |
-          python tools/stamp_version.py manifest `
-            --version "${{ steps.stamp.outputs.version }}" `
-            --file dist/AccessibleIDE.exe `
-            --out dist/version.json `
-            --url "https://github.com/${{ github.repository }}/releases/download/beta/AccessibleIDE.exe" `
-            --notes "Automatic build of the main branch."
+      # No manifest is written here. The manifest is what the updater reads to
+      # decide what to download, and what it downloads is the Setup
+      # installer, not this portable exe. So the manifest is written by the
+      # job that builds the installer, and this artifact carries the portable
+      # build on its own.
       - name: Upload exe artifact
         uses: actions/upload-artifact@v7
         with:
           name: AccessibleIDE-windows
-          path: |
-            dist/AccessibleIDE.exe
-            dist/version.json
+          path: dist/AccessibleIDE.exe
 
   build-installer:
     name: Build Setup installer
@@ -163,11 +159,30 @@ jobs:
           if (-not $iscc) { $iscc = Get-ChildItem "$env:LOCALAPPDATA\Programs\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 }
           if (-not $iscc) { throw "ISCC.exe not found" }
           & $iscc.FullName installer.iss
+      - name: Describe the installer for the updater
+        shell: pwsh
+        run: |
+          # What the app downloads when an update is offered is this
+          # installer, not the portable exe beside it in the release. An
+          # installed copy is a folder rather than a file, so replacing it is
+          # a job for the installer, which can replace a folder that is in
+          # use and under Program Files, and can close the app holding it.
+          # The manifest names the file, its size and its checksum, and the
+          # app refuses anything that does not match, so this step decides
+          # what an update is.
+          python tools/stamp_version.py manifest `
+            --version "${{ steps.stamp.outputs.version }}" `
+            --file installer/AccessibleIDE-Setup.exe `
+            --out installer/version.json `
+            --url "https://github.com/${{ github.repository }}/releases/download/beta/AccessibleIDE-Setup.exe" `
+            --notes "Automatic build of the main branch."
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:
           name: AccessibleIDE-Setup
-          path: installer/AccessibleIDE-Setup.exe
+          path: |
+            installer/AccessibleIDE-Setup.exe
+            installer/version.json
 
   publish-beta:
     name: Publish to beta release
@@ -207,7 +222,7 @@ jobs:
           python tools/check_publish.py check \
             --channel beta \
             --version "$version" \
-            --url "https://github.com/${{ github.repository }}/releases/download/beta/AccessibleIDE.exe" \
+            --url "https://github.com/${{ github.repository }}/releases/download/beta/AccessibleIDE-Setup.exe" \
             --repo "${{ github.repository }}"
       - name: Update beta release
         env:

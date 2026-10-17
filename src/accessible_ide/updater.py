@@ -50,7 +50,6 @@ import hashlib
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 import urllib.error
@@ -62,7 +61,17 @@ from pathlib import Path
 # not depend on anything the machine running the app can be made to say.
 OWNER = 'hot-hilux21'
 REPO = 'accessible-coding'
-ASSET_NAME = 'AccessibleIDE.exe'
+# The file the app downloads when an update is offered is the Setup
+# installer, not the portable exe that sits beside it in the release.
+#
+# An installed AccessibleIDE is a folder, not a file: the program lives next
+# to an _internal folder holding the interpreter and every library it uses.
+# Replacing the program on its own leaves an older _internal folder beside a
+# newer exe, which is a mismatch at best. Replacing both means replacing
+# files that are open, in a folder a normal user cannot write to, while the
+# reader may still have unsaved work. The installer already does all of that
+# correctly, and is already published, so the app hands the job to it.
+ASSET_NAME = 'AccessibleIDE-Setup.exe'
 MANIFEST_NAME = 'version.json'
 
 RELEASES_BASE = f'https://github.com/{OWNER}/{REPO}/releases'
@@ -126,14 +135,12 @@ DEFAULT_TIMEOUT = 6
 # GitHub fifty times. An explicit "check now" ignores this.
 CHECK_INTERVAL_SECONDS = 6 * 60 * 60
 
-# How long the replacement helper waits for the app to close before giving up.
-# It is long enough that closing the app tomorrow still installs the update,
-# and short enough that an abandoned helper does not outlive the machine.
-WAIT_LIMIT_SECONDS = 24 * 60 * 60
-
-# Windows will not delete a running program, so a helper copy is left behind
-# each time. They are named apart from the downloaded builds, and cleaned up
-# on the next start, so a reader never accumulates them.
+# Copies left behind by an older updater, from before the installer took the
+# job over. That one worked by copying the running app to a throwaway name
+# and running the copy; Windows will not let a running program delete itself,
+# so each of those copies outlived the update that made it. They are named
+# apart from the downloaded builds and cleared on the next start, so a reader
+# never accumulates them.
 HELPER_PREFIX = 'updater-'
 
 # Records a verified build that is waiting for the app to close.
@@ -491,71 +498,109 @@ def stage(manifest: dict) -> Path:
     return target
 
 
-def install(staged: Path, relaunch: bool = False) -> bool:
-    """Replace the running exe with the staged one.
+# The flags the installer is started with. Silent rather than very silent, so
+# a progress window is on screen while it works: the reader has just been told
+# an update is being applied, and a window saying so is the honest thing to
+# show. The rest close this app if it is somehow still holding the files, keep
+# the installer from asking questions that have nobody to answer them, and
+# stop an update ever turning into a reboot prompt.
+INSTALLER_FLAGS = (
+    '/SILENT',
+    '/CLOSEAPPLICATIONS',
+    '/NORESTART',
+    '/SUPPRESSMSGBOXES',
+    '/NOCANCEL',
+)
 
-    Windows will not let a running program overwrite its own file, so this
-    does not try. It copies the app to a throwaway name, runs that copy as a
-    helper which waits for this process to finish, and only then swaps the
-    file. The original is left alone until the replacement is ready, so a
-    failure at any point leaves a working app behind.
+# ShellExecuteW returns an HINSTANCE-sized value that is really an error code:
+# anything at or below 32 means the program was not run. Two documented
+# failures sit above that line and have to be named separately, or a refusal
+# would be read as an install:
+#
+#   1223  ERROR_CANCELLED      the reader said no to the permission prompt
+#   1155  ERROR_DLL_NOT_FOUND  the shell itself is damaged
+#
+# Getting this wrong is not loud. The app would record the update as applied,
+# delete the record, and leave the reader on the old version with nothing on
+# screen to say why.
+SHELL_EXECUTE_REFUSALS = frozenset({1155, 1223})
 
-    Returns False when the helper could not be started, which leaves the
-    downloaded build in place for the reader to run themselves.
 
-    ``relaunch`` starts the new build once the swap is done. It is off by
-    default and the app leaves it off, because the app has no way of knowing
-    whether the reader's work is saved, and closing the app for them is not a
-    decision this is entitled to make on their behalf.
+def install(staged: Path) -> bool:
+    """Start the staged installer, which replaces this app and closes it.
+
+    The app does not replace itself. It used to, and the way it did was
+    broken: it copied its own exe to a throwaway name and ran the copy, with
+    no _internal folder beside it, so the copy died on the way up with
+    "failed to load the Python DLL". It also only ever replaced one file, and
+    an installed copy is a folder.
+
+    The installer is the right tool, and it is already published. It asks
+    Windows for the rights it needs, closes the running app through the same
+    mechanism the Task Manager uses, and replaces the folder as one operation
+    it can roll back. Handing the job over is a few lines rather than a
+    second, worse updater.
+
+    Started with ``runas`` rather than ``subprocess``: the installer asks for
+    administrator rights, and a process that is not elevated cannot start one
+    that is. CreateProcess refuses outright with "the requested operation
+    requires elevation" instead of raising the question, so the call that does
+    raise it is the one used here. Windows asks the reader, in their own
+    language; if they decline, nothing happens and their app is untouched.
+
+    The new build is never started again afterwards. The reader closed the
+    app, and opening it back up for them would hide the fact that anything
+    had happened at all.
+
+    Returns True once Windows has accepted the request. Raises UpdateError
+    when it has not, which leaves the downloaded installer on disk for the
+    reader to run themselves.
     """
     if not is_frozen():
         raise UpdateError('updates only apply to the packaged app', code='not_applicable')
+    if os.name != 'nt':
+        raise UpdateError('updates only apply to the Windows build', code='not_applicable')
     if not staged.is_file():
-        raise UpdateError('the downloaded build is missing', code='missing_build')
-    target = Path(sys.executable)
-    helper = update_dir() / f'{HELPER_PREFIX}{os.getpid()}.exe'
-    try:
-        helper.parent.mkdir(parents=True, exist_ok=True)
-        # The copy is the point of the whole exercise: a program cannot
-        # replace itself on Windows, so the helper runs from a throwaway
-        # name and the real file is free by the time it swaps.
-        _copy(target, helper)
-    except OSError as error:
-        raise UpdateError('the update could not be prepared', code='prepare_failed') from error
+        raise UpdateError('the downloaded installer is missing', code='missing_build')
 
-    command = [
-        str(helper), '--apply-update',
-        '--wait-for', str(os.getpid()),
-        '--staged', str(staged),
-        '--target', str(target),
-        '--relaunch' if relaunch else '--no-relaunch',
-    ]
-    try:
-        subprocess.Popen(
-            command,
-            close_fds=True,
-            creationflags=getattr(subprocess, 'DETACHED_PROCESS', 0)
-            | getattr(subprocess, 'CREATE_NO_WINDOW', 0),
-        )
-    except OSError as error:
-        helper.unlink(missing_ok=True)
-        raise UpdateError('the update could not be started', code='start_failed') from error
+    result = _shell_execute(staged, ' '.join(INSTALLER_FLAGS), 'runas')
+    # No handle at all, anything at or below 32, or one of the two documented
+    # failures that sit above it, all mean the installer never started.
+    if not result or result <= 32 or result in SHELL_EXECUTE_REFUSALS:
+        raise UpdateError('the update could not be started', code='start_failed')
     return True
 
 
-def _copy(source: Path, destination: Path) -> None:
-    with open(source, 'rb') as reader, open(destination, 'wb') as writer:
-        for chunk in iter(lambda: reader.read(1024 * 1024), b''):
-            writer.write(chunk)
+def _shell_execute(program: Path, parameters: str, verb: str = 'runas') -> int:
+    """Ask the shell to run a program, raising the permission question.
+
+    ``runas`` is the whole reason this is not ``subprocess``: the installer
+    carries an administrator manifest, and CreateProcess refuses to start one
+    from a process that is not elevated rather than asking. This is the call
+    that asks. It is a parameter rather than a literal so the caller states
+    which request it is making, and a test can read it back.
+
+    Kept apart from ``install`` so the decision can be tested on its own,
+    without a real prompt and without Windows.
+    """
+    import ctypes
+
+    shell32 = ctypes.windll.shell32
+    shell32.ShellExecuteW.restype = ctypes.c_void_p
+    shell32.ShellExecuteW.argtypes = [
+        ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_wchar_p,
+        ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_int,
+    ]
+    return shell32.ShellExecuteW(None, verb, str(program), parameters, None, 1)
 
 
 def tidy_helpers() -> None:
-    """Remove helper copies left by earlier updates.
+    """Remove copies left behind by the updater this replaced.
 
-    Only ever called while the app itself is running, at which point any
-    helper still on disk is one that has already given up or already
-    finished. Nothing here can touch the downloaded build the reader may be
-    about to install, because those are named after the release file.
+    Only ever called while the app itself is running, at which point any such
+    copy still on disk is one that has already finished or already given up.
+    Nothing here can touch the installer the reader may be about to run, or a
+    downloaded build waiting beside it, because those are named differently.
     """
     directory = update_dir()
     if not directory.is_dir():
@@ -589,12 +634,17 @@ def remember_staged(path: Path, version: str) -> None:
 
 
 def pending_build() -> tuple[Path, str] | None:
-    """The build waiting to be installed, as (path, version).
+    """The installer waiting to be run, as (path, version).
 
-    None when there is nothing to do, when the record cannot be read, or when
-    the file it names is not there. Returning None in each of those cases is
+    None when there is nothing to do, when the record cannot be read, when
+    the file it names is not there, or when that version is not newer than
+    the one already running. Returning None in each of those cases is
     deliberate: the caller is on the way out of the app, and the only
     acceptable answer to a record it cannot trust is to do nothing.
+
+    The version check is what stops a loop. A record that outlived the update
+    it asked for would otherwise run the same installer on every close, for a
+    build the reader already has, each time with its permission prompt.
     """
     try:
         state = json.loads(_state_file().read_text(encoding='utf-8'))
@@ -603,6 +653,8 @@ def pending_build() -> tuple[Path, str] | None:
     except (OSError, ValueError, KeyError, TypeError):
         return None
     if staged.name != ASSET_NAME or not staged.is_file():
+        return None
+    if not is_newer(version, current_version()):
         return None
     return staged, version
 
@@ -613,135 +665,3 @@ def clear_pending() -> None:
         _state_file().unlink(missing_ok=True)
     except OSError:
         pass
-
-
-def process_has_exited(pid: int, timeout: float | None = None) -> bool:
-    """Has that process finished? True once it is safe to touch its files.
-
-    On Windows this waits on a real handle to the process. It does not poll
-    with ``os.kill(pid, 0)``, which was the obvious thing to reach for and is
-    wrong here twice over: a process that has finished but whose handle is
-    still open somewhere reports as alive, so a loop built on it would never
-    end and the update would silently never be installed; and the call is a
-    liveness test, not a wait, so it would spin a core for as long as the
-    reader had the app open.
-    """
-    if os.name != 'nt':
-        import time
-        deadline = None if timeout is None else time.monotonic() + timeout
-        while True:
-            try:
-                os.kill(pid, 0)
-            except ProcessLookupError:
-                return True
-            except OSError:
-                # Permission problems mean it exists but is not ours to ask.
-                # Treating that as gone would replace a program still running.
-                return False
-            if deadline is not None and time.monotonic() >= deadline:
-                return False
-            time.sleep(0.3)
-
-    import ctypes
-
-    SYNCHRONIZE = 0x00100000
-    WAIT_OBJECT_0 = 0x00000000
-    INFINITE = 0xFFFFFFFF
-
-    kernel32 = ctypes.windll.kernel32
-    # A HANDLE is pointer-sized. Left as the default c_int, a real handle
-    # above 4 billion is truncated on the way out and every later call is
-    # made on a handle that never existed, so the wait would report a
-    # finished process the moment it opened one.
-    kernel32.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
-    kernel32.OpenProcess.restype = ctypes.c_void_p
-    kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
-    kernel32.WaitForSingleObject.restype = ctypes.c_ulong
-    kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
-    kernel32.CloseHandle.restype = ctypes.c_int
-
-    handle = kernel32.OpenProcess(SYNCHRONIZE, False, int(pid))
-    if not handle:
-        # Nothing to wait for: either it never existed or it is already gone.
-        return True
-    try:
-        milliseconds = INFINITE if timeout is None else int(max(timeout, 0) * 1000)
-        return kernel32.WaitForSingleObject(handle, milliseconds) == WAIT_OBJECT_0
-    finally:
-        kernel32.CloseHandle(handle)
-
-
-def run_helper(arguments: list) -> int:
-    """The helper's side of the swap, run by the copied exe.
-
-    Waits for the app to close, puts the new build in its place, and starts
-    it again if the reader asked for that. Returns an exit code so the
-    workflow can report what happened.
-    """
-    wanted = {}
-    relaunch = False
-    index = 0
-    while index < len(arguments):
-        name = arguments[index]
-        if name in ('--wait-for', '--staged', '--target'):
-            wanted[name[2:]] = arguments[index + 1]
-            index += 2
-            continue
-        if name == '--relaunch':
-            relaunch = True
-        index += 1
-
-    try:
-        pid = int(wanted['wait-for'])
-    except (KeyError, ValueError):
-        return 1
-
-    # A cap, so a reader who leaves the app open overnight does not leave a
-    # helper sitting there forever. The cap only decides when to give up; it
-    # never decides that a running app may be replaced.
-    if not process_has_exited(pid, timeout=WAIT_LIMIT_SECONDS):
-        return 1
-
-    staged = Path(wanted['staged'])
-    target = Path(wanted['target'])
-    if not staged.is_file():
-        return 1
-
-    # The replacement is written beside the target and moved into place in one
-    # step. Moving inside the same folder is what makes it atomic: a reader
-    # who starts the app at the wrong moment gets either the whole old build
-    # or the whole new one, never half of each.
-    incoming = target.with_name(target.name + '.new')
-    try:
-        _copy(staged, incoming)
-        os.replace(incoming, target)
-    except OSError:
-        # The original was never touched, so the app still starts.
-        try:
-            incoming.unlink(missing_ok=True)
-        except OSError:
-            pass
-        return 1
-    finally:
-        # The helper is running from its own copy, which Windows will not let
-        # it delete while it is running. A later start tidies it away.
-        #
-        # Never the target itself. The two are different places in normal
-        # use, but if they were ever the same file this would delete the very
-        # program that was just put in place.
-        try:
-            if staged != target:
-                staged.unlink(missing_ok=True)
-        except OSError:
-            pass
-
-    if relaunch:
-        try:
-            subprocess.Popen([str(target)], close_fds=True)
-        except OSError:
-            return 1
-
-    # The build is installed, so the record that said one was waiting must go
-    # too. Left behind, it would put the same build in again on the next close.
-    clear_pending()
-    return 0

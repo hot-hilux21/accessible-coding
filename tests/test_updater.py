@@ -576,6 +576,26 @@ class WaitingBuildTests(unittest.TestCase):
         state.write_text(json.dumps({"staged": str(self.build())}))
         self.assertIsNone(updater.pending_build())
 
+    def test_a_record_for_the_version_already_running_is_ignored(self):
+        # This is what stops a loop. A record outlives the update unless
+        # something clears it, and one that survived would run the same
+        # installer on every close, for a build the reader already has, each
+        # time asking for permission to install it again.
+        updater.remember_staged(self.build(), updater.current_version())
+        self.assertIsNone(updater.pending_build())
+
+    def test_a_record_for_an_older_build_is_ignored(self):
+        # A downgrade is not an update. This uses the same comparison that
+        # refuses to offer one, so the two cannot disagree.
+        updater.remember_staged(self.build(), "0.0.1")
+        self.assertIsNone(updater.pending_build())
+
+    def test_a_record_whose_version_cannot_be_read_is_ignored(self):
+        # The record is the thing on disk most likely to be tampered with or
+        # half-written. An unreadable version is never newer than anything.
+        updater.remember_staged(self.build(), "not a version")
+        self.assertIsNone(updater.pending_build())
+
     def test_remembering_leaves_no_part_file_behind(self):
         updater.remember_staged(self.build(), "9.9.9")
         leftovers = [p.name for p in updater.update_dir().iterdir()
@@ -630,18 +650,25 @@ class ExitHandOverTests(unittest.TestCase):
         updater.remember_staged(staged, "9.9.9")
         return staged
 
-    def test_a_waiting_build_is_handed_to_the_helper(self):
+    def test_a_waiting_installer_is_handed_over(self):
         staged = self.stage_build()
         handed = {}
         swapped(self, updater, "is_frozen", lambda: True)
         swapped(self, updater, "install",
-                lambda path, relaunch=False: handed.update(
-                    path=path, relaunch=relaunch))
+                lambda path: handed.update(path=path) or True)
         self.app._apply_staged_update_on_exit()
         self.assertEqual(handed["path"], staged)
-        # The reader closed the app themselves. Starting it again for them
-        # would hide the fact that anything happened at all.
-        self.assertFalse(handed["relaunch"])
+
+    def test_a_handed_over_installer_is_not_offered_again(self):
+        # Left behind, the record would run the same installer on every
+        # close, for a build the reader already has, each time with its
+        # permission prompt. The old updater cleared it from inside the
+        # helper; there is no helper now, so this is where it has to happen.
+        self.stage_build()
+        swapped(self, updater, "is_frozen", lambda: True)
+        swapped(self, updater, "install", lambda path: True)
+        self.app._apply_staged_update_on_exit()
+        self.assertIsNone(updater.pending_build())
 
     def test_nothing_waiting_means_nothing_handed_over(self):
         calls = []
@@ -650,17 +677,21 @@ class ExitHandOverTests(unittest.TestCase):
         self.app._apply_staged_update_on_exit()
         self.assertEqual(calls, [])
 
-    def test_a_failing_helper_never_stops_the_app_closing(self):
+    def test_a_refused_permission_never_stops_the_app_closing(self):
         self.stage_build()
 
         def explode(*args, **kwargs):
-            raise OSError("no room for a second copy")
+            raise updater.UpdateError("the reader said no", code="start_failed")
 
         swapped(self, updater, "is_frozen", lambda: True)
         swapped(self, updater, "install", explode)
         # The window is already closing. Raising here would strand the reader
         # staring at a frozen app they cannot close.
         self.app._apply_staged_update_on_exit()
+        # And the record survives, so declining one prompt does not quietly
+        # throw the update away: it is offered again the next time the app
+        # closes, which is what the reader asked for by pressing Install.
+        self.assertIsNotNone(updater.pending_build())
 
     def test_the_website_never_hands_anything_over(self):
         self.stage_build()
@@ -671,168 +702,96 @@ class ExitHandOverTests(unittest.TestCase):
         self.assertEqual(calls, [])
 
 
-@unittest.skipUnless(os.name == "nt", "Windows process handles")
-class RealProcessWaitTests(unittest.TestCase):
-    """process_has_exited against real processes, not mocks.
+@unittest.skipUnless(os.name == "nt", "ShellExecuteW")
+class InstallerStartTests(unittest.TestCase):
+    """Starting the installer, which is the whole of what install() does.
 
-    This is the one place the updater can hang forever, and a fake handle
-    would agree with every version of the code, so these use real ones.
-    """
-
-    def a_process_that_keeps_running(self):
-        import subprocess
-        child = subprocess.Popen(
-            [sys.executable, "-c", "import time; time.sleep(30)"])
-        # Last-in-first-out, so the wait is registered before the kill.
-        self.addCleanup(child.wait, 10)
-        self.addCleanup(child.kill)
-        return child
-
-    def test_a_running_process_is_reported_as_still_running(self):
-        child = self.a_process_that_keeps_running()
-        self.assertFalse(updater.process_has_exited(child.pid, timeout=0.4))
-
-    def test_a_finished_process_is_reported_as_finished(self):
-        child = self.a_process_that_keeps_running()
-        child.kill()
-        child.wait(timeout=10)
-        # The handle is still open on the object above, which is exactly the
-        # case os.kill gets wrong.
-        self.assertTrue(updater.process_has_exited(child.pid, timeout=5))
-
-    def test_a_process_that_never_existed_is_not_waited_for(self):
-        # A pid that was never used is a pid nothing is holding open.
-        self.assertTrue(updater.process_has_exited(0x7FFFFFF0, timeout=5))
-
-
-@unittest.skipUnless(os.name == "nt", "Windows process handles")
-class RealSwapTests(unittest.TestCase):
-    """The whole hand-over, with a real waiting process and a real file.
-
-    Windows only, like the class above. The helper recognises a finished
-    process by holding a handle to it, and the fallback it uses elsewhere
-    asks ``os.kill(pid, 0)`` - which reports an exited-but-unreaped child
-    as alive, so on Linux the wait would never end. That fallback is not
-    shipped: the updater lives inside the Windows exe, and the website
-    never hands anything over (see ExitHandOverTests). Left unguarded
-    here it made CI sit in this test for the full 24-hour wait limit.
+    It used to do more: copy the app aside, run the copy as a helper, wait
+    for this process to end, and swap the file. That is what broke. The copy
+    had no _internal folder beside it, so it died on the way up with "failed
+    to load the Python DLL" and no update ever happened. What is left is one
+    decision, and these are what check it.
     """
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.dir = pathlib.Path(self.tmp.name)
-        # Deliberately a different folder from the target. In the real app
-        # the download sits in the config folder and the program sits beside
-        # its shortcut, and the two are never the same file.
-        self.downloads = self.dir / "updates"
-        self.downloads.mkdir()
-        self.staged = self.downloads / updater.ASSET_NAME
-        self.staged.write_bytes(b"new build")
-        self.target = self.dir / "AccessibleIDE.exe"
-        self.target.write_bytes(b"old build")
+        self.staged = pathlib.Path(self.tmp.name) / updater.ASSET_NAME
+        self.staged.write_bytes(b"MZ installer")
+        swapped(self, updater, "is_frozen", lambda: True)
 
-    def sleeper(self, seconds=30):
-        """A child that will still be running unless the test ends it."""
-        import subprocess
-        child = subprocess.Popen(
-            [sys.executable, "-c", f"import time; time.sleep({seconds})"])
-        # Cleanups run last-in-first-out, so the wait is registered before
-        # the kill on purpose: a wait that runs first would always time out.
-        self.addCleanup(child.wait, 10)
-        self.addCleanup(child.kill)
-        return child
+    def started_with(self, result):
+        """Record what install() asks Windows to run, and what it answers."""
+        calls = []
+        swapped(self, updater, "_shell_execute",
+                lambda program, parameters, verb: calls.append(
+                    (program, parameters, verb)) or result)
+        return calls
 
-    def finished(self):
-        """A child that has already gone, and whose handle is still open."""
-        import subprocess
-        child = subprocess.Popen([sys.executable, "-c", "pass"])
-        child.wait(timeout=10)
-        return child
+    def test_the_installer_is_the_file_that_was_downloaded(self):
+        calls = self.started_with(42)
+        self.assertTrue(updater.install(self.staged))
+        self.assertEqual(calls, [
+            (self.staged, " ".join(updater.INSTALLER_FLAGS), "runas")])
 
-    def wait_for_me(self, marker):
-        import subprocess
-        child = subprocess.Popen(
-            [sys.executable, "-c",
-             f"import time,pathlib; time.sleep(0.3); pathlib.Path(r'{marker}').write_text('x')"])
-        self.addCleanup(child.wait, 10)
-        return child
+    def test_the_flags_it_is_started_with(self):
+        # Every flag is a decision, so every flag is pinned. Silent rather
+        # than very silent: the reader has just been told an update is being
+        # applied, and a progress window saying so is the honest thing to
+        # show. /CLOSEAPPLICATIONS is what lets Setup replace a folder that
+        # is in use. /NORESTART is the one that must never go missing, since
+        # an update that reboots the machine is not an update.
+        for flag in ("/SILENT", "/CLOSEAPPLICATIONS", "/NORESTART",
+                     "/SUPPRESSMSGBOXES", "/NOCANCEL"):
+            with self.subTest(flag=flag):
+                self.assertIn(flag, updater.INSTALLER_FLAGS)
+        self.assertNotIn("/VERYSILENT", updater.INSTALLER_FLAGS)
 
-    def swap_against(self, child):
-        return updater.run_helper([
-            "--wait-for", str(child.pid),
-            "--staged", str(self.staged),
-            "--target", str(self.target),
-        ])
+    def test_a_reader_who_says_no_is_not_an_install(self):
+        # ERROR_CANCELLED is what a declined permission prompt returns, and it
+        # is 1223. That is above 32, so "greater than 32 means it worked"
+        # would read the refusal as a successful install: the app would clear
+        # the record and leave the reader on the old version, silently.
+        self.started_with(1223)
+        with self.assertRaises(updater.UpdateError):
+            updater.install(self.staged)
 
-    def test_the_build_is_replaced_once_the_app_has_gone(self):
-        marker = self.dir / "gone"
-        child = self.wait_for_me(marker)
-        self.assertEqual(self.swap_against(child), 0)
-        self.assertEqual(self.target.read_bytes(), b"new build")
-        self.assertFalse(self.staged.exists())
+    def test_every_documented_refusal_above_the_line_is_caught(self):
+        # The set has to be consulted, not just declared.
+        for code in sorted(updater.SHELL_EXECUTE_REFUSALS):
+            with self.subTest(code=code):
+                self.started_with(code)
+                with self.assertRaises(updater.UpdateError):
+                    updater.install(self.staged)
 
-    def test_a_running_app_is_never_replaced(self):
-        child = self.sleeper()
-        # A short cap stands in for a reader leaving the app open overnight.
-        original = updater.WAIT_LIMIT_SECONDS
-        updater.WAIT_LIMIT_SECONDS = 0.5
-        self.addCleanup(setattr, updater, "WAIT_LIMIT_SECONDS", original)
-        self.assertEqual(self.swap_against(child), 1)
-        self.assertEqual(self.target.read_bytes(), b"old build")
+    def test_no_handle_at_all_is_not_an_install(self):
+        self.started_with(None)
+        with self.assertRaises(updater.UpdateError):
+            updater.install(self.staged)
 
-    def test_a_missing_build_leaves_the_old_one_alone(self):
+    def test_a_missing_installer_is_refused_before_anything_is_started(self):
+        calls = self.started_with(42)
         self.staged.unlink()
-        self.assertEqual(self.swap_against(self.finished()), 1)
-        self.assertEqual(self.target.read_bytes(), b"old build")
+        with self.assertRaises(updater.UpdateError):
+            updater.install(self.staged)
+        self.assertEqual(calls, [],
+                         "Windows was asked to run a file that is not there")
 
-    def test_an_installed_build_is_not_installed_again(self):
-        updater.remember_staged(self.staged, "9.9.9")
-        self.assertEqual(self.swap_against(self.finished()), 0)
-        # The record has to go too, or the next close puts the same build
-        # back in again.
-        self.assertIsNone(updater.pending_build())
+    def test_the_website_never_starts_an_installer(self):
+        calls = self.started_with(42)
+        swapped(self, updater, "is_frozen", lambda: False)
+        with self.assertRaises(updater.UpdateError):
+            updater.install(self.staged)
+        self.assertEqual(calls, [])
 
-    def test_no_arguments_at_all_does_not_do_anything(self):
-        self.assertEqual(updater.run_helper([]), 1)
-        self.assertEqual(updater.run_helper(["--wait-for", "not-a-number"]), 1)
-
-    def test_a_target_that_is_also_the_download_is_not_deleted(self):
-        # The two paths should never be the same file, but if they ever were,
-        # tidying up the download must not take the program with it.
-        self.assertEqual(updater.run_helper([
-            "--wait-for", str(self.finished().pid),
-            "--staged", str(self.target),
-            "--target", str(self.target),
-        ]), 0)
-        self.assertTrue(self.target.is_file())
-
-    def test_the_new_build_is_only_started_when_asked_to_be(self):
-        # Both processes made first: the stub below replaces the very call
-        # used to make them.
-        first = self.finished()
-        second = self.finished()
-        started = []
-        original = updater.subprocess.Popen
-        updater.subprocess.Popen = lambda command, **kw: started.append(command)
-        self.addCleanup(setattr, updater.subprocess, "Popen", original)
-
-        self.assertEqual(updater.run_helper([
-            "--wait-for", str(first.pid),
-            "--staged", str(self.staged),
-            "--target", str(self.target),
-        ]), 0)
-        self.assertEqual(started, [], "the app was started without being asked")
-
-        self.staged.write_bytes(b"newer build")
-        self.assertEqual(updater.run_helper([
-            "--wait-for", str(second.pid),
-            "--staged", str(self.staged),
-            "--target", str(self.target),
-            "--relaunch",
-        ]), 0)
-        self.assertEqual([str(self.target)], [str(c[0]) for c in started])
-        self.assertEqual(self.target.read_bytes(), b"newer build")
+    def test_the_permission_prompt_is_asked_for(self):
+        # runas is the whole reason this is not subprocess. Without it the
+        # installer cannot be started at all from an app that is not already
+        # elevated, so an update for anyone who installed to Program Files
+        # would fail every single time.
+        calls = self.started_with(42)
+        updater.install(self.staged)
+        self.assertEqual(calls[0][2], "runas")
 
 
 if __name__ == "__main__":

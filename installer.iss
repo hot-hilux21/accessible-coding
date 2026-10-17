@@ -25,6 +25,13 @@ OutputDir=installer
 OutputBaseFilename=AccessibleIDE-Setup
 Compression=lzma2
 SolidCompression=yes
+; The app keeps itself up to date by running this installer, and by then the
+; reader has already closed it. Setup closes a running app through the same
+; mechanism the Task Manager uses, which is what makes replacing an install
+; folder that is in use possible at all. Putting the app back afterwards is
+; not wanted: the reader chose to close it, and a window reappearing on its
+; own looks like something went wrong.
+RestartApplications=no
 ; A modern, adaptive wizard. In light mode it uses the Windows 11 style, in
 ; dark mode the built-in dark style, and it decides once, at startup, from the
 ; reader's own Windows setting rather than from a preference of ours.

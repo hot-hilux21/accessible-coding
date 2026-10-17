@@ -104,15 +104,19 @@ line to look at first.
 `.github/workflows/build-release.yml` signs two files, in two jobs, in an order
 that matters:
 
-- **The portable exe** is signed after PyInstaller builds it and before
-  `version.json` is generated. The manifest records the `sha256` and the size of
-  the file the updater will download, and a signature changes both. Generating
-  the manifest first would publish a manifest that refuses the build it names,
-  and every reader on the channel would be offered an update that cannot
-  install.
-- **The installer** is signed after Inno Setup compiles it and before it is
-  uploaded, because the signature has to be part of the bytes that get
-  published.
+- **The portable exe** is signed after PyInstaller builds it, before it is
+  uploaded. It is a download in its own right, so the signature has to be part
+  of the bytes that get published. It is not the file the updater installs, so
+  no manifest is generated from it.
+- **The installer** is signed after Inno Setup compiles it, and then
+  `version.json` is generated from the signed file: the manifest records the
+  `sha256` and the size of the file the updater will download, and a signature
+  changes both. Generating the manifest first would publish a manifest that
+  refuses the build it names, and every reader on the channel would be offered
+  an update that cannot install. The installer is the update payload, because
+  replacing an installed copy means replacing a folder that is in use and
+  under Program Files, which is a job for the installer rather than for a
+  second copy of the app.
 
 Each job uploads the unsigned file, submits it, copies the signed file back over
 the original, and then checks the result with `Get-AuthenticodeSignature`. A run
