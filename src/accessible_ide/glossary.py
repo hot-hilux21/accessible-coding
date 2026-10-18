@@ -39,145 +39,332 @@ from markupsafe import Markup, escape
 # Straight apostrophes and no em dashes, matching the rest of the app's copy.
 SECTIONS = (
     {
-        'title': 'Saving a value under a name',
-        'note': '`=` saves a value. `==` compares two values. Mixing them up '
-                'is the most common first mistake.',
+        'title': 'Introduction and getting started',
+        'note': 'Python is a programming language you can type and run straight away.',
         'rows': (
-            ('`age = 14`',
-             'Saves a value under a name so you can use it again later.'),
-            ('`age = age + 1`',
-             'Works out the right side first, then saves the answer.'),
-            ('`age += 1`',
-             'The short way of writing the line above.'),
+            ('`python --version`', 'Check which version of Python is installed.'),
+            ('`python script.py`', 'Run a Python file from the command line.'),
+            ('`print()`', 'Show something on the screen.'),
         ),
     },
     {
-        'title': 'Saying something and reading an answer',
-        'note': '',
+        'title': 'Syntax',
+        'note': 'Python reads spaces at the start of a line to know how things belong together.',
         'rows': (
-            ('`print("hello")`', 'Puts something on the screen.'),
-            ('`input("How old are you? ")`',
-             'Asks a question and hands back the answer as text. The program '
-             'pauses here, a box appears for the answer, and it carries on '
-             'when you send it.'),
-            ('`type(3.5)`', 'Tells you what kind of value something is.'),
-        ),
-    },
-    {
-        'title': 'Turning one kind of value into another',
-        'note': '',
-        'rows': (
-            ('`int("12")`',
-             'Makes a whole number out of text. `int(3.9)` gives `3`.'),
-            ('`float("3.5")`', 'Makes a decimal number out of text.'),
-            ('`str(12)`', 'Makes text out of anything.'),
-        ),
-    },
-    {
-        'title': 'Sums',
-        'note': '',
-        'rows': (
-            ('`+` `-` `*` `/`', 'Add, subtract, multiply, divide.'),
-            ('`7 // 2`', 'Divides and keeps the whole number only: `3`.'),
-            ('`7 % 2`', 'The remainder after dividing: `1`.'),
-            ('`2 ** 3`', 'Powers: `8`.'),
-            ('`round(3.6)`', 'Rounds to the nearest whole number: `4`.'),
-        ),
-    },
-    {
-        'title': 'Comparing two values',
-        'note': '',
-        'rows': (
-            ('`==`', 'Are these two the same?'),
-            ('`!=`', 'Are these two different?'),
-            ('`<` `>` `<=` `>=`',
-             'Smaller, bigger, smaller or equal, bigger or equal.'),
-            ('`and` `or` `not`', 'Joins True and False answers together.'),
-        ),
-    },
-    {
-        'title': 'Doing something only sometimes',
-        'note': '',
-        'rows': (
-            ('`if age >= 13:`',
-             'Does the lines below only when the answer is True. Note the '
-             'colon at the end.'),
-            ('`elif age == 12:`',
-             'A second check to try when the first one was False.'),
-            ('`else:`', 'What to do when none of the checks worked.'),
-        ),
-    },
-    {
-        'title': 'Doing something more than once',
-        'note': '',
-        'rows': (
-            ('`for i in range(3):`', 'Does the lines below three times.'),
-            ('`for fruit in fruits:`',
-             'Goes through a list one item at a time.'),
-            ('`while answer != "yes":`',
-             'Keeps repeating for as long as the answer stays True.'),
-            ('`break`', 'Leaves the loop straight away.'),
-            ('`continue`',
-             'Skips the rest of this round and starts the next one.'),
-        ),
-    },
-    {
-        'title': 'Keeping several values together',
-        'note': '',
-        'rows': (
-            ('`fruits = ["apple", "pear"]`',
-             'A list: values in order, inside square brackets.'),
-            ('`me = {"name": "Ana", "age": 14}`',
-             'A dictionary: a value stored under each name, inside curly '
-             'brackets.'),
-            ('`len(fruits)`',
-             'How many items are in a list, a dictionary or some text.'),
-            ('`fruits.append("plum")`',
-             'Adds an item to the end of a list.'),
-            ('`fruits[0]`',
-             'The first item of a list. Counting starts at `0`.'),
+            ('`if x == 5:`', 'A line that ends with a colon starts a new block.'),
+            ('`    print(x)`', 'Indented lines belong to the block above them.'),
+            ('`# a comment`', 'Text after `#` is ignored by Python.'),
         ),
     },
     {
         'title': 'Comments',
         'note': '',
         'rows': (
-            ('`# later`', 'A comment. Python ignores the rest of the line.'),
+            ('`# This is a comment`', 'Python ignores this line.'),
+            ('`# print("not run")`', 'You can comment out code to stop it running.'),
         ),
     },
     {
-        'title': 'Mistakes everyone makes',
-        'note': 'Most errors are not Python being difficult. They are a '
-                'bracket left open, a command spelled slightly wrong, or a '
-                'number needed where text turned up.',
+        'title': 'Variables',
+        'note': '`=` saves a value under a name. Variable names cannot start with a number and cannot have spaces.',
         'rows': (
-            ('`prnit("hi")`',
-             '`prnit` is not a command. Python only knows the word it was '
-             'given, so check the spelling of the part it did not understand.'),
-            ('`print("hi"`',
-             'A bracket or a quote mark was opened and never closed.'),
-            ('`((1 + 2)`',
-             'The same mistake with a doubled bracket. Brackets have to pair '
-             'up, so count them.'),
-            ('`if x = 5:`',
-             '`=` saves a value. `==` compares two values, and that is what '
-             'belongs here.'),
-            ('`if x == 5`',
-             'Every `if`, `elif`, `else`, `for` and `while` line ends with a '
-             'colon.'),
-            ('`print(hello)`',
-             'Text needs quote marks: `print("hello")`. Without them Python '
-             'looks for a variable called `hello`.'),
-            ('`age = "14"` then `age + 1`',
-             'Text and a number cannot be added together. Use `int(age) + 1` '
-             'when you want a sum.'),
-            ('A tab at the start of one line, spaces at the start of the next',
-             'Python reads the indentation as part of the structure, so the '
-             'two have to match.'),
+            ('`x = 5`', 'Save the number 5 as x.'),
+            ('`name = "Ana"`', 'Save text as name.'),
+            ('`x, y = 5, 6`', 'Assign two values at the same time.'),
+            ('`x = y = 7`', 'Assign the same value to two names.'),
         ),
-        'after': 'The three you will meet most are `SyntaxError` (something is '
-                 'misspelled or unbalanced), `NameError` (a name Python does '
-                 'not know) and `TypeError` (text where a number was needed).',
+    },
+    {
+        'title': 'Data types',
+        'note': 'Python works out the type from the value you save.',
+        'rows': (
+            ('`type(5)`', 'Find out the type of a value.'),
+            ('`int`', 'Whole numbers like 1, 2, 3.'),
+            ('`float`', 'Numbers with a decimal point like 3.5.'),
+            ('`str`', 'Text like "hello".'),
+            ('`bool`', 'True or False.'),
+            ('`list`', 'A collection in order.'),
+            ('`tuple`', 'A collection that cannot be changed.'),
+            ('`set`', 'A collection with no duplicates.'),
+            ('`dict`', 'Values saved under keys.'),
+        ),
+    },
+    {
+        'title': 'Numbers',
+        'note': '',
+        'rows': (
+            ('`x = 5`', 'An integer.'),
+            ('`y = 3.14`', 'A float.'),
+            ('`x + y`', 'Add numbers together.'),
+            ('`x - y`', 'Subtract numbers.'),
+            ('`x * y`', 'Multiply numbers.'),
+            ('`x / y`', 'Divide numbers.'),
+            ('`x // y`', 'Divide and keep the whole number.'),
+            ('`x % y`', 'Get the remainder.'),
+            ('`x ** y`', 'Raise to a power.'),
+        ),
+    },
+    {
+        'title': 'Casting',
+        'note': 'Turn one type of value into another.',
+        'rows': (
+            ('`int("5")`', 'Turn text into an integer.'),
+            ('`float("3.5")`', 'Turn text into a float.'),
+            ('`str(5)`', 'Turn a number into text.'),
+            ('`bool(0)`', 'Turn a value into True or False.'),
+        ),
+    },
+    {
+        'title': 'Strings',
+        'note': '',
+        'rows': (
+            ('`"hello".upper()`', 'Make all letters uppercase.'),
+            ('`"HELLO".lower()`', 'Make all letters lowercase.'),
+            ('`len("hello")`', 'Get the length of text.'),
+            ('`"hello"[0]`', 'Get the first character.'),
+            ('`"hello" in "hello world"`', 'Check if text contains something.'),
+            ('`"a,b".split(",")`', 'Split text into a list.'),
+            ('`"a".replace("a","b")`', 'Replace part of the text.'),
+        ),
+    },
+    {
+        'title': 'Booleans',
+        'note': '',
+        'rows': (
+            ('`True`', 'A true value.'),
+            ('`False`', 'A false value.'),
+            ('`5 > 3`', 'Compare values to get True or False.'),
+            ('`5 == 5`', 'Check if two values are equal.'),
+            ('`5 != 3`', 'Check if two values are not equal.'),
+            ('`bool("hello")`', 'Most values become True. Zero and empty become False.'),
+        ),
+    },
+    {
+        'title': 'Operators',
+        'note': '',
+        'rows': (
+            ('`+ - * /`', 'Arithmetic operators.'),
+            ('`== != < > <= >=`', 'Comparison operators.'),
+            ('`and or not`', 'Logical operators.'),
+            ('`in not in`', 'Membership operators.'),
+            ('`is is not`', 'Identity operators.'),
+        ),
+    },
+    {
+        'title': 'Lists',
+        'note': 'Lists hold values in order and can be changed.',
+        'rows': (
+            ('`fruits = ["apple", "pear"]`', 'Create a list.'),
+            ('`fruits[0]`', 'Get the first item.'),
+            ('`len(fruits)`', 'Get how many items.'),
+            ('`fruits.append("plum")`', 'Add an item to the end.'),
+            ('`fruits.remove("pear")`', 'Remove an item.'),
+            ('`fruits[0] = "banana"`', 'Change an item.'),
+            ('`fruits.pop()`', 'Remove the last item.'),
+        ),
+    },
+    {
+        'title': 'Tuples',
+        'note': 'Tuples hold values in order but cannot be changed.',
+        'rows': (
+            ('`colors = ("red", "blue")`', 'Create a tuple.'),
+            ('`colors[0]`', 'Get the first item.'),
+            ('`len(colors)`', 'Get how many items.'),
+            ('`"red" in colors`', 'Check if an item is in the tuple.'),
+        ),
+    },
+    {
+        'title': 'Sets',
+        'note': 'Sets hold values with no duplicates and no set order.',
+        'rows': (
+            ('`nums = {1, 2, 3}`', 'Create a set.'),
+            ('`nums.add(4)`', 'Add an item.'),
+            ('`nums.remove(1)`', 'Remove an item.'),
+            ('`len(nums)`', 'Get how many items.'),
+            ('`1 in nums`', 'Check if an item is in the set.'),
+        ),
+    },
+    {
+        'title': 'Dictionaries',
+        'note': 'Dictionaries save values under keys.',
+        'rows': (
+            ('`me = {"name": "Ana", "age": 14}`', 'Create a dictionary.'),
+            ('`me["name"]`', 'Get a value by key.'),
+            ('`me["age"] = 15`', 'Change a value.'),
+            ('`me["city"] = "Paris"`', 'Add a new key and value.'),
+            ('`me.keys()`', 'Get all keys.'),
+            ('`me.values()`', 'Get all values.'),
+            ('`len(me)`', 'Get how many key value pairs.'),
+        ),
+    },
+    {
+        'title': 'If...Else',
+        'note': 'Run code only when a condition is True or False.',
+        'rows': (
+            ('`if x > 5:`', 'Run if condition is True.'),
+            ('`elif x == 5:`', 'Run if previous was False and this is True.'),
+            ('`else:`', 'Run if all conditions are False.'),
+            ('`if x > 5 and x < 10:`', 'Combine conditions.'),
+            ('`if x > 5 or x < 2:`', 'Either condition can be True.'),
+        ),
+    },
+    {
+        'title': 'Match',
+        'note': 'Compare a value against several patterns. Available in Python 3.10 and later.',
+        'rows': (
+            ('`match day:`', 'Start a match statement.'),
+            ('`  case "Mon":`', 'Run if day matches this pattern.'),
+            ('`    print("start")`', 'Code to run for this case.'),
+            ('`  case _:`', 'A default case when nothing matches.'),
+        ),
+    },
+    {
+        'title': 'While loops',
+        'note': 'Keep running code while a condition is True.',
+        'rows': (
+            ('`while x < 5:`', 'Repeat while condition is True.'),
+            ('`    x += 1`', 'Change something so the loop ends.'),
+            ('`break`', 'Leave the loop straight away.'),
+            ('`continue`', 'Skip the rest of this round and go to the next.'),
+        ),
+    },
+    {
+        'title': 'For loops',
+        'note': 'Loop through a sequence of items.',
+        'rows': (
+            ('`for i in range(3):`', 'Loop three times.'),
+            ('`for fruit in fruits:`', 'Loop through each item in a list.'),
+            ('`for c in "abc":`', 'Loop through each character in text.'),
+            ('`break`', 'Leave the loop.'),
+            ('`continue`', 'Skip to the next item.'),
+        ),
+    },
+    {
+        'title': 'Functions',
+        'note': 'Group code together and reuse it by name.',
+        'rows': (
+            ('`def greet():`', 'Define a function with no input.'),
+            ('`    print("hi")`', 'Code that runs when called.'),
+            ('`greet()`', 'Call the function.'),
+            ('`def greet(name):`', 'Define a function that takes an input.'),
+            ('`    return name`', 'Return a value from the function.'),
+            ('`greet("Ana")`', 'Call with an argument.'),
+        ),
+    },
+    {
+        'title': 'Range',
+        'note': '`range()` gives a sequence of numbers to use in loops.',
+        'rows': (
+            ('`range(5)`', 'Numbers from 0 up to but not including 5.'),
+            ('`range(1, 5)`', 'Numbers from 1 up to but not including 5.'),
+            ('`range(1, 10, 2)`', 'Numbers from 1 stepping by 2.'),
+            ('`list(range(5))`', 'Turn range into a list to see the numbers.'),
+        ),
+    },
+    {
+        'title': 'Arrays',
+        'note': 'Python has lists. Some libraries also use arrays for numbers.',
+        'rows': (
+            ('`nums = [1, 2, 3]`', 'Create a list to hold numbers.'),
+            ('`len(nums)`', 'Get the number of items.'),
+            ('`nums.append(4)`', 'Add a new number.'),
+            ('`nums[0] = 0`', 'Change a number.'),
+        ),
+    },
+    {
+        'title': 'Iterators',
+        'note': 'An iterator lets you go through items one by one.',
+        'rows': (
+            ('`fruits = ["apple", "pear"]`', 'A list is iterable.'),
+            ('`it = iter(fruits)`', 'Get an iterator from the list.'),
+            ('`next(it)`', 'Get the next item.'),
+            ('`for fruit in fruits:`', 'A for loop uses iterators behind the scenes.'),
+        ),
+    },
+    {
+        'title': 'Modules',
+        'note': 'Modules let you reuse code from other files or built in tools.',
+        'rows': (
+            ('`import math`', 'Import a module.'),
+            ('`math.sqrt(16)`', 'Use something from the module.'),
+            ('`from math import sqrt`', 'Import just one thing.'),
+            ('`import random`', 'Another common module.'),
+            ('`random.randint(1, 10)`', 'Get a random number.'),
+        ),
+    },
+    {
+        'title': 'Dates',
+        'note': '',
+        'rows': (
+            ('`from datetime import datetime`', 'Import the datetime tools.'),
+            ('`datetime.now()`', 'Get the current date and time.'),
+            ('`datetime.now().year`', 'Get just the year.'),
+            ('`datetime.now().strftime("%Y-%m-%d")`', 'Format the date as text.'),
+        ),
+    },
+    {
+        'title': 'Math',
+        'note': '',
+        'rows': (
+            ('`import math`', 'Import math tools.'),
+            ('`math.pi`', 'Get pi.'),
+            ('`math.sqrt(25)`', 'Get the square root.'),
+            ('`math.ceil(3.2)`', 'Round up.'),
+            ('`math.floor(3.8)`', 'Round down.'),
+            ('`abs(-5)`', 'Get the absolute value.'),
+        ),
+    },
+    {
+        'title': 'JSON',
+        'note': 'Work with JSON data in Python.',
+        'rows': (
+            ('`import json`', 'Import the json module.'),
+            ('`data = {"name": "Ana"}`', 'Python dictionary.'),
+            ('`json.dumps(data)`', 'Turn a dictionary into JSON text.'),
+            ('`json.loads("{\\"name\\": \\"Ana\\"}")`', 'Turn JSON text into a Python dictionary.'),
+        ),
+    },
+    {
+        'title': 'RegEx',
+        'note': 'Search and match text patterns.',
+        'rows': (
+            ('`import re`', 'Import the re module.'),
+            ('`re.search("a", "apple")`', 'Search for a pattern.'),
+            ('`re.findall("a", "apple")`', 'Find all matches.'),
+            ('`re.match("a", "apple")`', 'Match at the start of text.'),
+            ('`re.sub("a", "b", "apple")`', 'Replace matches.'),
+        ),
+    },
+    {
+        'title': 'Try...Except',
+        'note': 'Handle errors so your program does not crash.',
+        'rows': (
+            ('`try:`', 'Try to run code that might cause an error.'),
+            ('`    x = int("abc")`', 'This will cause an error.'),
+            ('`except ValueError:`', 'Run this if a ValueError happens.'),
+            ('`    print("not a number")`', 'Show a friendly message.'),
+            ('`else:`', 'Run this if no error happened.'),
+            ('`finally:`', 'Run this no matter what.'),
+        ),
+    },
+    {
+        'title': 'String formatting',
+        'note': '',
+        'rows': (
+            ('`"Hello {}".format("Ana")`', 'Format with curly braces.'),
+            ('`f"Hello {name}"`', 'Format with f strings.'),
+            ('`"Hello %s" % "Ana"`', 'Format with percent signs.'),
+            ('`"{0} {1}".format("Hello", "Ana")`', 'Format with numbered placeholders.'),
+        ),
+    },
+    {
+        'title': 'User input',
+        'note': 'Ask the user a question and get their answer.',
+        'rows': (
+            ('`name = input("What is your name? ")`', 'Ask for input and save it as text.'),
+            ('`age = int(input("How old are you? "))`', 'Get input and turn it into a number.'),
+            ('`print("Hi", name)`', 'Use the answer.'),
+        ),
     },
 )
 
