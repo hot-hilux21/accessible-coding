@@ -53,8 +53,8 @@ Jump to any section:
 ## Try it now
 
 - **Web app:** [https://accessible-coding.onrender.com](https://accessible-coding.onrender.com)
-- **Windows installer (recommended):** download `AccessibleIDE-Setup.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE-Setup.exe) — installs the app to any folder, installs Python and adds it to PATH, and creates shortcuts
-- **Windows exe (portable):** download `AccessibleIDE.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE.exe)
+- **Windows installer (recommended):** download `AccessibleIDE-Setup.exe` from the [**v1.0.0 stable release**](https://github.com/hot-hilux21/accessible-coding/releases/tag/v1.0.0) - installs the app to any folder, installs Python and adds it to PATH, and creates shortcuts
+- **Windows exe (portable):** download `AccessibleIDE.exe` from the [**v1.0.0 stable release**](https://github.com/hot-hilux21/accessible-coding/releases/tag/v1.0.0)
 
 [↑ Back to contents](#contents) · [↓ Next: Getting started](#getting-started)
 
