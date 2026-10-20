@@ -274,7 +274,13 @@ jobs:
             release/AccessibleIDE-Setup.exe
             release/version.json
           generate_release_notes: true
-          prerelease: true
+          # A plain-number tag is a finished release and must hold the Latest
+          # badge; a tag with a pre-release suffix is work in progress and must
+          # not. The verdict comes from the tag itself because the channel job
+          # that decides the same thing runs after this step. A hardcoded
+          # `true` here would demote every finished release, which is how
+          # v1.0.0 lost the badge its plain number had earned.
+          prerelease: ${{ contains(github.ref_name, '-') }}
       # The channels the app reads. The manifest is the channel: it points at
       # the tagged release above, so the app needs no release-list API and no
       # token, only a fixed address per channel.
