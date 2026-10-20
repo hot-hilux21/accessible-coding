@@ -173,23 +173,27 @@ class ManualCheckTests(UpdateEndpointTestCase):
 class AutomaticCheckSettingTests(UpdateEndpointTestCase):
     """The saved setting decides, not the page asking."""
 
-    def test_it_is_off_by_default(self):
-        # Opening a program that runs on the reader's own machine should not
-        # send their address to a server they never agreed to hear from. The
-        # button to ask is right there on the settings screen.
-        self.assertFalse(routes.load_config()["auto_update"])
+    def test_it_is_on_by_default(self):
+        # The reader asked to be told when a newer version exists: the check
+        # runs once when the app opens, says so in Settings and in the main
+        # window when there is something to say, and never downloads or
+        # installs anything by itself. The switch turns even that look off;
+        # a check the reader presses still happens either way, because
+        # refusing to answer a direct question is the same as being broken.
+        self.assertTrue(routes.load_config()["auto_update"])
 
-    def test_an_older_config_without_the_key_does_not_reintroduce_the_check(self):
+    def test_an_older_config_without_the_key_follows_the_current_default(self):
         # A config written before this switch existed has no key in it at
-        # all. If that falls back to "on", the phone-home comes back for
-        # exactly the readers who never had the switch to turn it off with.
+        # all. It gets the answer this product ships with now: look once on
+        # launch, tell the reader if there is something to say, and change
+        # nothing by itself. The switch to stop even that is right there.
         partial = {k: v for k, v in routes.load_config().items()
                    if k != 'auto_update'}
         routes.save_config(partial)
         self.set_manifest('99.0.0')
         body = self.check().get_json()
-        self.assertFalse(body['update_available'])
-        self.assertFalse(body['automatic'])
+        self.assertTrue(body['update_available'])
+        self.assertTrue(body['automatic'])
 
     def test_turning_it_off_stops_the_automatic_check(self):
         routes.save_config(dict(routes.load_config(), auto_update=False))

@@ -526,7 +526,7 @@ INSTALLER_FLAGS = (
 SHELL_EXECUTE_REFUSALS = frozenset({1155, 1223})
 
 
-def install(staged: Path) -> bool:
+def install(staged: Path, relaunch: bool = False) -> bool:
     """Start the staged installer, which replaces this app and closes it.
 
     The app does not replace itself. It used to, and the way it did was
@@ -548,9 +548,12 @@ def install(staged: Path) -> bool:
     raise it is the one used here. Windows asks the reader, in their own
     language; if they decline, nothing happens and their app is untouched.
 
-    The new build is never started again afterwards. The reader closed the
-    app, and opening it back up for them would hide the fact that anything
-    had happened at all.
+    The new build is not started again afterwards by default. The reader
+    closed the app, and opening it back up for them would hide the fact
+    that anything had happened at all. ``relaunch=True`` is the one
+    exception, sent only when they have just pressed "Install and restart"
+    - they asked to come back, and the installer is told so with
+    /RELAUNCH, which the installer passes to a [Run] entry guarded by it.
 
     Returns True once Windows has accepted the request. Raises UpdateError
     when it has not, which leaves the downloaded installer on disk for the
@@ -563,7 +566,14 @@ def install(staged: Path) -> bool:
     if not staged.is_file():
         raise UpdateError('the downloaded installer is missing', code='missing_build')
 
-    result = _shell_execute(staged, ' '.join(INSTALLER_FLAGS), 'runas')
+    flags = INSTALLER_FLAGS
+    if relaunch:
+        # Stated as a separate flag rather than folded into the tuple, so
+        # the close path can never pick it up by accident: a program the
+        # reader closed stays closed unless they pressed the button that
+        # says it will open again.
+        flags = flags + ('/RELAUNCH',)
+    result = _shell_execute(staged, ' '.join(flags), 'runas')
     # No handle at all, anything at or below 32, or one of the two documented
     # failures that sit above it, all mean the installer never started.
     if not result or result <= 32 or result in SHELL_EXECUTE_REFUSALS:

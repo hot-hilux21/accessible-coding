@@ -103,6 +103,11 @@ Source: "installer\prereqs\python-3.13.16-amd64.exe"; DestDir: "{tmp}"; Flags: d
 Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ Runtime..."; Flags: waituntilterminated
 Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; StatusMsg: "Installing the WebView2 runtime (needed for the app window)..."; Flags: waituntilterminated
 Filename: "{tmp}\python-3.13.16-amd64.exe"; Parameters: "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0 Include_launcher=0 Shortcuts=0"; StatusMsg: "Installing Python and adding it to PATH..."; Flags: waituntilterminated; Check: ShouldInstallPython
+; The app asked for this itself, right after the reader pressed "Install
+; and restart", so the new build opens as soon as the files are replaced.
+; runasoriginaluser because Setup is elevated and the app must not be;
+; nowait so Setup does not sit waiting on the program it just started.
+Filename: "{app}\{#MyAppExeName}"; Check: ShouldRelaunch; Flags: nowait runasoriginaluser
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch AccessibleIDE"; Flags: nowait postinstall skipifsilent
 
 [Icons]
@@ -133,4 +138,29 @@ end;
 function ShouldInstallPython: Boolean;
 begin
   Result := WizardIsTaskSelected('installpython') and not IsPythonInstalled;
+end;
+
+{ True only when Setup was started by the app's "Install and restart"
+  button, which passes /RELAUNCH on the command line. Every other way of
+  arriving at this installer - the reader closing the app, a fresh manual
+  run of Setup - passes nothing, and a program the reader closed stays
+  closed. The parameter is custom: Inno Setup ignores command line
+  parameters it does not know, and CmdLineParamExists is the documented
+  way of reading one back. }
+function CmdLineParamExists(const Value: string): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), Value) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+function ShouldRelaunch: Boolean;
+begin
+  Result := CmdLineParamExists('/RELAUNCH');
 end;

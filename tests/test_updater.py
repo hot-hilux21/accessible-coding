@@ -793,6 +793,16 @@ class InstallerStartTests(unittest.TestCase):
         updater.install(self.staged)
         self.assertEqual(calls[0][2], "runas")
 
+    def test_the_reader_asked_to_reopen_gets_the_flag(self):
+        # The button says the app will open again, so the installer has to
+        # be told: every other path here is a reader who closed the app and
+        # wants it left closed. The flag is explicit and not folded in by
+        # default, so the close path can never pick it up by accident.
+        calls = self.started_with(42)
+        self.assertTrue(updater.install(self.staged, relaunch=True))
+        flags = ' '.join(updater.INSTALLER_FLAGS + ('/RELAUNCH',))
+        self.assertEqual(calls, [(self.staged, flags, 'runas')])
+
 
 if __name__ == "__main__":
     unittest.main()

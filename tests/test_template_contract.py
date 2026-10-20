@@ -959,8 +959,11 @@ class SetupWizardTests(RenderedPageFixture):
         self.assertIn('id="setup-skip"', self.html)
         self.assertIn('type="button"', self.html.split('id="setup-skip"', 1)[1][:120])
         self.assertIn("setup-skip", self.js)
-        self.assertIn("cancel", self.js)
-        self.assertIn("preventDefault", self.js.split("cancel", 1)[1][:200])
+        self.assertIn("addEventListener('cancel'", self.js)
+        self.assertIn(
+            "preventDefault",
+            self.js.split("addEventListener('cancel'", 1)[1][:200],
+        )
 
     def test_a_problem_is_announced_rather_than_only_shown(self):
         # role="alert" makes a screen reader say a refused save out loud.

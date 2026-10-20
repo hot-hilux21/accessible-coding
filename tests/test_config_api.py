@@ -1028,12 +1028,14 @@ class ConfigBackupTests(ConfigApiTestCase):
 class KeypressSettingsTests(ConfigApiTestCase):
     """The two key presses the reader can change, and the rule that guards them.
 
-    Running is always Enter with a modifier and stopping is always Escape, so
-    the two can never mean each other. On their own both keys keep the meaning
-    they already had, which is why no bare press is ever accepted from the
-    API: a config file that bound one would take away the newline and the
-    Escape key that closes dialogs, and the reader would have no way to undo
-    that from the keyboard.
+    A press is one or more modifiers (Ctrl, Alt, Shift, in that order) followed
+    by an ordinary letter, digit, or underscore, so the recorder accepts
+    anything the reader can type, such as Alt+Shift+R. A press with no
+    modifiers is refused: Enter and Escape on their own keep the meaning they
+    already had, and a config file that bound them would take away the newline
+    and the Escape key that closes dialogs with no way back. Escape pressed
+    twice is the one stop that is not a single combination, and it can only
+    ever be a stop, never a run.
     """
 
     def test_the_shipped_presses_are_the_ones_the_app_has_always_had(self):
@@ -1066,7 +1068,10 @@ class KeypressSettingsTests(ConfigApiTestCase):
                     f"Settings offers {combo!r} for stopping but the server refuses it",
                 )
 
-    def test_a_press_for_running_is_always_enter_and_a_press_for_stopping_escape(self):
+    def test_the_offered_presses_end_in_enter_for_running_and_escape_for_stopping(self):
+        # The preset lists still lead with the presses the app has always
+        # shipped; the rule itself now accepts any modifier plus an ordinary
+        # key, so this checks the offers, not the rule.
         for combo in routes.RUN_KEYS:
             if combo == routes.ESCAPE_TWICE:
                 continue
@@ -1088,12 +1093,21 @@ class KeypressSettingsTests(ConfigApiTestCase):
                 self.assertEqual(self.post_settings(run_key=value).status_code, 400)
                 self.assertEqual(self.post_settings(stop_key=value).status_code, 400)
 
-    def test_a_press_meant_for_one_setting_is_refused_by_the_other(self):
-        self.assertFalse(routes._valid_key_combo("run_key", "Ctrl+Escape"))
-        self.assertFalse(routes._valid_key_combo("stop_key", "Ctrl+Enter"))
+    def test_escape_twice_is_a_stop_and_never_a_run(self):
         # Escape twice is the one stop that is not a single combination. It is
-        # not a way to run anything.
+        # not a way to run anything, so the run field refuses it while the
+        # stop field takes it.
         self.assertFalse(routes._valid_key_combo("run_key", routes.ESCAPE_TWICE))
+        self.assertTrue(routes._valid_key_combo("stop_key", routes.ESCAPE_TWICE))
+
+    def test_a_full_modifer_press_works_for_both_settings(self):
+        # Run and stop are guarded by the same shape rule now; only Escape
+        # twice is stop-exclusive. A modifier plus an ordinary key is valid in
+        # either field, so a reader can pick any press they can type.
+        for key in ("run_key", "stop_key"):
+            with self.subTest(key=key):
+                self.assertTrue(routes._valid_key_combo(key, "Ctrl+Escape"))
+                self.assertTrue(routes._valid_key_combo(key, "Ctrl+Enter"))
 
     def test_each_modifier_is_written_once_and_in_one_order(self):
         # Two spellings of the same press would be two settings that look
@@ -1106,7 +1120,28 @@ class KeypressSettingsTests(ConfigApiTestCase):
                 )
 
     def test_a_press_this_app_has_no_use_for_is_refused(self):
-        for value in ("Ctrl+K", "Ctrl+A", "Ctrl+Tab", "F5", "Ctrl+Shift+P"):
+        # A key with no modifier would steal a key the reader already uses,
+        # and a named key the recorder cannot spell (F5) never reaches the
+        # server in a valid spelling either.
+        for value in ("F5", "R", "Tab"):
+            with self.subTest(value=value):
+                self.assertFalse(routes._valid_key_combo("run_key", value))
+                self.assertFalse(routes._valid_key_combo("stop_key", value))
+
+    def test_any_modifier_press_with_an_ordinary_key_is_accepted(self):
+        # The recorder must take combos that are not on the preset list, like
+        # the Alt+Shift+R a reader records by hand, for either setting.
+        for key in ("run_key", "stop_key"):
+            for value in ("Alt+Shift+R", "Ctrl+Alt+9", "Ctrl+Shift+P"):
+                with self.subTest(key=key, value=value):
+                    self.assertTrue(routes._valid_key_combo(key, value))
+                    self.assertEqual(self.post_settings(**{key: value}).status_code,
+                                     200)
+
+    def test_a_modifier_on_its_own_is_not_a_press(self):
+        # "Ctrl+Shift" names only modifiers, with no key to press, so it is a
+        # spelling of nothing at all.
+        for value in ("Ctrl+Shift", "Ctrl", "Alt+Shift"):
             with self.subTest(value=value):
                 self.assertFalse(routes._valid_key_combo("run_key", value))
                 self.assertFalse(routes._valid_key_combo("stop_key", value))

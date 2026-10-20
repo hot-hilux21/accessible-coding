@@ -46,6 +46,67 @@ def _wait_for_server(url, timeout=15):
     return False
 
 
+def _is_our_server(url, timeout=2):
+    """Return True if a healthy AccessibleIDE is answering at this url.
+
+    A port being bound only proves *something* is listening on it. After an
+    update, a half-dead copy of this app can still hold the port without
+    serving anything useful, and pointing a window at it produces a bare
+    "cannot connect" page. Asking /health is what tells our own app apart
+    from a leftover process.
+    """
+    try:
+        with urllib.request.urlopen(url + '/health', timeout=timeout) as response:
+            return response.status == 200
+    except Exception:
+        return False
+
+
+def _free_port(preferred, tries=10):
+    """Find a usable port, starting at the preferred one.
+
+    If the preferred port is held by a stale process that never answers
+    /health, we move to the next one rather than attaching a window to a
+    server that cannot respond.
+    """
+    for port in range(preferred, preferred + tries):
+        if not _port_in_use(port):
+            return port
+        if _is_our_server(f'http://127.0.0.1:{port}'):
+            return port
+    return None
+
+
+def _show_error(message):
+    """Tell the reader what went wrong, in a window they can read.
+
+    Without this, a startup failure either vanishes into a console nobody is
+    watching or surfaces as a raw browser-style connection error, which for a
+    dyslexic reader is the least helpful way to be told something broke.
+    """
+    try:
+        import webview
+        webview.create_window(
+            'AccessibleIDE',
+            html=(
+                '<!DOCTYPE html><html lang="en"><head>'
+                '<meta charset="utf-8"><title>AccessibleIDE</title></head>'
+                '<body style="font-family:sans-serif;padding:2em;'
+                'font-size:18px;line-height:1.6">'
+                f'<h1 style="font-size:1.4em">AccessibleIDE could not start</h1>'
+                f'<p>{message}</p>'
+                '<p>Close this window and open AccessibleIDE again.</p>'
+                '</body></html>'
+            ),
+            width=700,
+            height=420,
+            min_size=(500, 300),
+        )
+        webview.start()
+    except Exception:
+        print(message)
+
+
 def _start_server(port):
     """Run the Flask server (debug off, localhost only)."""
     debug = os.environ.get('FLASK_DEBUG', '0') == '1'
@@ -56,13 +117,14 @@ def _run_desktop(port):
     """Launch the native desktop window (PyWebView)."""
     import webview  # imported lazily so the web deployment needs no pywebview
 
-    url = f'http://127.0.0.1:{port}'
-
-    # If the IDE is already running, just show a window for it and exit.
-    if _port_in_use(port):
+    # An already-running copy only counts if it actually answers. A leftover
+    # process can hold the port without serving, and pointing a window at it
+    # is what produced the bare "cannot connect" page.
+    existing = f'http://127.0.0.1:{port}'
+    if _port_in_use(port) and _is_our_server(existing):
         webview.create_window(
             'AccessibleIDE',
-            url,
+            existing,
             width=1200,
             height=800,
             min_size=(800, 600),
@@ -70,10 +132,24 @@ def _run_desktop(port):
         webview.start()
         return
 
+    # Nothing healthy on the preferred port: take the first one that is free
+    # (or already serving our own app) rather than fighting a stale process.
+    chosen = _free_port(port)
+    if chosen is None:
+        _show_error(
+            'Another program is using the local address AccessibleIDE needs, '
+            'and it is not responding.'
+        )
+        sys.exit(1)
+    url = f'http://127.0.0.1:{chosen}'
+
     # Start the server, wait until it is ready, then open the window.
-    threading.Thread(target=_start_server, args=(port,), daemon=True).start()
+    threading.Thread(target=_start_server, args=(chosen,), daemon=True).start()
     if not _wait_for_server(url):
-        print('AccessibleIDE could not start its local server.')
+        _show_error(
+            'The local part of AccessibleIDE did not start. This is a problem '
+            'on this computer, not with your internet connection.'
+        )
         sys.exit(1)
 
     _tidy_leftover_updates()

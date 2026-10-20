@@ -348,6 +348,12 @@
 
   <footer class="footer" role="contentinfo">
     <p>{{ t('footer.text') }} <a href="https://github.com/hot-hilux21/accessible-coding" target="_blank" rel="noopener">{{ t('footer.github') }}</a></p>
+    <!-- A newer version, when a check has found one. A plain line in the
+         main window rather than a badge or a flash: pressing it opens
+         Settings at the updates group, where the check and the download
+         live. Hidden until a check actually finds something, so it cannot
+         promise anything at rest. -->
+    <button id="update-notice" class="btn btn-small" type="button" hidden>{{ t('update.notice') }}</button>
     <button id="btn-quit" class="btn btn-small quit-btn" hidden>{{ t('nav.quit') }}</button>
   </footer>
 
@@ -591,7 +597,7 @@
           <div class="field" id="theme-builder" hidden>
             <p class="field-help" id="theme-builder-help">{{ t('theme.custom_help') }}</p>
             <div class="theme-builder-grid">
-              {% for key, label in (('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('keyword', 'theme.custom_keyword'), ('string', 'theme.custom_string'), ('comment', 'theme.custom_comment'), ('number', 'theme.custom_number'), ('function', 'theme.custom_function')) %}
+              {% for key, label in (('page', 'theme.custom_page'), ('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('selection', 'theme.custom_selection'), ('keyword', 'theme.custom_keyword'), ('string', 'theme.custom_string'), ('comment', 'theme.custom_comment'), ('number', 'theme.custom_number'), ('function', 'theme.custom_function')) %}
               <div class="field theme-builder-field">
                 <label for="theme-custom-{{ key }}">{{ t(label) }}</label>
                 <div class="field-row">
@@ -923,6 +929,17 @@
             <p class="field-help" id="update-install-help">{{ t('update.install_help') }}</p>
           </div>
 
+          <!-- Shown once a build has been downloaded and checked. Pressing
+               it closes the app, installs the new version, and opens it
+               again. Nothing closes without this press. -->
+          <div class="field" id="update-restart-row" hidden>
+            <span class="field-label-static" id="update-restart-label">{{ t('update.restart_button') }}</span>
+            <button id="btn-restart-update" class="btn btn-small btn-primary" type="button" aria-describedby="update-restart-label">
+              {{ t('update.restart_button') }}
+            </button>
+            <p class="field-help" id="update-restart-help">{{ t('update.restart_help') }}</p>
+          </div>
+
           <p class="field-help" id="update-version"></p>
         </fieldset>
 
@@ -1034,9 +1051,25 @@
   <dialog id="quit-dialog" class="confirm" aria-labelledby="quit-title">
     <h2 id="quit-title" class="settings-title">{{ t('quit.title') }}</h2>
     <p class="confirm-body">{{ t('quit.body') }}</p>
+    <p id="quit-unsaved-note" class="confirm-body" hidden>{{ t('quit.unsaved_note') }}</p>
     <div class="confirm-actions">
       <button id="btn-quit-keep" class="btn" type="button">{{ t('quit.keep') }}</button>
       <button id="btn-quit-confirm" class="btn btn-primary" type="button">{{ t('nav.quit') }}</button>
+    </div>
+  </dialog>
+
+  <!-- Downloading. The download itself changes nothing on its own, but it
+       is the step that leads to installing, and installing closes the app
+       and opens it again - so the word about saving comes before the
+       download starts, not after it finishes. Same shape as the quit
+       question, including the order: the answer that leaves everything as
+       it is comes first for a reader working by keyboard. -->
+  <dialog id="save-warn-dialog" class="confirm" aria-labelledby="save-warn-title">
+    <h2 id="save-warn-title" class="settings-title">{{ t('update.warn_title') }}</h2>
+    <p class="confirm-body">{{ t('update.warn_body') }}</p>
+    <div class="confirm-actions">
+      <button id="btn-save-warn-cancel" class="btn" type="button">{{ t('update.warn_cancel') }}</button>
+      <button id="btn-save-warn-confirm" class="btn btn-primary" type="button">{{ t('update.install_button') }}</button>
     </div>
   </dialog>
 

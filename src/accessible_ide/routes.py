@@ -1,7 +1,8 @@
 """
 Main routes for AccessibleIDE.
 """
-from flask import Blueprint, render_template, request, jsonify, make_response, send_from_directory
+from flask import Blueprint, render_template, request, jsonify, make_response, send_from_directory, has_request_context
+import hmac
 import subprocess
 import sys
 import json
@@ -12,6 +13,7 @@ import tempfile
 import signal
 import threading
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from . import glossary
 from . import i18n
@@ -64,6 +66,14 @@ SANDBOX = on_public_web()
 RATE_LIMIT = {}
 RATE_MAX = 10          # requests per window
 RATE_WINDOW = 60       # seconds
+
+# Failed access-code attempts, keyed on client IP. Separate from
+# RATE_LIMIT on purpose: the general limiter prunes any entry older than
+# a minute, which would gut a lockout measured in minutes, and it counts
+# every request rather than failures. This one only sees wrong codes.
+AUTH_FAIL = {}
+AUTH_FAIL_MAX = 10     # wrong codes per window before the lock
+AUTH_FAIL_WINDOW = 900  # seconds the lock lasts
 
 # The shell is metered separately, and more generously.
 #
@@ -185,8 +195,15 @@ ESCAPE_TWICE = 'Escape Escape'
 # match itself. At least one modifier is required, which is what keeps bare
 # Enter and bare Escape out without a second rule.
 _MODIFIER = r'(?:Ctrl\+(?:Alt\+)?(?:Shift\+)?|Alt\+(?:Shift\+)?|Shift\+)'
-RUN_KEY_RE = re.compile(r'^' + _MODIFIER + r'Enter$')
-STOP_KEY_RE = re.compile(r'^' + _MODIFIER + r'Escape$')
+# Any ordinary key can be the base of a press, not only Enter or Escape.
+# The lookahead keeps a modifier name written as the base (Ctrl+Shift)
+# out, while Ctrl+Alt+Shift+R is fine. A press with no modifier never
+# matches because _MODIFIER is required.
+_BASE_KEY = r'(?!Ctrl$|Alt$|Shift$)[A-Za-z0-9_]+'
+RUN_KEY_RE = re.compile(r'^' + _MODIFIER + _BASE_KEY + r'$')
+# Stopping accepts the same shapes as running. Escape pressed twice is
+# the one special case and is handled in _valid_key_combo below.
+STOP_KEY_RE = RUN_KEY_RE
 
 DEFAULT_CONFIG = {
     'font': 'OpenDyslexic',
@@ -249,13 +266,15 @@ DEFAULT_CONFIG = {
     # The tint for those panels. Empty means "whatever the chosen theme
     # uses", which is the safe answer and what the reset button sends.
     'glass_tint': '',
-    # The reader's own theme, built in Settings. Seven colours are picked;
+    # The reader's own theme, built in Settings. Nine colours are picked;
     # the rest of the palette is derived from them (see custom_palette) so
     # the derived colours can never cost contrast. The defaults are the
     # high-contrast theme's colours, so a reader who opens the builder and
     # changes nothing gets the theme they were on.
     'theme_custom_bg': '#0b0b0b',
     'theme_custom_fg': '#ffffff',
+    'theme_custom_page': '#0b0b0b',
+    'theme_custom_selection': '#4d4300',
     'theme_custom_keyword': '#ff9a9a',
     'theme_custom_string': '#93e6a8',
     'theme_custom_comment': '#b4b4b4',
@@ -281,16 +300,14 @@ DEFAULT_CONFIG = {
     # The speech API does not say whether a voice is male or female, so
     # this is a preference applied to what is installed, not a promise.
     'tts_voice_gender': 'male',
-    # Off by default. This is a program that runs on the reader's own
-    # machine, and opening it should not send their IP address to a server
-    # they never agreed to hear from. Being told about a fix matters, but it
-    # is not worth the reader's privacy by default - so the check happens
-    # when they press the button, and the switch is here to make it happen
-    # on its own afterwards, for anyone who has decided that is a good
-    # trade. Switching it off stops the automatic check only: a check the
-    # reader asked for still happens, because refusing to answer a direct
+    # On, and on purpose: the reader asked to be told when a new version
+    # exists. The check runs once when the app opens, reads the public
+    # release list, and puts a sentence on screen - nothing is downloaded
+    # and nothing is installed without them pressing a button. The switch
+    # turns even that automatic check off; a check they press themselves
+    # still happens either way, because refusing to answer a direct
     # question is the same as being broken.
-    'auto_update': False,
+    'auto_update': True,
     # Which set of releases this reader wants. Beta is the working channel
     # and gets every tagged release; stable is for a big finished change and
     # is left alone until one is tagged. Beta is the default because it is
@@ -424,14 +441,14 @@ THEMES = {
 # palette is derived from these with rules that cannot cost contrast (see
 # custom_palette), so the builder only has to check the colours the reader
 # actually chose.
-CUSTOM_THEME_COLOURS = ('bg', 'fg', 'keyword', 'string', 'comment',
-                        'number', 'function')
+CUSTOM_THEME_COLOURS = ('page', 'bg', 'fg', 'selection', 'keyword',
+                        'string', 'comment', 'number', 'function')
 
 
 def custom_palette(config):
-    """The full 15-colour palette for the reader's own theme.
+    """The full 16-colour palette for the reader's own theme.
 
-    Seven colours are picked in Settings; the rest are derived so they can
+    Nine colours are picked in Settings; the rest are derived so they can
     never cost contrast. Text colours are faded toward the background until
     they clear AA, the same rule the panel tint uses, so a reader who picks
     a colour that is too close to the background still gets a readable
@@ -451,11 +468,15 @@ def custom_palette(config):
     comment = colour.readable_text_on(bg, pick('comment'))
     number = colour.readable_text_on(bg, pick('number'))
     function = colour.readable_text_on(bg, pick('function'))
-    # Selected text is the foreground on a tint of the background. The tint
-    # is faded toward the background until the foreground clears AA on it,
-    # the same way a panel tint is faded toward its panel.
+    # The page around the editor, picked on its own so a reader can set the
+    # shell apart from the code. Read raw; text placed on it is clamped
+    # against it in custom_chrome.
+    page = pick('page')
+    # Selected text is a picked colour, faded toward the background until
+    # the foreground clears AA on it, the same way a panel tint is faded
+    # toward its panel.
     selection = colour.to_hex(colour.tint_readable_on(
-        colour.mix_hex(bg, fg, 0.25), bg, [fg]))
+        pick('selection'), bg, [fg]))
     # The line the reader is working on: a faint tint of the background,
     # never a strong colour, so the text on it stays readable.
     highlight = colour.mix_hex(bg, fg, 0.06)
@@ -471,6 +492,7 @@ def custom_palette(config):
         bg, colour.mix_hex(fg, bg, 0.35))
     return {
         'name': 'Custom',
+        'page': colour.to_hex(page),
         'bg': colour.to_hex(bg),
         'fg': fg,
         'selection': selection,
@@ -498,10 +520,17 @@ def custom_chrome(palette):
     reload. Every derived colour is checked against its background the same
     way the presets are, by tests/test_contrast.py.
     """
+    # The page the reader sees around the editor: its own picked colour,
+    # falling back to the editor background for palettes (and built-in
+    # themes) that predate the page role.
+    page_hex = palette.get('page', palette['bg'])
     bg = colour.parse_hex(palette['bg'])
-    fg = colour.parse_hex(palette['fg'])
+    page = colour.parse_hex(page_hex)
+    # Body text is clamped against the page, not the editor, so it stays
+    # readable wherever it lands.
+    fg = colour.readable_text_on(page, palette['fg'])
     panel = colour.parse_hex(palette['gutter_bg'])
-    accent = fg
+    accent = colour.parse_hex(palette['fg'])
     # Button text: the extreme (black or white) that clears AA on the
     # accent. A mid-grey accent clears neither, so it is faded toward the
     # background until the extreme that clears on the background clears on
@@ -513,35 +542,35 @@ def custom_chrome(palette):
     elif colour.contrast_ratio(white, accent) >= colour.AA_CONTRAST:
         accent_fg = '#ffffff'
     else:
-        accent_fg = ('#ffffff' if colour.contrast_ratio(white, bg) >=
-                     colour.contrast_ratio(black, bg) else '#000000')
+        accent_fg = ('#ffffff' if colour.contrast_ratio(white, page) >=
+                     colour.contrast_ratio(black, page) else '#000000')
         accent = colour.tint_readable_on(
-            colour.to_hex(accent), bg, [accent_fg])
+            colour.to_hex(accent), page, [accent_fg])
     # The error colours are the one family the reader does not pick, so
     # they are derived from a fixed red and clamped against the surfaces
     # they actually sit on. The base red is chosen by the background's
     # side - a light red on a dark theme, a dark red on a light one - so
     # the clamp below always has a direction that increases contrast.
-    if colour.luminance(bg) < 0.5:
+    if colour.luminance(page) < 0.5:
         error_fg_base, error_border_base = '#ffb3b3', '#ff6b6b'
     else:
         error_fg_base, error_border_base = '#8f2f1a', '#c0523f'
-    error_bg = colour.mix_hex(bg, '#ff6b6b', 0.12)
+    error_bg = colour.mix_hex(page_hex, '#ff6b6b', 0.12)
     error_fg = colour.readable_text_on(error_bg, error_fg_base)
     error_border = colour.readable_text_on(error_bg, error_border_base)
     return {
-        'bg': palette['bg'],
-        'fg': palette['fg'],
+        'bg': page_hex,
+        'fg': fg,
         'accent': colour.to_hex(accent),
         'accent-fg': accent_fg,
         'panel-bg': palette['gutter_bg'],
-        'panel-border': colour.mix_hex(bg, fg, 0.2),
-        'muted': colour.readable_text_on(panel, colour.mix_hex(fg, bg, 0.25)),
+        'panel-border': colour.mix_hex(page, fg, 0.2),
+        'muted': colour.readable_text_on(panel, colour.mix_hex(fg, page, 0.25)),
         'error-bg': error_bg,
         'error-border': error_border,
         'error-fg': error_fg,
         'error-line': 'color-mix(in srgb, var(--error-border) 16%, transparent)',
-        'focus-ring': palette['fg'],
+        'focus-ring': fg,
     }
 
 
@@ -995,10 +1024,54 @@ def access_code_ok(data):
 
     - No ACCESS_CODE set: open (the sandbox is the protection).
     - ACCESS_CODE set: code required.
+
+    Wrong codes are counted per client address and locked out after
+    AUTH_FAIL_MAX failures inside AUTH_FAIL_WINDOW, because this check
+    runs before the general rate limiter at every guarded endpoint, so
+    without its own limit the code could be guessed one request at a
+    time forever. A right code clears that address's failures, so a
+    reader who mistypes once and then gets in is not still one slip
+    away from the lock.
     """
     if not ACCESS_CODE:
         return True
-    return data.get('access_code', '') == ACCESS_CODE
+
+    given = data.get('access_code', '')
+    if not isinstance(given, str):
+        given = ''
+
+    # Compare through hmac so the check takes the same time whether the
+    # code is right or wrong; a plain == leaks the right code one
+    # character at a time through how long the reply takes.
+    ok = hmac.compare_digest(given.encode('utf-8'), ACCESS_CODE.encode('utf-8'))
+
+    if not has_request_context():
+        return ok
+
+    ip = client_ip()
+    now = time.time()
+    if len(AUTH_FAIL) > 1000:
+        for key in list(AUTH_FAIL.keys()):
+            AUTH_FAIL[key] = [t for t in AUTH_FAIL[key] if now - t < AUTH_FAIL_WINDOW]
+            if not AUTH_FAIL[key]:
+                del AUTH_FAIL[key]
+    failures = [t for t in AUTH_FAIL.get(ip, []) if now - t < AUTH_FAIL_WINDOW]
+
+    if len(failures) >= AUTH_FAIL_MAX:
+        # Locked out: the right code is refused too, or the limit would
+        # slow a guessing attack down not at all -- a wrong guess is
+        # refused either way, and the correct one would still get in.
+        # Nothing is recorded or cleared here, so the lock expires on
+        # its own once the failures age past AUTH_FAIL_WINDOW.
+        return False
+
+    if ok:
+        AUTH_FAIL.pop(ip, None)
+        return True
+
+    failures.append(now)
+    AUTH_FAIL[ip] = failures
+    return False
 
 
 def rate_limited(ip, limit=None):
@@ -1761,8 +1834,10 @@ CONFIG_TYPES = {
     'reduce_motion': bool,
     'glass_material': str,
     'glass_tint': str,
+    'theme_custom_page': str,
     'theme_custom_bg': str,
     'theme_custom_fg': str,
+    'theme_custom_selection': str,
     'theme_custom_keyword': str,
     'theme_custom_string': str,
     'theme_custom_comment': str,
@@ -1868,7 +1943,8 @@ CONFIG_MAX_LENGTHS = {
 # format that cannot carry a second declaration.
 CONFIG_HEX_COLORS = {
     'glass_tint', 'highlight_color',
-    'theme_custom_bg', 'theme_custom_fg', 'theme_custom_keyword',
+    'theme_custom_page', 'theme_custom_bg', 'theme_custom_fg',
+    'theme_custom_selection', 'theme_custom_keyword',
     'theme_custom_string', 'theme_custom_comment', 'theme_custom_number',
     'theme_custom_function',
 }
@@ -1882,12 +1958,13 @@ HEX_COLOR_RE = re.compile(r'^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$')
 def _valid_key_combo(key, value) -> bool:
     """Whether a stored key press is one this app can actually honour.
 
-    Two shapes are allowed: Escape pressed twice, and a single combination of
-    modifiers ending in Enter (for running) or Escape (for stopping). A
-    combination is refused when it has no modifier, because Enter on its own
-    has to stay a newline and Escape on its own has to stay the key that
-    closes a dialog, and a press that swallowed either would be a bug the
-    reader could not undo from the keyboard.
+    Two shapes are allowed: Escape pressed twice (stopping only), and a
+    single combination of one or more modifiers with any ordinary key
+    (a letter, digit, or underscore) as the base. A combination is
+    refused when it has no modifier, because a bare letter has to keep
+    typing that letter in the editor and Escape on its own has to keep
+    closing a dialog, and a press that swallowed either would be a bug
+    the reader could not undo from the keyboard.
     """
     if not isinstance(value, str):
         return False
@@ -1988,7 +2065,11 @@ def _validate_config(data, t):
 @main_bp.route('/api/config', methods=['GET', 'POST'])
 def config_api():
     if request.method == 'GET':
-        return jsonify(load_config())
+        cfg = dict(load_config())
+        # The access code is a gate, not a setting. Never send it back,
+        # even though config.json may hold it for the desktop launcher.
+        cfg.pop('access_code', None)
+        return jsonify(cfg)
 
     data = request.get_json(silent=True) or {}
     t = translator_for(request_locale(data))
@@ -2143,10 +2224,11 @@ def update_check_api():
     # different channel must not be able to talk the reader onto one.
     channel = updater.normalise_channel(config.get('update_channel'))
     # The fallback matches the default above on purpose. A config file
-    # written by an older build can be missing this key, and treating that
-    # as "on" would quietly reintroduce the phone-home the default is off
-    # to avoid - silently, for readers who never had the switch at all.
-    if not asked and not config.get('auto_update', False):
+    # written by an older build can be missing this key, and it gets the
+    # answer this product ships with now: look once when the app opens and
+    # say so if there is something to say, never download or install on
+    # its own. The switch to stop even that is right there in Settings.
+    if not asked and not config.get('auto_update', True):
         return jsonify({
             'success': True,
             'applicable': updater.is_frozen(),
@@ -2236,6 +2318,71 @@ def update_install_api():
         'version': result['latest'],
         'size': result['size'],
     })
+
+
+@main_bp.route('/api/update/apply', methods=['POST'])
+def update_apply_api():
+    """Install the build that has already been downloaded, then leave.
+
+    This is the "Install and restart" button, so the closing is the
+    reader's own doing and the new build is opened when the swap is done
+    (/RELAUNCH, see updater.install). Nothing here starts unless a download
+    is waiting, and a refusal from Windows - the permission question being
+    declined, say - leaves the app open and running with a sentence to say
+    why, because the reader pressed a button and deserves to know it did
+    not happen rather than watching the app close anyway.
+
+    The process leaves itself after the answer has had time to reach the
+    page. The browser is never asked to close the window: a page closing
+    itself here would race the very swap it is trying to finish.
+    """
+    from . import updater
+    data = request.get_json(silent=True) or {}
+    t = translator_for(request_locale(data))
+    if not access_code_ok(data):
+        return jsonify({
+            'success': False,
+            'error': t('error.access_required'),
+            'code_required': True,
+        }), 403
+
+    if not updater.is_frozen():
+        return jsonify({
+            'success': False,
+            'error_code': 'not_applicable',
+            'error_text': t(UPDATE_ERROR_KEYS['not_applicable']),
+        }), 400
+
+    waiting = updater.pending_build()
+    if waiting is None:
+        # Nothing was downloaded, or the record was already spent. Either
+        # way the honest answer is that there is nothing to put in place.
+        return jsonify({
+            'success': False,
+            'error_code': 'no_update',
+            'error_text': t('update.error_no_update'),
+        }), 400
+    staged, version = waiting
+
+    try:
+        updater.install(staged, relaunch=True)
+    except updater.UpdateError as error:
+        return jsonify({
+            'success': False,
+            'error_code': error.code,
+            'error_text': t(UPDATE_ERROR_KEYS.get(error.code, 'update.error_unknown')),
+        }), 400
+
+    # Recorded as spent only once Windows has accepted the installer. A
+    # refusal keeps the record, so the same button works on the next press.
+    updater.clear_pending()
+
+    def _leave():
+        time.sleep(0.3)  # let the response flush first
+        os._exit(0)
+
+    threading.Thread(target=_leave, daemon=True).start()
+    return jsonify({'success': True, 'version': version})
 
 
 @main_bp.route('/api/themes')
@@ -2367,9 +2514,39 @@ def health():
     return jsonify({'status': 'ok'})
 
 
+def _origin_host(origin):
+    """Host part of an Origin header, or '' for garbage/"null" values."""
+    try:
+        return urlsplit(origin).netloc
+    except (TypeError, ValueError):
+        return ''
+
+
+def _cross_site_request():
+    """True when the browser says this POST came from another site.
+
+    /api/shutdown stops the process, so a page on the open web must not
+    be able to fire it at a locally running copy just because the reader
+    visited it. Same-origin fetches from our own pages carry an Origin
+    matching Host (or Sec-Fetch-Site: same-origin); requests with no
+    browser metadata at all (curl, the test client) are allowed through
+    and are still covered by the on_public_web check below.
+    """
+    origin = request.headers.get('Origin')
+    if origin and _origin_host(origin) != request.host:
+        return True
+    site = request.headers.get('Sec-Fetch-Site')
+    if site and site not in ('same-origin', 'none'):
+        return True
+    return False
+
+
 @main_bp.route('/api/shutdown', methods=['POST'])
 def shutdown():
     """Stop the desktop app server. Local-only: never exposed on the web."""
+    if _cross_site_request():
+        t = translator_for(request_locale(request.get_json(silent=True) or {}))
+        return jsonify({'success': False, 'error': t('error.request_blocked')}), 403
     if on_public_web():
         t = translator_for(request_locale(request.get_json(silent=True) or {}))
         return jsonify({'success': False, 'error': t('error.not_on_web')}), 403

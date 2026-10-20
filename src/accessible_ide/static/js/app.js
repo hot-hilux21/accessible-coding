@@ -106,6 +106,12 @@
   var updateVersion = document.getElementById('update-version');
   var updateInstallRow = document.getElementById('update-install-row');
   var btnInstallUpdate = document.getElementById('btn-install-update');
+  var updateRestartRow = document.getElementById('update-restart-row');
+  var btnRestartUpdate = document.getElementById('btn-restart-update');
+  var saveWarnDialog = document.getElementById('save-warn-dialog');
+  var btnSaveWarnCancel = document.getElementById('btn-save-warn-cancel');
+  var btnSaveWarnConfirm = document.getElementById('btn-save-warn-confirm');
+  var updateNotice = document.getElementById('update-notice');
   var updateChannelEl = document.getElementById('update-channel');
   // What runs the program, what stops one, the record button beside each
   // list, and the line under each that says what happened. Read from the
@@ -211,6 +217,24 @@
     lineWrapping: true,
     autofocus: true,
     value: '# Welcome to AccessibleIDE!\n# Write Python code and press Run (or Ctrl+Enter).\n\nprint("Hello, world!")\n\nfor i in range(3):\n    print("Counting:", i)\n'
+  });
+
+  // ---------- Unsaved-changes tracking ----------
+  // The last text we know is safely on disk (or was freshly loaded). If the
+  // editor differs from this, the reader has typed something not yet saved,
+  // and we owe them a warning before the window goes away. No change
+  // listener is needed: comparing on demand is cheaper and cannot drift.
+  var savedSnapshot = editor.getValue();
+
+  function hasUnsavedChanges() {
+    return editor.getValue() !== savedSnapshot;
+  }
+
+  window.addEventListener('beforeunload', function (e) {
+    if (!hasUnsavedChanges()) return;
+    e.preventDefault();
+    e.returnValue = '';
+    return false;
   });
 
   // ---------- Theme colours ----------
@@ -395,11 +419,19 @@
     var comment = T.readableTextOn(bg, picks.comment);
     var number = T.readableTextOn(bg, picks.number);
     var fn = T.readableTextOn(bg, picks.function);
+    // The page around the editor, picked on its own so a reader can set the
+    // shell apart from the code. Read raw; text placed on it is clamped
+    // against it in customChrome.
+    var page = T.parseHex(picks.page || picks.bg);
+    // Selected text is a picked colour, faded toward the background until
+    // the foreground clears AA on it, the same way a panel tint is faded
+    // toward its panel.
     var selection = T.toHex(T.tintReadableOn(
-      T.mixHex(bg, fg, 0.25), bg, [fg]));
+      picks.selection || T.mixHex(bg, fg, 0.25), bg, [fg]));
     var gutterBg = T.mixHex(bg, fg, 0.04);
     return {
       name: 'Custom',
+      page: T.toHex(page),
       bg: T.toHex(bg),
       fg: fg,
       selection: selection,
@@ -422,10 +454,16 @@
 
   function customChrome(palette) {
     var T = AccessibleTint;
+    // The page the reader sees around the editor: its own picked colour,
+    // falling back to the editor background for built-in themes.
+    var pageHex = palette.page || palette.bg;
     var bg = T.parseHex(palette.bg);
-    var fg = T.parseHex(palette.fg);
+    var page = T.parseHex(pageHex);
+    // Body text is clamped against the page, not the editor, so it stays
+    // readable wherever it lands.
+    var fg = T.readableTextOn(page, palette.fg);
     var panel = T.parseHex(palette.gutter_bg);
-    var accent = fg;
+    var accent = T.parseHex(palette.fg);
     var black = [0, 0, 0], white = [255, 255, 255];
     var accentFg;
     if (T.contrastRatio(black, accent) >= 4.5) {
@@ -433,33 +471,33 @@
     } else if (T.contrastRatio(white, accent) >= 4.5) {
       accentFg = '#ffffff';
     } else {
-      // A mid-grey accent clears neither extreme. Fade it toward the
-      // background until the extreme that clears on the background clears
-      // on it - the fade always has a known-good side.
-      accentFg = T.contrastRatio(white, bg) >= T.contrastRatio(black, bg)
+      // A mid-grey accent clears neither extreme. Fade it toward the page
+      // until the extreme that clears on the page clears on it - the fade
+      // always has a known-good side.
+      accentFg = T.contrastRatio(white, page) >= T.contrastRatio(black, page)
         ? '#ffffff' : '#000000';
-      accent = T.tintReadableOn(T.toHex(accent), bg, [accentFg]);
+      accent = T.tintReadableOn(T.toHex(accent), page, [accentFg]);
     }
-    var errorBg = T.mixHex(bg, '#ff6b6b', 0.12);
+    var errorBg = T.mixHex(page, '#ff6b6b', 0.12);
     var errorFgBase, errorBorderBase;
-    if (T.luminance(bg) < 0.5) {
+    if (T.luminance(page) < 0.5) {
       errorFgBase = '#ffb3b3'; errorBorderBase = '#ff6b6b';
     } else {
       errorFgBase = '#8f2f1a'; errorBorderBase = '#c0523f';
     }
     return {
-      '--bg': palette.bg,
-      '--fg': palette.fg,
+      '--bg': pageHex,
+      '--fg': fg,
       '--accent': T.toHex(accent),
       '--accent-fg': accentFg,
       '--panel-bg': palette.gutter_bg,
-      '--panel-border': T.mixHex(bg, fg, 0.2),
-      '--muted': T.readableTextOn(panel, T.mixHex(fg, bg, 0.25)),
+      '--panel-border': T.mixHex(page, fg, 0.2),
+      '--muted': T.readableTextOn(panel, T.mixHex(fg, page, 0.25)),
       '--error-bg': errorBg,
       '--error-border': T.readableTextOn(errorBg, errorBorderBase),
       '--error-fg': T.readableTextOn(errorBg, errorFgBase),
       '--error-line': 'color-mix(in srgb, var(--error-border) 16%, transparent)',
-      '--focus-ring': palette.fg
+      '--focus-ring': fg
     };
   }
 
@@ -2112,6 +2150,7 @@
           return writable.write(content).then(function () { return writable.close(); });
         })
         .then(function () {
+          savedSnapshot = content;
           outputEl.textContent = t('output.saved');
           errorPanel.hidden = true;
         })
@@ -2131,6 +2170,7 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      savedSnapshot = content;
       outputEl.textContent = t('output.downloaded');
       errorPanel.hidden = true;
     }
@@ -2145,6 +2185,7 @@
         .then(function (file) { return file.text(); })
         .then(function (text) {
           editor.setValue(text);
+          savedSnapshot = text;
           clearErrorMarkers();
           outputEl.textContent = t('output.opened');
           errorPanel.hidden = true;
@@ -2204,9 +2245,8 @@
 
   function pressMatches(combo, event) {
     var wanted = keyParts(combo);
-    // Running is always Enter and stopping is always Escape. Any other key
-    // is one this app does not use, and never matches.
-    if (wanted.base !== 'Enter' && wanted.base !== 'Escape') return false;
+    // The base key and every modifier must line up exactly, so a stored
+    // press only ever fires on the press it names.
     if (event.key !== wanted.base) return false;
     // Ctrl and Cmd are the same key here. The list says Ctrl because that
     // is the key on the Windows build, and the same press is Cmd when the
@@ -2228,14 +2268,19 @@
   }
 
   // What the reader just pressed, written the way the lists write it. A key
-  // this app does not bind comes back as null, and is refused below rather
-  // than stored and left doing nothing.
+  // press that is not one ordinary key with at least one modifier comes back
+  // as null, and is refused below rather than stored and left doing nothing.
   function spellPress(event) {
     var mods = [];
     if (event.ctrlKey === true || event.metaKey === true) mods.push('Ctrl');
     if (event.altKey === true) mods.push('Alt');
     if (event.shiftKey === true) mods.push('Shift');
-    if (event.key !== 'Enter' && event.key !== 'Escape') return null;
+    // Only an ordinary letter, digit, or underscore can be the base, and a
+    // modifier held on its own is not a press. This keeps the spelling in
+    // step with the shape the server accepts.
+    if (!/^[A-Za-z0-9_]$/.test(event.key)) return null;
+    if (event.key === 'Ctrl' || event.key === 'Alt' || event.key === 'Shift') return null;
+    if (mods.length === 0) return null;
     mods.push(event.key);
     return mods.join('+');
   }
@@ -2246,10 +2291,12 @@
     if (!combo) return false;
     if (combo === 'Escape Escape') return which === 'stop';
     var pieces = combo.split('+');
-    // No modifier at all is refused: Enter has to keep meaning a new line,
-    // and Escape has to keep meaning the key that closes a box.
+    // No modifier at all is refused: a bare letter has to keep typing that
+    // letter, and Escape has to keep meaning the key that closes a box.
     if (pieces.length < 2) return false;
-    return pieces[pieces.length - 1] === (which === 'run' ? 'Enter' : 'Escape');
+    // A modifier name written as the base (Ctrl+Shift) is not a press.
+    var base = pieces[pieces.length - 1];
+    return base !== 'Ctrl' && base !== 'Alt' && base !== 'Shift';
   }
 
   var RECORD_ROWS = {
@@ -2465,6 +2512,7 @@
     var reader = new FileReader();
     reader.onload = function () {
       editor.setValue(reader.result);
+      savedSnapshot = reader.result;
       clearErrorMarkers();
       outputEl.textContent = t('output.opened');
       errorPanel.hidden = true;
@@ -3109,12 +3157,12 @@
   });
 
   // ---------- Theme builder ----------
-  // The reader's own theme. Seven colours are picked; the rest of the
+  // The reader's own theme. Nine colours are picked; the rest of the
   // palette is derived from them (customPalette above, mirrored from
   // custom_palette in routes.py). The server is the authority on what gets
   // saved; the browser copy exists so a pick previews live.
   var themeBuilder = document.getElementById('theme-builder');
-  var themeBuilderFields = ['bg', 'fg', 'keyword', 'string', 'comment', 'number', 'function'];
+  var themeBuilderFields = ['page', 'bg', 'fg', 'selection', 'keyword', 'string', 'comment', 'number', 'function'];
   var themeCustomReset = document.getElementById('theme-custom-reset');
   var themeCustomSaved = document.getElementById('theme-custom-saved');
 
@@ -3401,9 +3449,24 @@
     if (updateInstallRow) updateInstallRow.hidden = !show;
   }
 
+  // The "Install and restart" row, shown only once a build is on disk and
+  // checked. Pressing it is what closes the app, so it never appears
+  // speculatively and it is hidden again when a new check starts.
+  function showRestartRow(show) {
+    if (updateRestartRow) updateRestartRow.hidden = !show;
+  }
+
+  // The main-window line. It says the same thing the settings status says,
+  // for a reader who has not opened Settings: there is a newer version,
+  // and pressing this opens the screen where the download is.
+  function showUpdateNotice(show) {
+    if (updateNotice) updateNotice.hidden = !show;
+  }
+
   function setUpdateControlsDisabled(disabled) {
     if (btnCheckUpdate) btnCheckUpdate.disabled = disabled;
     if (btnInstallUpdate) btnInstallUpdate.disabled = disabled;
+    if (btnRestartUpdate) btnRestartUpdate.disabled = disabled;
   }
 
   function paintAutoUpdateSwitch() {
@@ -3420,17 +3483,24 @@
   // that is said once so the switch is not a control that does nothing.
   function reportCheck(result) {
     if (!result || result.success === false) return;
+    // A new answer retires both rows: whatever was on disk before, this
+    // check is the current word on it. The download row comes back below
+    // if there is still something to download.
+    showRestartRow(false);
     if (!result.applicable) {
       showInstallRow(false);
+      showUpdateNotice(false);
       say(t('update.status_not_applicable'));
       return;
     }
     if (result.update_available) {
       showInstallRow(true);
+      showUpdateNotice(true);
       say(t('update.status_available', result.latest || ''), false);
       return;
     }
     showInstallRow(false);
+    showUpdateNotice(false);
     if (result.error === 'checked_recently') return;
     if (result.error) {
       // The server sends a sentence already in the reader's language.
@@ -3502,9 +3572,52 @@
           return null;
         }
         // The row has done its job. Leaving it up would ask again for a
-        // build that is already downloaded and waiting.
+        // build that is already downloaded and waiting. The restart row
+        // takes its place: the build is on disk now, and installing it is
+        // a separate, explicit press.
         showInstallRow(false);
+        showRestartRow(true);
         say(t('update.status_ready', answer.data.version || ''));
+        return answer.data;
+      })
+      .catch(function () {
+        say(t('update.error_network'), true);
+        return null;
+      })
+      .then(function (data) {
+        updateBusy = false;
+        setUpdateControlsDisabled(false);
+        return data;
+      });
+  }
+
+  // The button that closes the app for the reader. The server starts the
+  // installer, answers, and then leaves on its own - so nothing here
+  // closes the window. A refusal (Windows' permission question being
+  // declined, say) comes back with the app still running and is said out
+  // loud, because the reader pressed a button and deserves to know it did
+  // not happen.
+  function applyUpdate() {
+    if (updateBusy) return Promise.resolve(null);
+    updateBusy = true;
+    setUpdateControlsDisabled(true);
+    say(t('update.status_applying'));
+    return fetch('/api/update/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_code: accessCode, locale: META.locale })
+    })
+      .then(function (res) {
+        return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+      })
+      .then(function (answer) {
+        if (!answer.ok || answer.data.success === false) {
+          // The server sends a sentence already in the reader's language.
+          say(answer.data.error_text || answer.data.error || t('update.error_unknown'), true);
+          return null;
+        }
+        // On success the server is already on its way out; the sentence
+        // above it stays on screen until it goes.
         return answer.data;
       })
       .catch(function () {
@@ -3523,6 +3636,7 @@
     autoUpdateOn = autoUpdateEl.getAttribute('aria-checked') === 'true';
     paintAutoUpdateSwitch();
     showInstallRow(false);
+    showRestartRow(false);
 
     fetch('/api/version')
       .then(function (res) { return res.json(); })
@@ -3598,7 +3712,49 @@
 
   if (btnInstallUpdate) {
     btnInstallUpdate.addEventListener('click', function () {
+      // Asked before the download starts, not after it finishes: the
+      // install that follows will close the app, and "save your work" is
+      // news that has to arrive while Cancel is still an option. The
+      // download itself changes nothing, which is what the confirm button
+      // says by carrying the download label.
+      if (saveWarnDialog && typeof saveWarnDialog.showModal === 'function') {
+        saveWarnDialog.showModal();
+        // The way back takes focus first, as the quit question does.
+        if (btnSaveWarnCancel) btnSaveWarnCancel.focus();
+        return;
+      }
       installUpdate();
+    });
+  }
+
+  if (btnSaveWarnCancel) {
+    btnSaveWarnCancel.addEventListener('click', function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      if (saveWarnDialog) saveWarnDialog.close();
+    });
+  }
+
+  if (btnSaveWarnConfirm) {
+    btnSaveWarnConfirm.addEventListener('click', function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      if (saveWarnDialog) saveWarnDialog.close();
+      installUpdate();
+    });
+  }
+
+  if (btnRestartUpdate) {
+    btnRestartUpdate.addEventListener('click', function () {
+      applyUpdate();
+    });
+  }
+
+  // The line in the main window. Pressing it opens Settings at the updates
+  // group, so the press lands on the controls the line is about rather
+  // than at the top of the dialog for the reader to hunt from there.
+  if (updateNotice) {
+    updateNotice.addEventListener('click', function () {
+      openSettings();
+      if (autoUpdateEl) autoUpdateEl.focus();
     });
   }
 
@@ -3974,6 +4130,11 @@
       // set to, so a reader who chose Ukrainian here would be asked in
       // something else, at the moment they are deciding whether to leave.
       if (quitDialog && typeof quitDialog.showModal === 'function') {
+        // Only warn about work that would actually be lost. The note sits
+        // quietly inside the same dialog, so nothing extra pops up when the
+        // editor is already clean.
+        var unsavedNote = document.getElementById('quit-unsaved-note');
+        if (unsavedNote) unsavedNote.hidden = !hasUnsavedChanges();
         quitDialog.showModal();
         // The way back takes focus first. Leaving is the last button, and it
         // has to be meant.

@@ -330,6 +330,58 @@ class CustomThemeContrastTests(unittest.TestCase):
                     f"{chrome['error-bg']} is under AA",
                 )
 
+    def test_chrome_text_readable_on_page(self):
+        # The page background is a reader pick of its own, so the chrome's
+        # text colour is clamped against the page, not the editor. Whatever
+        # page colour is chosen, the surrounding text has to clear AA on it.
+        for picks in (
+            {"page": "#0b0b0b", "bg": "#151515", "fg": "#ffffff",
+             "keyword": "#ff9a9a", "string": "#93e6a8", "comment": "#b4b4b4",
+             "number": "#ffd93d", "function": "#93d4ff"},
+            {"page": "#fcfcfc", "bg": "#ffffff", "fg": "#2b2b2b",
+             "keyword": "#7a1f1f", "string": "#1f5c33", "comment": "#5c5c5c",
+             "number": "#7a5c00", "function": "#1f4d7a"},
+            {"page": "#777777", "bg": "#777777", "fg": "#ffffff",
+             "keyword": "#ffffff", "string": "#ffffff", "comment": "#ffffff",
+             "number": "#ffffff", "function": "#ffffff"},
+        ):
+            palette = self._palette(picks)
+            chrome = self._chrome(picks)
+            with self.subTest(page=picks["page"]):
+                ratio = contrast_ratio(chrome["fg"], palette["page"])
+                self.assertGreaterEqual(
+                    ratio + EPSILON, AA_NORMAL_TEXT,
+                    f"chrome text {chrome['fg']} on page {palette['page']} "
+                    f"is only {ratio:.2f}:1",
+                )
+
+    def test_selection_readable_for_text(self):
+        # The selection highlight is a reader pick too: the editor's text
+        # has to clear AA on whatever highlight colour is chosen, after
+        # both are clamped.
+        for picks in (
+            {"page": "#0b0b0b", "bg": "#151515", "fg": "#ffffff",
+             "selection": "#4d4300", "keyword": "#ff9a9a",
+             "string": "#93e6a8", "comment": "#b4b4b4", "number": "#ffd93d",
+             "function": "#93d4ff"},
+            {"page": "#fcfcfc", "bg": "#ffffff", "fg": "#2b2b2b",
+             "selection": "#ffe066", "keyword": "#7a1f1f",
+             "string": "#1f5c33", "comment": "#5c5c5c", "number": "#7a5c00",
+             "function": "#1f4d7a"},
+            {"page": "#777777", "bg": "#777777", "fg": "#ffffff",
+             "selection": "#ffffff", "keyword": "#ffffff",
+             "string": "#ffffff", "comment": "#ffffff", "number": "#ffffff",
+             "function": "#ffffff"},
+        ):
+            palette = self._palette(picks)
+            with self.subTest(selection=picks["selection"]):
+                ratio = contrast_ratio(palette["fg"], palette["selection"])
+                self.assertGreaterEqual(
+                    ratio + EPSILON, AA_NORMAL_TEXT,
+                    f"text {palette['fg']} on selection "
+                    f"{palette['selection']} is only {ratio:.2f}:1",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
