@@ -99,14 +99,48 @@ def verify_publish(repo: str, url: str, version: str,
     except updater.UpdateError as error:
         raise CheckError(str(error)) from error
 
-    # Only a version that goes *backwards* is refused. Re-running a tag to
-    # replace a build that failed to upload is a normal thing to do, and the
-    # channel ending up on the same number it already had is harmless: readers
-    # on an older build are still offered it. A number lower than the one
-    # already published is not harmless. The channel would point at an older
-    # build than the one readers may already have, and anyone on the newer
-    # build would never be offered it at all.
-    if published_version is not None and updater.is_newer(published_version, version):
+    # A development build of a release that is already published on the
+    # channel is not a backwards move. The channel has a finished 1.0.0 and
+    # this build is 1.0.0.dev.91, the same release seen from ``main`` before
+    # the next bump. Semver reads the finished form as newer, but that is the
+    # channel having raced ahead of the source it was cut from, not a build
+    # being pushed behind it. Readers on the finished 1.0.0 are being offered
+    # nothing, because there is nothing above them to offer; readers on an
+    # older build are still moved forward. So the same release is reconciled
+    # here and the comparison below is left to judge everything else.
+    #
+    # A manifest that cannot be read is not reconciled here. The comparison
+    # below reads it the same way it always did, swallowing an unreadable
+    # version rather than failing the build over it.
+    # Only the development form of a finished release is reconciled, never the
+    # reverse. The fourth element of a parsed version is 1 for a finished build
+    # and 0 for a suffixed one, so this fires for published 1.0.0 against
+    # candidate 1.0.0.dev.91 and stays out of the way when a suffixed build is
+    # offered over a finished one, which is a real backwards move and is still
+    # refused below.
+    same_release = False
+    if published_version is not None:
+        try:
+            published = updater.parse_version(published_version)
+            candidate = updater.parse_version(version)
+            # A *development* build of the same release is not a backwards
+            # move against that release: 1.0.0.dev.91 may follow 1.0.0 even
+            # though the suffix sorts below it. Only a numbered development
+            # suffix counts, so a named pre-release such as 0.3.6-beta is
+            # still refused when 0.3.6 is already out.
+            same_release = (
+                published[:3] == candidate[:3]
+                and published[3] == 1
+                and candidate[3] == 0
+                and candidate[4] > 0
+            )
+        except updater.UpdateError:
+            same_release = False
+    if (
+        not same_release
+        and published_version is not None
+        and updater.is_newer(published_version, version)
+    ):
         raise CheckError(
             f'{version} is older than {published_version} already on the '
             'channel, so the channel would move backwards and readers on '
