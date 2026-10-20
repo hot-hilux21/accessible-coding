@@ -474,6 +474,28 @@ Ask the user a question and get their answer.
 | `print("Hi", name)` | Use the answer. |
 
 
+## Common mistakes of programmers
+
+Everyone writes these when they are learning. The mistake is underlined, and the fix is beside it. If you recognise one of these in your own code, you are in good company.
+
+❌ = the mistake. ✅ = what to write instead.
+
+| ❌ Mistake | ✅ Correct solution |
+| --- | --- |
+| <u>Using one equals sign to compare</u> — `if name = "Sam":` sets the value instead of checking it. | `if name == "Sam":` — two equals signs compare. |
+| <u>Forgetting the colon</u> — `if name == "Sam"` | `if name == "Sam":` — the line ends with a colon. |
+| <u>Mixing up text and numbers</u> — `"1" + 1` adds nothing, it errors. | `int("1") + 1` — turn the text into a number first. |
+| <u>Assuming input is a number</u> — `input()` always gives back text. | `age = int(input("How old are you? "))` |
+| <u>Misspelling a name</u> — `name` and `Name` are two different things in Python. | Use the same spelling every time. |
+| <u>Off-by-one on `range`</u> — `range(1, 5)` stops at 4, not 5. | `range(1, 6)` — the end value is not included. |
+| <u>Changing a list while looping over it</u> — items get skipped. | Loop over a copy: `for item in list(items):` |
+| <u>Using a name before it exists</u> — `print(total)` before `total` is set. | Give the value a starting point first, then use it. |
+| <u>Confusing `append` and `extend`</u> — `append` adds one item, `extend` adds each item of a list. | Pick the one that matches what you mean. |
+| <u>Ignoring indentation</u> — Python uses indentation to know what belongs together. | Indent the body of `if`, `for`, `while`, and `def` the same amount. |
+| <u>Catching every error and saying nothing</u> — `except:` hides real problems. | `except ValueError:` and say what went wrong. |
+| <u>Repeating the same code</u> — three copies means three places to fix a bug. | Write a function once, then call it. |
+
+
 ## Project structure
 
 ```

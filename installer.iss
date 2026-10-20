@@ -6,7 +6,7 @@
 ; ============================================================
 
 #define MyAppName "AccessibleIDE"
-#define MyAppVersion "0.4.0-beta.dev.82"
+#define MyAppVersion "1.0.0"
 #define MyAppExeName "AccessibleIDE.exe"
 #define MyAppPublisher "AccessibleIDE"
 #define MyAppURL "https://accessible-coding.onrender.com"

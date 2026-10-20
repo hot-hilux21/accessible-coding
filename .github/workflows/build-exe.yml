@@ -81,7 +81,11 @@ jobs:
           # part the updater's version comparison reads, so the build from
           # this push sorts above the tag it was built from and below the
           # next tag. The number also says which commit someone is testing.
-          $lastTag = (git describe --tags --abbrev=0 2>$null)
+          #
+          # Only version tags count. The repo also carries channel tags
+          # ("stable", "beta") that are not versions, and picking one up
+          # would produce a version string the stamping tool rejects.
+          $lastTag = (git describe --tags --abbrev=0 --match 'v[0-9]*' 2>$null)
           if (-not $lastTag) { $lastTag = "v0.0.0" }
           $base = $lastTag -replace '^v', ''
           $version = "$base.dev.${{ github.run_number }}"
@@ -124,7 +128,9 @@ jobs:
           # the installer would ship a program that reports the version it
           # had when the tag was cut, and a reader who installed it would
           # then be offered the very build they are already running.
-          $lastTag = (git describe --tags --abbrev=0 2>$null)
+          #
+          # Only version tags count, for the same reason as the exe build.
+          $lastTag = (git describe --tags --abbrev=0 --match 'v[0-9]*' 2>$null)
           if (-not $lastTag) { $lastTag = "v0.0.0" }
           $base = $lastTag -replace '^v', ''
           $version = "$base.dev.${{ github.run_number }}"
