@@ -59,18 +59,25 @@ const KNOWN_IDS = new Set([
   // here for the same reason as the setup screen: app.js has to treat them
   // as optional, and the harness has to exercise that path.
   'theme-gradient', 'theme-gradient-state', 'theme-builder',
-  'theme-custom-bg', 'theme-custom-fg', 'theme-custom-keyword',
-  'theme-custom-string', 'theme-custom-comment', 'theme-custom-number',
-  'theme-custom-function',
-  'theme-custom-bg-picker', 'theme-custom-fg-picker',
+  // The builder renders its fields from a Jinja loop over these nine keys,
+  // and each key emits four ids: the hex input, the colour picker, the
+  // error line, and the contrast status line. All four are listed for every
+  // key: a key whose ids are only partly declared is reported as unknown.
+  'theme-custom-page', 'theme-custom-bg', 'theme-custom-fg',
+  'theme-custom-selection', 'theme-custom-keyword', 'theme-custom-string',
+  'theme-custom-comment', 'theme-custom-number', 'theme-custom-function',
+  'theme-custom-page-picker', 'theme-custom-bg-picker',
+  'theme-custom-fg-picker', 'theme-custom-selection-picker',
   'theme-custom-keyword-picker', 'theme-custom-string-picker',
   'theme-custom-comment-picker', 'theme-custom-number-picker',
   'theme-custom-function-picker',
-  'theme-custom-bg-error', 'theme-custom-fg-error',
+  'theme-custom-page-error', 'theme-custom-bg-error',
+  'theme-custom-fg-error', 'theme-custom-selection-error',
   'theme-custom-keyword-error', 'theme-custom-string-error',
   'theme-custom-comment-error', 'theme-custom-number-error',
   'theme-custom-function-error',
-  'theme-custom-bg-status', 'theme-custom-fg-status',
+  'theme-custom-page-status', 'theme-custom-bg-status',
+  'theme-custom-fg-status', 'theme-custom-selection-status',
   'theme-custom-keyword-status', 'theme-custom-string-status',
   'theme-custom-comment-status', 'theme-custom-number-status',
   'theme-custom-function-status',
@@ -88,6 +95,12 @@ const KNOWN_IDS = new Set([
   'update-channel', 'update-channel-help',
   'update-install-row', 'update-install-label', 'update-install-help',
   'btn-install-update',
+  // The restart-to-apply row, the unsaved-changes warning, and the update
+  // notice. These live in index.html and app.js reads them on the way in, so
+  // they belong in this list; leaving them out reports them as unknown ids.
+  'update-restart-row', 'btn-restart-update',
+  'save-warn-dialog', 'btn-save-warn-cancel', 'btn-save-warn-confirm',
+  'update-notice',
   'font-bundled-note', 'sample-text', 'font-preview', 'font-preview-text',
   'font-upload', 'btn-remove-font', 'font-upload-status',
   // The same font choice offered on the first-run screen. app.js looks both
@@ -272,13 +285,17 @@ const SELECT_OPTIONS = {
 
 const optionsFor = (values) => values.map((v) => makeElement(v, {}, { value: v, textContent: v }));
 
-// The seven picks the theme builder starts with, mirroring the defaults in
+// The nine picks the theme builder starts with, mirroring the defaults in
 // routes.py. The builder's fields are hex boxes, so a stub that left them
 // at the generic "OpenDyslexic" value would make every live preview throw
-// and the checks would pass for the wrong reason.
+// and the checks would pass for the wrong reason. All nine are needed: the
+// live preview reads the page and selection colours as well, and a missing
+// one leaves a bad value behind.
 const THEME_CUSTOM_DEFAULTS = {
+  'theme-custom-page': '#0b0b0b',
   'theme-custom-bg': '#0b0b0b',
   'theme-custom-fg': '#ffffff',
+  'theme-custom-selection': '#4d4300',
   'theme-custom-keyword': '#ff9a9a',
   'theme-custom-string': '#93e6a8',
   'theme-custom-comment': '#b4b4b4',
@@ -2544,7 +2561,21 @@ function runUpdateInstallChecks() {
         console.log('FAIL the offer does not name the version: ' + saidAvailable);
       }
 
+      // Pressing the download button asks a question first: the install that
+      // follows changes things on the reader's disk, so they get to save
+      // their work before that happens. The request must not go out on the
+      // first press.
       fire('btn-install-update', 'click');
+
+      if (updateInstallBodies.length) {
+        failed = true;
+        console.log('FAIL the download was sent before the reader agreed to it');
+      } else {
+        console.log('     the download waits for the reader to agree');
+      }
+
+      // Agreeing is a separate press, and that is what sends the request.
+      fire('btn-save-warn-confirm', 'click');
 
       setTimeout(() => {
         if (!updateInstallBodies.length) {
@@ -2595,7 +2626,9 @@ function checkFailedDownload(status, row, closesBefore) {
   fire('btn-check-update', 'click');
 
   setTimeout(() => {
+    // The same two presses as the download that worked: ask, then agree.
     fire('btn-install-update', 'click');
+    fire('btn-save-warn-confirm', 'click');
 
     setTimeout(() => {
       const said = status.textContent || '';
@@ -2785,9 +2818,16 @@ function runThemeBuilderChecks() {
   fire('theme-custom-bg', 'input');
   fire('theme-custom-fg', 'input');
   // The status line is created by the first paint, not by the page markup,
-  // so it has to be looked up after the input events above have run.
+  // so it has to be looked up after the input events above have run. app.js
+  // creates it with document.createElement rather than by id, so it reaches
+  // the shared map only through the createElement path below. If it is still
+  // absent the app never painted it, which is the failure worth reporting
+  // rather than a crash on reading .hidden of undefined.
   const fgStatus = elements.get('theme-custom-fg-status');
-  if (fgStatus.hidden) {
+  if (!fgStatus) {
+    failed = true;
+    console.log('FAIL a picked colour creates no contrast status line');
+  } else if (fgStatus.hidden) {
     failed = true;
     console.log('FAIL a picked colour shows no contrast status');
   } else if (fgStatus.textContent !== CATALOGUE['theme.custom_contrast_ok']) {
@@ -2798,10 +2838,15 @@ function runThemeBuilderChecks() {
     console.log('     a readable pick is marked readable');
   }
 
-  // A pick that fails AA is flagged, because the app will adjust it.
+  // A pick that fails AA is flagged, because the app will adjust it. The
+  // status line is only readable when it exists, so a missing one is reported
+  // once above and skipped here rather than read as undefined.
   fgField.value = '#777777';
   fire('theme-custom-fg', 'input');
-  if (fgStatus.textContent !== CATALOGUE['theme.custom_contrast_fail']) {
+  if (!fgStatus) {
+    failed = true;
+    console.log('FAIL an unreadable pick cannot be checked: no contrast status line');
+  } else if (fgStatus.textContent !== CATALOGUE['theme.custom_contrast_fail']) {
     failed = true;
     console.log('FAIL an unreadable pick is not flagged: ' +
       JSON.stringify(fgStatus.textContent));
@@ -2820,7 +2865,7 @@ function runThemeBuilderChecks() {
     console.log('     the picker and the hex box stay in step');
   }
 
-  // A change saves the seven picks.
+  // A change saves the picks.
   const before = configPosts.length;
   fire('theme-custom-fg', 'change');
   const saved = configPosts.slice(before).filter((p) => 'theme_custom_fg' in p);
@@ -2832,13 +2877,21 @@ function runThemeBuilderChecks() {
     console.log('     a changed pick is saved');
   }
 
-  // Reset restores the defaults and saves them.
+  // Reset restores the defaults and saves them. The page and selection
+  // colours are changed first, so the check covers every pick the builder
+  // holds and not only the two the reader happens to touch.
+  const pageField = elements.get('theme-custom-page');
+  const selectionField = elements.get('theme-custom-selection');
+  pageField.value = '#123456';
+  selectionField.value = '#654321';
   const beforeReset = configPosts.length;
   fire('theme-custom-reset', 'click');
-  if (fgField.value !== '#ffffff') {
+  const notRestored = Object.keys(THEME_CUSTOM_DEFAULTS).filter((id) =>
+    elements.get(id).value !== THEME_CUSTOM_DEFAULTS[id]);
+  if (notRestored.length) {
     failed = true;
-    console.log('FAIL reset did not restore the default foreground: ' +
-      JSON.stringify(fgField.value));
+    console.log('FAIL reset did not restore the defaults: ' +
+      notRestored.join(', '));
   } else {
     console.log('     reset restores the defaults');
   }

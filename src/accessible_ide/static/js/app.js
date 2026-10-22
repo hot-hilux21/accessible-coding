@@ -2275,10 +2275,11 @@
     if (event.ctrlKey === true || event.metaKey === true) mods.push('Ctrl');
     if (event.altKey === true) mods.push('Alt');
     if (event.shiftKey === true) mods.push('Shift');
-    // Only an ordinary letter, digit, or underscore can be the base, and a
+    // Any base the server accepts can be the base, which includes named keys
+    // such as Enter, not only a single letter, digit, or underscore. A
     // modifier held on its own is not a press. This keeps the spelling in
     // step with the shape the server accepts.
-    if (!/^[A-Za-z0-9_]$/.test(event.key)) return null;
+    if (!/^[A-Za-z0-9_]+$/.test(event.key)) return null;
     if (event.key === 'Ctrl' || event.key === 'Alt' || event.key === 'Shift') return null;
     if (mods.length === 0) return null;
     mods.push(event.key);
@@ -3269,7 +3270,8 @@
         // The defaults are the high-contrast theme's colours, the same
         // values DEFAULT_CONFIG starts with in routes.py.
         var defaults = {
-          bg: '#0b0b0b', fg: '#ffffff', keyword: '#ff9a9a',
+          page: '#0b0b0b', bg: '#0b0b0b', fg: '#ffffff',
+          selection: '#4d4300', keyword: '#ff9a9a',
           string: '#93e6a8', comment: '#b4b4b4', number: '#ffd93d',
           function: '#93d4ff'
         };
