@@ -342,6 +342,12 @@ input[type="range"] {
   font-family: inherit;
   font-size: 0.95em;
   font-weight: 600;
+  /* A row that holds an icon and a label, so the gap is one value for every
+     button rather than spacing on the icon that only the icon buttons get. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
   background: var(--bg);
   color: var(--fg);
@@ -362,6 +368,27 @@ input[type="range"] {
   transition: transform var(--motion-fast) var(--ease),
               background var(--motion-med) var(--ease),
               border-color var(--motion-med) var(--ease);
+}
+
+/* The icon box. It does not shrink, so a long label in a narrow toolbar
+   cannot squeeze the glyph, and the SVG takes its size from the button's
+   own font size so a small button gets a small icon without a second rule. */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.btn-icon svg {
+  width: 1.15em;
+  height: 1.15em;
+  display: block;
+}
+
+/* The label is a plain span so it carries the text the tests look for and
+   the words still wrap as words if the button is ever given a narrow width. */
+.btn-label {
+  white-space: nowrap;
 }
 
 .btn:hover {
@@ -959,6 +986,20 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   font-size: 1em;
   font-weight: bold;
   letter-spacing: normal;
+  /* The title is a warning glyph and a word on one line. The gap lives here
+     rather than on the SVG so the icon keeps currentColor from the heading. */
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The warning triangle in the title. Sized against the heading's own font
+   size, and it inherits the error colour through currentColor. */
+.error-icon {
+  flex: 0 0 auto;
+  width: 1.15em;
+  height: 1.15em;
+  display: block;
 }
 
 .error-message {
