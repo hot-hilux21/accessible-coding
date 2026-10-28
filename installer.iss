@@ -9,7 +9,7 @@
 #define MyAppVersion "1.0.0"
 #define MyAppExeName "AccessibleIDE.exe"
 #define MyAppPublisher "AccessibleIDE"
-#define MyAppURL "https://accessible-coding.onrender.com"
+#define MyAppURL "https://accessible-coding.duckdns.org"
 
 [Setup]
 AppId={{8E5F2C1A-9B3D-4E7A-8C2F-1D4B6A9E3F50}

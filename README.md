@@ -21,10 +21,12 @@ Python-first. Dyslexia-friendly fonts. Focus mode. Text-to-speech. Plain-English
 Jump to any section:
 
 - [Key features](#key-features)
+- [Accessibility](#accessibility)
 - [Try it now](#try-it-now)
 - [Getting started](#getting-started)
 - [Where your code runs](#where-your-code-runs)
 - [Python dictionary](#python-dictionary)
+- [Common mistakes](#common-mistakes-of-programmers)
 - [Project structure](#project-structure)
 - [MVP checklist](#mvp-checklist)
 - [Roadmap](#roadmap)
@@ -36,27 +38,49 @@ Jump to any section:
 
 ## Key features
 
-- **Editor** ÔÇö CodeMirror Python editor with syntax highlighting
-- **Execution** ÔÇö built-in Python runner (10-second safety timeout)
-- **Fonts** ÔÇö OpenDyslexic by default, plus Atkinson Hyperlegible, Lexend and Nunito for dyslexia-friendly reading. Calibri, Arial, Comic Sans and Courier New come from your own computer.
-- **Focus mode** ÔÇö hide the gutter, or blur every line except the one you are on
-- **Themes** ÔÇö high contrast, dark, pastel, and light
-- **Text-to-speech** ÔÇö reads your code and errors aloud
-- **Errors** ÔÇö plain-English messages, no jargon
-- **Storage** ÔÇö offline-first, settings saved to your computer
-- **Platforms** ÔÇö browser web app and Windows `.exe`
+- **Editor** — CodeMirror Python editor with syntax highlighting
+- **Execution** — built-in Python runner (10-second safety timeout)
+- **Fonts** — OpenDyslexic by default, plus Atkinson Hyperlegible, Lexend and Nunito for dyslexia-friendly reading. Calibri, Arial, Comic Sans and Courier New come from your own computer.
+- **Languages** — English, Hindi, French, Spanish, Arabic and Ukrainian, with right-to-left layout for Arabic.
+- **Focus mode** — hide the gutter, or blur every line except the one you are on
+- **Themes** — high contrast, dark, pastel, light, ocean, forest, and a custom theme builder with a hex colour grid
+- **Text size and spacing** — separate size, line height and letter spacing for the editor, output and shell
+- **Text-to-speech** — reads your code and errors aloud, with hover and click reading
+- **Screen readers** — native landmarks, live regions, focus management and spoken step changes; no ARIA invented where the browser already does the job
+- **Errors** — plain-English messages, no jargon
+- **Storage** — offline-first, settings saved to your computer
+- **Platforms** — browser web app and Windows `.exe`
 
-[Ôåæ Back to contents](#contents)
+[↑ Back to contents](#contents)
+
+---
+
+## Accessibility
+
+AccessibleIDE is built for dyslexic and neurodivergent readers, not adapted for them afterwards. The accessibility features are part of the interface, and the test suite checks the ones that can be measured.
+
+- **Reading fonts:** OpenDyslexic is the default. Atkinson Hyperlegible, Lexend and Nunito are bundled, and you can add your own `.ttf`, `.otf`, `.woff` or `.woff2` file. The chosen font can be applied to the code, the output, the shell and the rest of the interface separately.
+- **Text size and spacing:** font size, line height, letter spacing and text weight are adjustable, with separate controls for the editor, output and shell.
+- **Contrast:** every bundled theme and every derived custom colour is checked against WCAG 2.1 AA (4.5:1 for text). `tests/test_contrast.py` is the arbiter and must pass before a visual change lands. The custom theme builder nudges a colour that would fail until it is readable again.
+- **Themes:** high contrast, dark, pastel, light, ocean and forest. The custom theme has a hex grid, a native colour picker and a hex field. Code colours for keywords, strings, comments, numbers and functions sit under **Settings → Colours → Advanced**.
+- **Languages:** English, Hindi, French, Spanish, Arabic and Ukrainian. Arabic switches the page to right-to-left. Every visible string is translated; nothing falls back to English silently.
+- **Screen readers:** the app uses native landmarks, headings, fieldsets, labels, live regions and focus management. Opening a dialog moves focus into it, a setup step announces itself when it changes, and an error is announced rather than only coloured. Hidden setup panels are removed from the tab order.
+- **Keyboard:** every control is reachable without a mouse. Running and stopping have configurable key presses, and the setup screen never traps the reader behind Escape.
+- **Text-to-speech:** reads output and errors aloud, can speak buttons and labels on hover or click, and lets the reader choose the voice and speed. It works alongside a screen reader rather than replacing it.
+- **Focus and motion:** focus mode hides the gutter or fades other lines, and reduced motion can be set to follow the operating system or be turned on and off explicitly.
+- **Plain English:** Python errors are translated into sentences that say what went wrong and how to fix it, with the original error kept available.
+
+[↑ Back to contents](#contents)
 
 ---
 
 ## Try it now
 
-- **Web app:** [https://accessible-coding.onrender.com](https://accessible-coding.onrender.com)
-- **Windows installer (recommended):** download `AccessibleIDE-Setup.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE-Setup.exe) ÔÇö installs the app to any folder, installs Python and adds it to PATH, and creates shortcuts
+- **Web app:** [https://accessible-coding.duckdns.org](https://accessible-coding.duckdns.org) — hosted on Oracle Cloud
+- **Windows installer (recommended):** download `AccessibleIDE-Setup.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE-Setup.exe) — installs the app to any folder, installs Python and adds it to PATH, and creates shortcuts
 - **Windows exe (portable):** download `AccessibleIDE.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE.exe)
 
-[Ôåæ Back to contents](#contents) ┬À [Ôåô Next: Getting started](#getting-started)
+[↑ Back to contents](#contents) · [↓ Next: Getting started](#getting-started)
 
 ---
 
@@ -66,7 +90,7 @@ Jump to any section:
 
 1. Download `AccessibleIDE-Setup.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE-Setup.exe)
 2. Run it. Choose any install folder.
-3. Tick **Install Python and add it to PATH** (on by default) ÔÇö the installer also installs the Microsoft Visual C++ runtime and the WebView2 runtime it needs.
+3. Tick **Install Python and add it to PATH** (on by default) — the installer also installs the Microsoft Visual C++ runtime and the WebView2 runtime it needs.
 4. Finish, and the IDE opens in its own **desktop window** (no browser needed). Write Python, then press **Run** (or `Ctrl+Enter`).
 
 ### Windows portable (.exe)
@@ -77,11 +101,11 @@ Jump to any section:
 
 > Needs the Microsoft Edge **WebView2 runtime** (built into Windows 10/11 or installed by the setup above). Click **Quit** in the sidebar footer to close the app.
 
-> If Windows shows "Windows protected your PC", click **More info** then **Run anyway** ÔÇö the app is not code-signed yet.
+> If Windows shows "Windows protected your PC", click **More info** then **Run anyway** — the app is not code-signed yet.
 
 ### Browser (web)
 
-Open [https://accessible-coding.onrender.com](https://accessible-coding.onrender.com). No install needed.
+Open [https://accessible-coding.duckdns.org](https://accessible-coding.duckdns.org). No install needed. The site runs on Oracle Cloud and is updated automatically when `main` is pushed.
 
 ### Development
 
@@ -107,19 +131,21 @@ Your exe is at `dist/AccessibleIDE.exe`.
 
 ```bash
 python smoke_test.py
+python -m unittest discover -s tests -t .
+node tests/dom_harness.js
 ```
 
-[Ôåæ Back to contents](#contents) ┬À [Ôåô Next: Where your code runs](#where-your-code-runs)
+[↑ Back to contents](#contents) · [↓ Next: Where your code runs](#where-your-code-runs)
 
 ---
 
 ## Where your code runs
 
-**Windows app.** Your code runs on your own computer. Press Run and the app starts a process of its own to run your file, then prints what came out. Nothing you write is uploaded, no account is needed, and the app makes no network requests. The only thing it can go online for is checking for a new version, and that stays off until you turn it on in Settings.
+**Windows app.** Your code runs on your own computer. Press Run and the app starts a process of its own to run your file, then prints what came out. Nothing you write is uploaded, no account is needed, and the app makes no network requests to run your code. The only thing it goes online for is checking for a new version; that check is on by default and can be turned off in Settings.
 
 **Browser copy.** Your code is sent to the server hosting the site, run there, and the output is sent back. This is the only version where your code leaves your machine. That server is shared by everyone using the site, so this copy runs with a sandbox the Windows app does not: imports such as `os` and `subprocess` are refused before your program starts.
 
-[Ôåæ Back to contents](#contents) ┬À [Ôåô Next: Python dictionary](#python-dictionary)
+[↑ Back to contents](#contents) · [↓ Next: Python dictionary](#python-dictionary)
 
 ---
 
@@ -127,7 +153,7 @@ python smoke_test.py
 
 A glossary of the Python you will meet in this app. Each entry says what a command does and shows something you can type straight into the editor and run.
 
-[Ôåæ Back to contents](#contents) ┬À [Ôåô Next: Project structure](#project-structure)
+[↑ Back to contents](#contents) · [↓ Next: Project structure](#project-structure)
 
 ---
 
@@ -500,21 +526,24 @@ Everyone writes these when they are learning. The mistake is underlined, and the
 
 ```
 accessible-coding/
-Ôö£ÔöÇÔöÇ .github/workflows/       # CI: tests + exe build on release tags
-Ôö£ÔöÇÔöÇ docs/                    # Documentation
-Ôö£ÔöÇÔöÇ src/accessible_ide/
-Ôöé   Ôö£ÔöÇÔöÇ assets/              # Fonts (OpenDyslexic, Atkinson Hyperlegible, Lexend, Nunito)
-Ôöé   Ôö£ÔöÇÔöÇ static/              # CSS + JavaScript (CodeMirror, app logic)
-Ôöé   Ôö£ÔöÇÔöÇ templates/           # HTML page
-Ôöé   Ôö£ÔöÇÔöÇ config/              # Settings load/save
-Ôöé   ÔööÔöÇÔöÇ utils/               # Helpers (error translation)
-Ôö£ÔöÇÔöÇ tests/                   # Test suite
-Ôö£ÔöÇÔöÇ accessible-ide-requirements.md  # Full specification
-Ôö£ÔöÇÔöÇ AGENTS.md                # Agent instructions
-ÔööÔöÇÔöÇ README.md                # This file
+├── .github/workflows/       # CI: tests + exe build on release tags
+├── docs/                    # Documentation
+├── src/accessible_ide/
+│   ├── assets/              # Fonts (OpenDyslexic, Atkinson Hyperlegible, Lexend, Nunito, Almarai, Mukta)
+│   ├── i18n/                # Translation catalogues (en, hi, fr, es, ar, uk)
+│   ├── static/              # CSS + JavaScript (CodeMirror, app logic)
+│   ├── templates/           # HTML page
+│   ├── routes.py            # Flask routes, themes and settings validation
+│   ├── shell.py             # Python shell sessions
+│   ├── trace_runner.py      # Line-by-line variable trace
+│   └── utils/               # Helpers (colour maths, error translation)
+├── tests/                   # Python tests and the DOM harness
+├── accessible-ide-requirements.md  # Full specification
+├── AGENTS.md                # Agent instructions
+└── README.md                # This file
 ```
 
-[Ôåæ Back to contents](#contents) ┬À [Ôåô Next: MVP checklist](#mvp-checklist)
+[↑ Back to contents](#contents) · [↓ Next: MVP checklist](#mvp-checklist)
 
 ---
 
@@ -526,8 +555,11 @@ What is done so far:
 - [x] Built-in Python runner
 - [x] Save and open code files
 - [x] Local settings save/load (JSON)
-- [x] 4 preset themes (high contrast, dark, pastel, light)
-- [x] Custom theme builder
+- [x] 6 preset themes (high contrast, dark, pastel, light, ocean, forest)
+- [x] Custom theme builder with hex colour grid
+- [x] Six languages, including right-to-left Arabic
+- [x] Adjustable text size, line height and letter spacing per pane
+- [x] Text-to-speech for output, errors, buttons and labels
 - [x] Reading font choice (OpenDyslexic by default, Atkinson Hyperlegible / Lexend / Nunito also bundled)
 - [x] Focus mode (hide gutter / blur other lines)
 - [x] Error messages in plain English
@@ -541,30 +573,30 @@ Coming next:
 - [ ] More text-to-speech options
 - [ ] Configurable blur zones (blocks, functions)
 
-[Ôåæ Back to contents](#contents) ┬À [Ôåô Next: Roadmap](#roadmap)
+[↑ Back to contents](#contents) · [↓ Next: Roadmap](#roadmap)
 
 ---
 
 ## Roadmap
 
-- **Now** ÔÇö editor, runner, save/open, fonts, focus mode, themes, plain errors, error line highlighting
-- **Next** ÔÇö more text-to-speech options, configurable blur zones
-- **v1.0+** ÔÇö linter, Jupyter, collaboration, plugins
+- **Now** — editor, runner, save/open, fonts, focus mode, themes, plain errors, error line highlighting
+- **Next** — more text-to-speech options, configurable blur zones
+- **v1.0+** — linter, Jupyter, collaboration, plugins
 
 See the [full specification](#full-specification) for details.
 
-[Ôåæ Back to contents](#contents) ┬À [Ôåô Next: Contributing](#contributing)
+[↑ Back to contents](#contents) · [↓ Next: Contributing](#contributing)
 
 ---
 
 ## Contributing
 
-- **License:** MIT ÔÇö free to use, modify, and fork
+- **License:** MIT — free to use, modify, and fork
 - **Core development:** solo (owner)
 - **External pull requests:** please ask first. Changes are reviewed before merging.
 - **Feedback:** very welcome, especially from dyslexic and neurodivergent users.
 
-[Ôåæ Back to contents](#contents) ┬À [Ôåô Next: Full specification](#full-specification)
+[↑ Back to contents](#contents) · [↓ Next: Full specification](#full-specification)
 
 ---
 
@@ -588,7 +620,7 @@ It covers:
 - Resources and references
 - Next steps
 
-[Ôåæ Back to contents](#contents) ┬À [Ôåô Next: Contact](#contact)
+[↑ Back to contents](#contents) · [↓ Next: Contact](#contact)
 
 ---
 
@@ -596,10 +628,10 @@ It covers:
 
 Built with empathy for dyslexic and neurodivergent learners.
 
-Feedback and testing help are always welcome ÔÇö especially from the people this is for.
+Feedback and testing help are always welcome — especially from the people this is for.
 
-[Ôåæ Back to contents](#contents)
+[↑ Back to contents](#contents)
 
 ---
 
-*AccessibleIDE ÔÇö code comfortably.*
+*AccessibleIDE — code comfortably.*

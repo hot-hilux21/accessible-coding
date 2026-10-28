@@ -5,33 +5,37 @@
 AccessibleIDE is a fully accessible, open-source IDE prioritizing dyslexic and neurodivergent learners. Python-first, with dyslexia-friendly fonts, configurable focus/blur modes, text-to-speech, plain-English errors, and customizable syntax highlighting.
 
 - **Authoritative spec:** `accessible-ide-requirements.md` (root) — read this before planning any feature. The MVP feature checklist is in section 10.
-- **Status:** Pre-development. The requirements doc was created 2026-09-23; no application code exists yet.
+- **Status:** Shipped. Flask web app and Windows `.exe`; version 1.0.0.
+- **Live site:** https://accessible-coding.duckdns.org, hosted on Oracle Cloud. Pushing to `main` runs `.github/workflows/deploy.yml`, which pulls on the server and restarts `accessible-coding-py`.
 
 ## Repository Layout
 
 ```
-Dyslexia IDE/
-├── AGENTS.md                     # This file
-├── accessible-ide-requirements.md # Full requirements & specifications
-└── accessible-coding/             # Intended application repository root
-    ├── .github/workflows/         # CI (empty — to be added)
-    ├── docs/                      # Documentation (empty)
-    ├── src/accessible_ide/
-    │   ├── assets/                # Fonts (OpenDyslexic, Atkinson Hyperlegible), static assets
-    │   ├── components/            # Editor, focus mode, TTS, theme builder UI
-    │   ├── config/                # JSON/TOML settings load/save
-    │   └── utils/                 # Helpers (error translation, TTS wrappers, etc.)
-    └── tests/                     # Test suite (empty)
+accessible-coding/
+├── app.py                         # Desktop entry point (Flask + WebView2)
+├── wsgi.py                        # Web entry point for gunicorn
+├── src/accessible_ide/
+│   ├── assets/fonts/              # Bundled fonts
+│   ├── i18n/                      # en, hi, fr, es, ar, uk catalogues
+│   ├── static/css/style.css       # Design tokens and component styles
+│   ├── static/js/app.js           # Editor, settings, setup, TTS, theme logic
+│   ├── templates/index.html       # The server-rendered page
+│   ├── routes.py                  # Routes, themes, config validation
+│   ├── shell.py                   # Python shell sessions
+│   └── trace_runner.py            # Line-by-line variable trace
+├── tests/                         # Python tests and the DOM harness
+└── README.md
 ```
 
-All directories are currently empty scaffolding. Do not assume existing patterns — establish them as code is written.
+The code exists and is tested. Read the surrounding code before changing it; do not scaffold a second structure beside it.
 
 ## Key Constraints (from requirements)
 
 - **MVP target:** ~1 month; ship incrementally (semantic versioning from 0.1.0), not one big v1.
 - **Platforms:** Browser web app first, Windows `.exe` (PyInstaller) second; Linux later. Offline-first — all work saved locally.
 - **Language support:** Python only for MVP. Multi-language is future work.
-- **Stack (open decisions):** Streamlit vs Flask/FastAPI undecided; editor is Monaco, CodeMirror, or Ace — finalize before building the editor.
+- **Stack:** Flask + Jinja server rendering, vanilla JavaScript, CodeMirror 5. No React, no Node build step, no Tailwind, no bundler. Settings are local JSON, saved through `routes.py`.
+- **UI library:** HeroUI v3 is not used. It requires React 19 and Tailwind CSS v4, which this app does not have. Do not add HeroUI, React or Tailwind to the server-rendered page; a mixed runtime would break the no-JavaScript setup screen, the token-based themes and the accessibility tests. If a React surface is ever approved, it must be a separate, scoped migration with its own build step, not an island inside `index.html`.
 - **Storage:** Local JSON/TOML config; cloud sync (Google Drive/OneDrive) is optional and opt-in only.
 - **Accessibility bar:** WCAG 2.1 AA minimum. Every UI change should be checked against this.
 - **License/repo:** Open source (MIT/GPL/Apache 2.0), public GitHub from day 1. Solo development; external PRs require permission and review-then-merge.
@@ -79,11 +83,9 @@ This app is used by people who will notice a decorative choice and be distracted
 
 If a design idea is only worth doing because it looks expensive, skip it. What earns its place here is what makes the code easier to read.
 
-## Next Steps (from spec §13)
+## Next Steps
 
-1. UI mockups (focus mode, theme customizer)
-2. Finalize tech stack (Streamlit vs Flask; editor component)
-3. Minimal prototype: Python editor + runner
-4. TTS integration tests (ReciteMe, pyttsx3, eSpeak-ng, Coqui)
-5. Recruit 2–3 dyslexic testers
-6. Deploy v0.1 MVP
+1. Test the custom colour grid and Advanced disclosure with dyslexic readers.
+2. Add more text-to-speech options and configurable blur zones.
+3. Keep the Oracle Cloud deployment green on every push to `main`.
+4. Keep `README.md` accurate when features, languages or the live URL change.
