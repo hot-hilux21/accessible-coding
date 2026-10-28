@@ -374,5 +374,14 @@
   "update.warn_title": "احفظ عملك أولًا",
   "group.controls": "عناصر التحكم",
   "controls.labels": "إظهار تسميات الأزرار",
-  "controls.labels_help": "أوقف هذا لعرض شريط الأدوات كأيقونات مع تلميحات. تظل قارئات الشاشة تقرأ اسم كل زر."
+  "controls.labels_help": "أوقف هذا لعرض شريط الأدوات كأيقونات مع تلميحات. تظل قارئات الشاشة تقرأ اسم كل زر.",
+  "theme.white": "أبيض",
+  "theme.amoled": "أسود AMOLED",
+  "theme.red": "أحمر",
+  "theme.orange": "برتقالي",
+  "theme.yellow": "أصفر",
+  "theme.green": "أخضر",
+  "theme.blue": "أزرق",
+  "theme.indigo": "نيلي",
+  "theme.violet": "بنفسجي"
 }

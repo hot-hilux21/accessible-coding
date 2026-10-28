@@ -374,5 +374,14 @@
   "update.warn_title": "Enregistrez d'abord votre travail",
   "group.controls": "Contrôles",
   "controls.labels": "Afficher les libellés des boutons",
-  "controls.labels_help": "Désactivez cette option pour afficher la barre d’outils sous forme d’icônes avec des infobulles. Les lecteurs d’écran lisent toujours le nom de chaque contrôle."
+  "controls.labels_help": "Désactivez cette option pour afficher la barre d’outils sous forme d’icônes avec des infobulles. Les lecteurs d’écran lisent toujours le nom de chaque contrôle.",
+  "theme.white": "Blanc",
+  "theme.amoled": "Noir AMOLED",
+  "theme.red": "Rouge",
+  "theme.orange": "Orange",
+  "theme.yellow": "Jaune",
+  "theme.green": "Vert",
+  "theme.blue": "Bleu",
+  "theme.indigo": "Indigo",
+  "theme.violet": "Violet"
 }

@@ -374,5 +374,14 @@
   "update.warn_title": "Guarda tu trabajo primero",
   "group.controls": "Controles",
   "controls.labels": "Mostrar las etiquetas de los botones",
-  "controls.labels_help": "Desactívalo para ver la barra de herramientas como iconos con descripciones. Los lectores de pantalla siguen leyendo el nombre de cada control."
+  "controls.labels_help": "Desactívalo para ver la barra de herramientas como iconos con descripciones. Los lectores de pantalla siguen leyendo el nombre de cada control.",
+  "theme.white": "Blanco",
+  "theme.amoled": "Negro AMOLED",
+  "theme.red": "Rojo",
+  "theme.orange": "Naranja",
+  "theme.yellow": "Amarillo",
+  "theme.green": "Verde",
+  "theme.blue": "Azul",
+  "theme.indigo": "Índigo",
+  "theme.violet": "Violeta"
 }

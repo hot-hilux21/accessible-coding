@@ -621,6 +621,11 @@
                   <input type="text" id="theme-custom-{{ key }}" class="hex-input" spellcheck="false" autocomplete="off"
                          inputmode="text" maxlength="7" value="{{ config['theme_custom_' + key] }}"
                          aria-describedby="theme-builder-help theme-custom-{{ key }}-error">
+                  <button type="button" class="btn btn-small theme-reset-one" data-key="{{ key }}"
+                          title="{{ t('theme.custom_reset') }}: {{ t(label) }}"
+                          aria-label="{{ t('theme.custom_reset') }}: {{ t(label) }}">
+                    {{ icon('rotate-ccw') }}
+                  </button>
                 </div>
                 <p class="field-error" id="theme-custom-{{ key }}-error" role="alert" hidden></p>
                 <p class="preview-status" id="theme-custom-{{ key }}-status" hidden></p>

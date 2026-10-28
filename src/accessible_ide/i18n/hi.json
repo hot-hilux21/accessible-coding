@@ -374,5 +374,14 @@
   "update.warn_title": "पहले अपना काम सेव करें",
   "group.controls": "नियंत्रण",
   "controls.labels": "बटन के लेबल दिखाएँ",
-  "controls.labels_help": "इसे बंद करने पर टूलबार आइकन और टूलटिप के रूप में दिखेगा। स्क्रीन रीडर हर नियंत्रण का नाम पढ़ते रहते हैं।"
+  "controls.labels_help": "इसे बंद करने पर टूलबार आइकन और टूलटिप के रूप में दिखेगा। स्क्रीन रीडर हर नियंत्रण का नाम पढ़ते रहते हैं।",
+  "theme.white": "सफ़ेद",
+  "theme.amoled": "काला AMOLED",
+  "theme.red": "लाल",
+  "theme.orange": "नारंगी",
+  "theme.yellow": "पीला",
+  "theme.green": "हरा",
+  "theme.blue": "नीला",
+  "theme.indigo": "इंडिगो",
+  "theme.violet": "बैंगनी"
 }

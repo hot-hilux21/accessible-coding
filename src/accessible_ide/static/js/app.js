@@ -326,6 +326,51 @@
       '#a8e6a8': '#c2f0c2', '#e6d9a8': '#f0e6c2', '#8fa893': '#a8bcaa',
       '#e6c88a': '#f0d8ab', '#8fd4c1': '#aae0d0', '#d8e6d8': '#e8f2e8',
       '#b0c4b4': '#c4d4c8', '#bcccb8': '#ccd8c8'
+    },
+    white: {
+      '#1a1a1a': '#000000', '#595959': '#000000', '#8a1a1a': '#000000',
+      '#1b5e20': '#000000', '#4d4d4d': '#000000', '#7a4b00': '#000000',
+      '#0b4a8a': '#000000', '#4a1a1a': '#000000', '#333333': '#000000'
+    },
+    amoled: {
+      '#f2f2f2': '#ffffff', '#a8a8a8': '#ffffff', '#ff9a9a': '#ffffff',
+      '#93e6a8': '#ffffff', '#b4b4b4': '#ffffff', '#ffd93d': '#ffffff',
+      '#93d4ff': '#ffffff', '#ffb3b3': '#ffffff', '#e0e0e0': '#ffffff'
+    },
+    red: {
+      '#f5f0f0': '#ffffff', '#c0a8a8': '#ffffff', '#ff9a9a': '#ffffff',
+      '#a8e6b8': '#ffffff', '#c4b4b4': '#ffffff', '#ffd98a': '#ffffff',
+      '#ffb8b8': '#ffffff', '#ffc4c4': '#ffffff', '#e0d4d4': '#ffffff'
+    },
+    orange: {
+      '#f7f2e8': '#ffffff', '#c4b69f': '#ffffff', '#ffb366': '#ffffff',
+      '#b9e6a8': '#ffffff', '#c9beb0': '#ffffff', '#ffe08a': '#ffffff',
+      '#ffc999': '#ffffff', '#ffcf9f': '#ffffff', '#e6dccd': '#ffffff'
+    },
+    yellow: {
+      '#f7f4e6': '#ffffff', '#c8c0a0': '#ffffff', '#ffe066': '#ffffff',
+      '#b9e6a8': '#ffffff', '#c9c3b0': '#ffffff', '#ffe9a0': '#ffffff',
+      '#fff0b3': '#ffffff', '#ffecb3': '#ffffff', '#e8e2cc': '#ffffff'
+    },
+    green: {
+      '#eef7ee': '#ffffff', '#a8c4ad': '#ffffff', '#a8e6a8': '#ffffff',
+      '#d6e6a8': '#ffffff', '#b4c8b8': '#ffffff', '#ffe08a': '#ffffff',
+      '#8fd4c1': '#ffffff', '#c2e6c2': '#ffffff', '#d8e8d8': '#ffffff'
+    },
+    blue: {
+      '#eef4fb': '#ffffff', '#a4b8cc': '#ffffff', '#8fc7ff': '#ffffff',
+      '#a8e6c1': '#ffffff', '#b0c0d0': '#ffffff', '#ffd98a': '#ffffff',
+      '#7fd4ff': '#ffffff', '#c2d8f0': '#ffffff', '#d6e2ee': '#ffffff'
+    },
+    indigo: {
+      '#f0eefb': '#ffffff', '#b0aac8': '#ffffff', '#b3a8ff': '#ffffff',
+      '#a8e6c1': '#ffffff', '#bcb8cc': '#ffffff', '#ffd98a': '#ffffff',
+      '#9fc4ff': '#ffffff', '#c8c0ff': '#ffffff', '#ded8f0': '#ffffff'
+    },
+    violet: {
+      '#f7eefb': '#ffffff', '#c4a8cc': '#ffffff', '#e0a8ff': '#ffffff',
+      '#a8e6c1': '#ffffff', '#c4b4c8': '#ffffff', '#ffd98a': '#ffffff',
+      '#b8c4ff': '#ffffff', '#e8c0ff': '#ffffff', '#e6d8ee': '#ffffff'
     }
   };
 
@@ -3422,6 +3467,15 @@
     });
   }
 
+  // The defaults are the high-contrast theme's colours, the same values
+  // DEFAULT_CONFIG starts with in routes.py.
+  var customDefaults = {
+    page: '#0b0b0b', bg: '#0b0b0b', fg: '#ffffff',
+    selection: '#4d4300', keyword: '#ff9a9a',
+    string: '#93e6a8', comment: '#b4b4b4', number: '#ffd93d',
+    function: '#93d4ff'
+  };
+
   if (themeBuilder) {
     themeBuilderFields.forEach(function (key) {
       var hex = customFieldHex(key);
@@ -3460,22 +3514,25 @@
     });
     if (themeCustomReset) {
       themeCustomReset.addEventListener('click', function () {
-        // The defaults are the high-contrast theme's colours, the same
-        // values DEFAULT_CONFIG starts with in routes.py.
-        var defaults = {
-          page: '#0b0b0b', bg: '#0b0b0b', fg: '#ffffff',
-          selection: '#4d4300', keyword: '#ff9a9a',
-          string: '#93e6a8', comment: '#b4b4b4', number: '#ffd93d',
-          function: '#93d4ff'
-        };
         themeBuilderFields.forEach(function (key) {
-          customFieldHex(key).value = defaults[key];
-          customFieldPicker(key).value = defaults[key];
+          customFieldHex(key).value = customDefaults[key];
+          customFieldPicker(key).value = customDefaults[key];
         });
         repaintCustomTheme();
         saveCustomTheme();
       });
     }
+    Array.prototype.forEach.call(
+      themeBuilder.querySelectorAll('.theme-reset-one'),
+      function (button) {
+        button.addEventListener('click', function () {
+          var key = button.getAttribute('data-key');
+          customFieldHex(key).value = customDefaults[key];
+          customFieldPicker(key).value = customDefaults[key];
+          repaintCustomTheme();
+          saveCustomTheme();
+        });
+      });
   }
 
   // ---------- Interface labels ----------

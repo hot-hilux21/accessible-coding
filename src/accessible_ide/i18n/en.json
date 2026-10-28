@@ -374,5 +374,14 @@
   "update.warn_title": "Save your work first",
   "group.controls": "Controls",
   "controls.labels": "Show button labels",
-  "controls.labels_help": "Turn this off to show the toolbar as icons with tooltips. Screen readers still read each control's name."
+  "controls.labels_help": "Turn this off to show the toolbar as icons with tooltips. Screen readers still read each control's name.",
+  "theme.white": "White",
+  "theme.amoled": "Black AMOLED",
+  "theme.red": "Red",
+  "theme.orange": "Orange",
+  "theme.yellow": "Yellow",
+  "theme.green": "Green",
+  "theme.blue": "Blue",
+  "theme.indigo": "Indigo",
+  "theme.violet": "Violet"
 }
