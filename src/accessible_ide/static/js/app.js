@@ -1358,6 +1358,50 @@
         saveSetupColours();
       });
     });
+    // A preset's colour square starts the reader's own theme from that
+    // preset, so picking a colour never rewrites the shared preset.
+    Array.prototype.forEach.call(
+      setupDialog.querySelectorAll('.setup-swatch-cell'),
+      function (swatch) {
+        swatch.addEventListener('change', function () {
+          startThemeFrom(swatch.getAttribute('data-theme'),
+            swatch.getAttribute('data-role'), swatch.value);
+        });
+      });
+  }
+
+  // Start from the preset behind a setup swatch, then apply the one colour
+  // the reader just picked. Both the setup grid and the Settings builder are
+  // kept in step because both are in the document.
+  function startThemeFrom(themeKey, role, value) {
+    var base = themePalette[themeKey] || themePalette;
+    if (!base.keyword) return;
+    var picks = {
+      page: base.page || base.bg, bg: base.bg, fg: base.fg,
+      selection: base.selection, keyword: base.keyword,
+      string: base.string, comment: base.comment,
+      number: base.number, function: base.function
+    };
+    picks[role] = value;
+    var payload = { theme: 'custom' };
+    Object.keys(picks).forEach(function (key) {
+      ['setup-theme-custom-', 'theme-custom-'].forEach(function (prefix) {
+        var field = document.getElementById(prefix + key);
+        var picker = document.getElementById(prefix + key + '-picker');
+        if (field) field.value = picks[key];
+        if (picker) picker.value = picks[key];
+      });
+      payload['theme_custom_' + key] = picks[key];
+    });
+    themeSelect.value = 'custom';
+    var customRadio = setupDialog.querySelector(
+      'input[name="setup-theme"][value="custom"]');
+    if (customRadio) customRadio.checked = true;
+    applyTheme('custom');
+    body.setAttribute('data-theme', 'custom');
+    if (typeof showSetupStep === 'function') showSetupStep(setupCurrentStep());
+    if (typeof repaintSetupColours === 'function') repaintSetupColours();
+    saveConfig(payload);
   }
 
   // For anyone who skipped the first-run screen and wants it after all.
@@ -3433,6 +3477,34 @@
       });
     }
   }
+
+  // ---------- Interface labels ----------
+  // Words on by default. Turning them off leaves the icon and its tooltip,
+  // and the control's aria-label still gives it a name.
+  var iconOnlyButton = document.getElementById('icon-only');
+  var setupIconOnlyButton = document.getElementById('setup-icon-only');
+
+  function applyIconOnly(iconOnly) {
+    body.setAttribute('data-icon-only', iconOnly ? 'true' : 'false');
+    [iconOnlyButton, setupIconOnlyButton].forEach(function (button) {
+      if (!button) return;
+      button.setAttribute('aria-checked', iconOnly ? 'false' : 'true');
+      button.classList.toggle('active', !iconOnly);
+      var state = document.getElementById(button.id + '-state');
+      if (state) state.textContent = iconOnly ? t('switch.off') : t('switch.on');
+    });
+  }
+
+  applyIconOnly(body.getAttribute('data-icon-only') === 'true');
+
+  [iconOnlyButton, setupIconOnlyButton].forEach(function (button) {
+    if (!button) return;
+    button.addEventListener('click', function () {
+      var next = body.getAttribute('data-icon-only') !== 'true';
+      applyIconOnly(next);
+      saveConfig({ icon_only: next });
+    });
+  });
 
   // ---------- Background gradient ----------
   // A very subtle pull of the background toward the foreground colour, so

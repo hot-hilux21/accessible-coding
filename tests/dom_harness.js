@@ -59,6 +59,7 @@ const KNOWN_IDS = new Set([
   // here for the same reason as the setup screen: app.js has to treat them
   // as optional, and the harness has to exercise that path.
   'theme-gradient', 'theme-gradient-state', 'theme-builder',
+  'icon-only', 'setup-icon-only', 'icon-only-state', 'setup-icon-only-state',
   // The builder renders its fields from a Jinja loop over these nine keys,
   // and each key emits four ids: the hex input, the colour picker, the
   // error line, and the contrast status line. All four are listed for every

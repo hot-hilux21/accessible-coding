@@ -24,6 +24,9 @@ def create_app():
     # only applies to the local desktop app. It blocks DNS-rebinding
     # attacks that try to reach the local server from a malicious website.
     from .routes import main_bp, on_public_web
+    from .icons import icon
+
+    app.add_template_global(icon, 'icon')
 
     @app.before_request
     def validate_host():

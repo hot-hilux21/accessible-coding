@@ -387,6 +387,22 @@ input[type="range"] {
   display: block;
 }
 
+/* One size for every icon, taken from the text around it, so a small button
+   gets a small icon and a heading gets one that sits on its baseline. */
+.icon {
+  flex: 0 0 auto;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.15em;
+}
+
+/* Icon-only toolbars: the label leaves the layout and the control's
+   aria-label (or title) carries the name. Hidden rather than removed, so
+   turning labels back on needs no reload. */
+body[data-icon-only="true"] .btn-label {
+  display: none;
+}
+
 /* The label is a plain span so it carries the text the tests look for and
    the words still wrap as words if the button is ever given a narrow width. */
 .btn-label {
@@ -713,17 +729,19 @@ input[type="range"] {
 
 .pane-caret {
   display: block;
-  font-size: 1rem;
-  line-height: 1;
+  width: 1rem;
+  height: 1rem;
   transition: transform var(--motion-fast) var(--ease);
 }
 
-.pane-caret::before {
-  content: "\25B8";
+.pane-caret .icon {
+  display: block;
+  width: 1rem;
+  height: 1rem;
 }
 
 .pane-mini-toggle[aria-expanded="true"] .pane-caret {
-  transform: rotate(90deg);
+  transform: rotate(180deg);
 }
 
 /* The line-number tick. One control, because the setting has one thing to
@@ -1523,9 +1541,8 @@ body[data-contrast="high"][data-theme="pastel"] {
   width: 1em;
   height: 1em;
   flex: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
+  fill: currentColor;
+  stroke: none;
 }
 
 /* The same accent fill the toolbar toggles use when they are on, so a state
@@ -2262,9 +2279,9 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   color: var(--fg);
 }
 
-/* The theme swatch is a strip of the theme's own colours, drawn
-   server-side from the same table the editor reads. Purely decorative,
-   so the cells carry no text and need no contrast of their own. */
+/* The theme swatch is a strip of colour squares, one per token, drawn from
+   the same table the editor reads. Each square is a real colour input, so a
+   reader can open one and start their own theme from this palette. */
 .setup-swatch {
   display: flex;
   gap: 2px;
@@ -2274,8 +2291,16 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 .setup-swatch-cell {
   width: 22px;
   height: 22px;
+  padding: 0;
+  background: var(--panel-bg);
   border-radius: 4px;
   border: 1px solid var(--panel-border);
+  cursor: pointer;
+}
+
+.setup-swatch-cell:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 /* ---------- The theme builder ---------- */

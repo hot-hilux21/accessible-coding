@@ -371,5 +371,8 @@
   "update.version_line": "Version {0}",
   "update.warn_body": "Downloading only saves the new version; nothing changes yet. Installing closes the app, puts the new version in place, and opens the app again, so save anything you have not saved.",
   "update.warn_cancel": "Not now",
-  "update.warn_title": "Save your work first"
+  "update.warn_title": "Save your work first",
+  "group.controls": "Controls",
+  "controls.labels": "Show button labels",
+  "controls.labels_help": "Turn this off to show the toolbar as icons with tooltips. Screen readers still read each control's name."
 }

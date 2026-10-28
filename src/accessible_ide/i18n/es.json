@@ -371,5 +371,8 @@
   "update.version_line": "Versión {0}",
   "update.warn_body": "Descargar solo guarda la nueva versión; todavía no cambia nada. Instalar cierra la aplicación, coloca la nueva versión y vuelve a abrirla, así que guarda lo que no hayas guardado.",
   "update.warn_cancel": "Ahora no",
-  "update.warn_title": "Guarda tu trabajo primero"
+  "update.warn_title": "Guarda tu trabajo primero",
+  "group.controls": "Controles",
+  "controls.labels": "Mostrar las etiquetas de los botones",
+  "controls.labels_help": "Desactívalo para ver la barra de herramientas como iconos con descripciones. Los lectores de pantalla siguen leyendo el nombre de cada control."
 }

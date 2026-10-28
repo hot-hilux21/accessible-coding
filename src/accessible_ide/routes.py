@@ -270,6 +270,10 @@ DEFAULT_CONFIG = {
     'run_key': 'Ctrl+Enter',
     'stop_key': ESCAPE_TWICE,
     'theme': 'high-contrast',
+    # On by default: every toolbar control shows its icon and its word. A
+    # reader who knows the icons can turn the words off and keep the
+    # tooltips, which leaves more room for the code.
+    'icon_only': False,
     'focus_mode': 'gutter',
     'blur_intensity': 0.5,
     'contrast': 'normal',
@@ -1859,6 +1863,7 @@ CONFIG_TYPES = {
     'line_height': (int, float),
     'letter_spacing': (int, float),
     'theme': str,
+    'icon_only': bool,
     'focus_mode': str,
     'blur_intensity': (int, float),
     'contrast': str,
