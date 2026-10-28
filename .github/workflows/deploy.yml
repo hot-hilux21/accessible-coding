@@ -1,0 +1,22 @@
+name: Deploy Website to Oracle Cloud
+on:
+  push:
+    branches:
+      - main  # Triggers the update whenever you push to main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute remote SSH deployment commands
+        uses: appleboy/ssh-action@master
+        with:
+          host: 132.145.69.213
+          username: opc
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            cd /home/opc/accessible-coding
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            pm2 restart accessible-coding-py
