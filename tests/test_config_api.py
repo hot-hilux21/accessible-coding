@@ -250,7 +250,8 @@ class SetupWizardSettingsTests(ConfigApiTestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            f"Step {routes.SETUP_TOTAL_STEPS} of {routes.SETUP_TOTAL_STEPS}",
+            f"Step {len(routes.setup_steps_for({}))} of "
+            f"{len(routes.setup_steps_for({}))}",
             response.get_data(as_text=True),
         )
         # Only the last real question is on show, not a blank one after it.
@@ -259,6 +260,7 @@ class SetupWizardSettingsTests(ConfigApiTestCase):
             ("language", False),
             ("font", False),
             ("theme", False),
+            ("custom", False),
             ("tour", True),
         ):
             with self.subTest(step=name):

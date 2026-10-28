@@ -757,6 +757,7 @@ class SetupWizardTests(RenderedPageFixture):
         "setup-panel-language",
         "setup-panel-font",
         "setup-panel-theme",
+        "setup-panel-custom",
         "setup-panel-tour",
         "setup-skip",
         "setup-back",
@@ -845,7 +846,8 @@ class SetupWizardTests(RenderedPageFixture):
         self.assertEqual(
             shown,
             [("setup-panel-language", False), ("setup-panel-font", True),
-             ("setup-panel-theme", False), ("setup-panel-tour", False)],
+             ("setup-panel-theme", False), ("setup-panel-custom", False),
+             ("setup-panel-tour", False)],
             "resuming on step 2 should show the font question and hide the rest",
         )
         self.assertIn("Step 2 of 4", resumed)
@@ -1093,6 +1095,45 @@ class SetupWizardTests(RenderedPageFixture):
         # on screen and the reader answers the wrong question.
         self.assertIn("[hidden]", self.css)
         self.assertRegex(self.css, r"\[hidden\]\s*\{[^}]*display:\s*none\s*!important")
+
+
+    def test_the_custom_step_asks_only_for_the_core_colours(self):
+        # The startup screen is for making the editor readable, not for
+        # tuning syntax. Four grids, and the code colours are left alone.
+        panel = re.search(
+            r'<section id="setup-panel-custom".*?</section>', self.html, re.S
+        )
+        self.assertIsNotNone(panel, "no custom colours step in the setup screen")
+        assert panel is not None
+        body = panel.group(0)
+        self.assertEqual(body.count('class="hex-grid"'), 4)
+        for key in ("page", "bg", "fg", "selection"):
+            with self.subTest(key=key):
+                self.assertIn(f'id="setup-theme-custom-{key}"', body)
+        for key in ("keyword", "string", "comment", "number", "function"):
+            with self.subTest(key=key):
+                self.assertIn(
+                    f'type="hidden" id="setup-theme-custom-{key}"', body
+                )
+        self.assertIn("setup.custom_advanced", self.template)
+
+    def test_the_code_colours_sit_under_an_advanced_disclosure(self):
+        # In Settings the five syntax colours are still available, but
+        # behind a disclosure so the four core colours are what a reader
+        # meets first.
+        self.assertIn('<details class="theme-builder-advanced">', self.html)
+        details = re.search(
+            r'<details class="theme-builder-advanced">(.*?)</details>',
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(details)
+        assert details is not None
+        body = details.group(1)
+        for key in ("keyword", "string", "comment", "number", "function"):
+            with self.subTest(key=key):
+                self.assertIn(f'id="theme-custom-{key}"', body)
+        self.assertIn("t('theme.advanced')", self.template)
 
 
 class TextFieldThemeTests(RenderedPageFixture):

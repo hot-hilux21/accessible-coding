@@ -1019,9 +1019,28 @@
   // The step is derived from the panels in the page rather than from a list
   // written out here, so adding a step to index.html cannot leave this
   // file stepping past the end of its own navigation.
+  function setupCustomChosen() {
+    var chosen = setupDialog.querySelector('input[name="setup-theme"]:checked');
+    if (chosen) return chosen.value === 'custom';
+    return body.getAttribute('data-theme') === 'custom';
+  }
+
   function setupPanels() {
     if (!setupDialog) return [];
-    return setupDialog.querySelectorAll('.setup-panel');
+    var found = setupDialog.querySelectorAll('.setup-panel');
+    var panels = [];
+    Array.prototype.forEach.call(found, function (panel) {
+      // The custom-colour step is not part of a run that did not choose
+      // the custom theme. It stays in the markup because the reader can
+      // still go back and change their mind, and it is hidden here so no
+      // count includes a question they are not being asked.
+      if (panel.getAttribute('data-setup-optional') === 'custom' &&
+          !setupCustomChosen()) {
+        return;
+      }
+      panels.push(panel);
+    });
+    return panels;
   }
 
   function setupCurrentStep() {
@@ -1215,11 +1234,122 @@
         // theme against real code, not just the swatches.
         applyTheme(chosen);
         body.setAttribute('data-theme', chosen);
+        // Choosing Custom adds the colour step; choosing a preset takes it
+        // away. The progress line has to be recounted either way.
+        showSetupStep(setupCurrentStep());
         // Saved straight away, so a reader who chooses a theme and then
         // skips does not lose the choice.
         saveConfig({ theme: chosen }).then(function (result) {
           if (!result || !result.ok) setupError();
         });
+      });
+    });
+
+    // ---------- The custom colours step ----------
+    // The same nine roles and the same live preview as the builder in
+    // Settings, with its own ids because both live in one document.
+    var setupColourFields = ['page', 'bg', 'fg', 'selection', 'keyword',
+      'string', 'comment', 'number', 'function'];
+
+    function setupColourHex(key) {
+      return document.getElementById('setup-theme-custom-' + key);
+    }
+
+    function setupColourPicker(key) {
+      return document.getElementById('setup-theme-custom-' + key + '-picker');
+    }
+
+    function setupColourPicks() {
+      var picks = {};
+      setupColourFields.forEach(function (key) {
+        var field = setupColourHex(key);
+        picks[key] = field ? field.value : '';
+      });
+      return picks;
+    }
+
+    function paintSetupContrast(key) {
+      var status = document.getElementById(
+        'setup-theme-custom-' + key + '-status');
+      var field = setupColourHex(key);
+      var bgField = setupColourHex('bg');
+      if (!status || !field || !bgField) return;
+      var ratio = 0;
+      try {
+        ratio = AccessibleTint.contrastRatio(
+          AccessibleTint.parseHex(field.value),
+          AccessibleTint.parseHex(bgField.value));
+      } catch (error) {
+        status.hidden = true;
+        return;
+      }
+      status.hidden = false;
+      status.textContent = ratio >= 4.5
+        ? t('theme.custom_contrast_ok')
+        : t('theme.custom_contrast_fail');
+    }
+
+    function repaintSetupColours() {
+      var palette;
+      try {
+        palette = customPalette(setupColourPicks());
+      } catch (error) {
+        return; // a field is mid-typing; the save validates it
+      }
+      themePalette.custom = palette;
+      if (setupCustomChosen()) applyTheme('custom');
+      setupColourFields.forEach(paintSetupContrast);
+    }
+
+    function saveSetupColours() {
+      var payload = {};
+      setupColourFields.forEach(function (key) {
+        payload['theme_custom_' + key] = setupColourHex(key).value;
+      });
+      return saveConfig(payload).then(function (result) {
+        if (!result || !result.ok) setupError();
+      });
+    }
+
+    setupColourFields.forEach(function (key) {
+      var hex = setupColourHex(key);
+      var picker = setupColourPicker(key);
+      if (hex) {
+        hex.addEventListener('input', function () {
+          if (picker && /^#[0-9a-fA-F]{6}$/.test(hex.value)) {
+            picker.value = hex.value;
+          }
+          repaintSetupColours();
+        });
+        hex.addEventListener('change', function () {
+          saveSetupColours();
+        });
+      }
+      if (picker) {
+        picker.addEventListener('input', function () {
+          hex.value = picker.value;
+          repaintSetupColours();
+        });
+        picker.addEventListener('change', function () {
+          saveSetupColours();
+        });
+      }
+    });
+
+    // The hex grid is a group of real radios, so arrow keys move between
+    // its cells and the browser announces the choice. Choosing a cell
+    // writes its value into the field and the native picker beside it.
+    var swatchRadios = setupDialog.querySelectorAll(
+      'input[name^="setup-theme-swatch-"]');
+    Array.prototype.forEach.call(swatchRadios, function (radio) {
+      radio.addEventListener('change', function () {
+        var key = radio.getAttribute('data-custom-key');
+        var hex = setupColourHex(key);
+        var picker = setupColourPicker(key);
+        if (hex) hex.value = radio.value;
+        if (picker) picker.value = radio.value;
+        repaintSetupColours();
+        saveSetupColours();
       });
     });
   }
@@ -3264,6 +3394,19 @@
           saveCustomTheme();
         });
       }
+    });
+    var builderSwatches = themeBuilder.querySelectorAll(
+      'input[name^="theme-custom-swatch-"]');
+    Array.prototype.forEach.call(builderSwatches, function (radio) {
+      radio.addEventListener('change', function () {
+        var key = radio.getAttribute('data-custom-key');
+        var hex = customFieldHex(key);
+        var picker = customFieldPicker(key);
+        if (hex) hex.value = radio.value;
+        if (picker) picker.value = radio.value;
+        repaintCustomTheme();
+        saveCustomTheme();
+      });
     });
     if (themeCustomReset) {
       themeCustomReset.addEventListener('click', function () {

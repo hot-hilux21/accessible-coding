@@ -2275,6 +2275,93 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   margin: 0;
 }
 
+/* The advanced code colours. The summary is a full-width target so the
+   reader can open it by touch as well as by keyboard, and the marker is
+   left to the browser because replacing it is how a disclosure stops
+   announcing itself as one. */
+.theme-builder-advanced {
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-bg);
+}
+
+.theme-builder-summary {
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.theme-builder-summary:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.theme-builder-advanced .theme-builder-grid {
+  margin: var(--space-2) 0 0;
+}
+
+/* The setup screen says where the code colours went, without pretending
+   to offer them there. */
+.setup-advanced-note {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+/* The hex grid. Real radios in a grid: one tab stop, arrow keys between
+   cells, and the browser announces the checked one. Each cell is painted
+   from its own hex value, so the grid is the preview. The border stays on
+   the cell rather than the swatch so a light colour is still visible
+   against a light panel. */
+.hex-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin: var(--space-2) 0;
+}
+
+.hex-grid-cell {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  min-width: 24px;
+  border: 2px solid var(--panel-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.hex-grid-cell:hover {
+  border-color: var(--fg);
+}
+
+.hex-grid-cell:has(input:checked) {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.hex-grid-cell:focus-within {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.hex-grid-cell input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.hex-grid-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+}
+
 /* ---------- The tour ---------- */
 
 .setup-tour {

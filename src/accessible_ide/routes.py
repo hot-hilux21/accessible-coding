@@ -156,8 +156,31 @@ USER_FONT_DIR = CONFIG_DIR / 'fonts'
 # The first-run setup screen, one step at a time. Defined here rather than in
 # the template so the validation below, the rendered progress text and the
 # step each panel is tagged with all read the same number.
-SETUP_STEPS = ('language', 'font', 'theme', 'tour')
+SETUP_STEPS = ('language', 'font', 'theme', 'custom', 'tour')
 SETUP_TOTAL_STEPS = len(SETUP_STEPS)
+
+# The custom colours step is only a step when the reader picked the custom
+# theme. Asking everybody to build colours they did not ask for is a screen
+# to dismiss; asking the reader who chose "Custom" is the question they came
+# for. Every caller that numbers the steps asks this function, so the
+# progress line, the resumed step and the panels cannot disagree.
+def setup_steps_for(config):
+    if config.get('theme') == 'custom':
+        return SETUP_STEPS
+    return tuple(step for step in SETUP_STEPS if step != 'custom')
+
+
+# The colours offered in the hex grid. A grid rather than a list of theme
+# names: the reader is choosing one colour at a time here, and the hex value
+# is the one label that means the same thing in every browser and every
+# language. Neutrals first, because text and page colours usually are, then
+# six hues in a muted and a strong form. Picking a value that is not in the
+# grid is still possible through the field beside it.
+THEME_SWATCHES = (
+    '#000000', '#2b2b2b', '#555555', '#8a8a8a', '#c9c9c9', '#ffffff',
+    '#8f2f1a', '#ff9a9a', '#8a5a12', '#ffd29a', '#7a5c00', '#ffe98a',
+    '#1b6b2f', '#93e6a8', '#1f4f8a', '#93d4ff', '#3a2f8f', '#ffb3d9',
+)
 
 # The two key presses a reader can change: what starts the program, and what
 # stops one that is already running.
@@ -1144,11 +1167,14 @@ def index():
     # The setup step is clamped here, not in the template. A config file
     # written by a future version (or edited by hand) can hold a step this
     # version has no panel for, and the reader would open on a dialog with
-    # nothing in it.
+    # nothing in it. The custom-colour step only counts when it is on the
+    # list, so a reader on a preset theme is not resumed at a blank panel.
+    steps = setup_steps_for(config)
     step = config.get('setup_step', 1)
     if not isinstance(step, int) or isinstance(step, bool):
         step = 1
-    step = max(1, min(step, SETUP_TOTAL_STEPS))
+    step = max(1, min(step, len(steps)))
+    step_key = steps[step - 1]
     theme = config.get('theme', DEFAULT_CONFIG['theme'])
     # The custom theme is built from the config, so it is added to the
     # table the template reads. The template indexes themes[config.theme]
@@ -1227,7 +1253,12 @@ def index():
                          catalogue=i18n.load_catalogue(locale),
                          setup_open=not config.get('setup_complete', False),
                          setup_step=step,
-                         setup_total=SETUP_TOTAL_STEPS,
+                         setup_step_key=step_key,
+                         setup_total=len(steps),
+                         # The colours the hex grid offers on the custom
+                         # step. Passed as data so the grid and the saved
+                         # value are read from the same list.
+                         theme_swatches=THEME_SWATCHES,
                          # The Python dictionary, drawn inside the app rather
                          # than only living in the README. Passed as data so
                          # the dialog renders without script, and the entry

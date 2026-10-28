@@ -597,9 +597,21 @@
           <div class="field" id="theme-builder" hidden>
             <p class="field-help" id="theme-builder-help">{{ t('theme.custom_help') }}</p>
             <div class="theme-builder-grid">
-              {% for key, label in (('page', 'theme.custom_page'), ('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('selection', 'theme.custom_selection'), ('keyword', 'theme.custom_keyword'), ('string', 'theme.custom_string'), ('comment', 'theme.custom_comment'), ('number', 'theme.custom_number'), ('function', 'theme.custom_function')) %}
+              {% for key, label in (('page', 'theme.custom_page'), ('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('selection', 'theme.custom_selection')) %}
               <div class="field theme-builder-field">
                 <label for="theme-custom-{{ key }}">{{ t(label) }}</label>
+                <div class="hex-grid" role="radiogroup"
+                     aria-label="{{ t('theme.custom_grid', t(label)) }}">
+                  {% for swatch in theme_swatches %}
+                  <label class="hex-grid-cell" title="{{ swatch }}">
+                    <input type="radio" name="theme-custom-swatch-{{ key }}" value="{{ swatch }}"
+                           data-custom-key="{{ key }}"
+                           {% if config['theme_custom_' + key]|lower == swatch %}checked{% endif %}
+                           aria-label="{{ t('theme.custom_swatch', swatch) }}">
+                    <span class="hex-grid-fill" style="background: {{ swatch }}" aria-hidden="true"></span>
+                  </label>
+                  {% endfor %}
+                </div>
                 <div class="field-row">
                   <input type="color" id="theme-custom-{{ key }}-picker" value="{{ config['theme_custom_' + key] }}"
                          aria-label="{{ t(label) }}">
@@ -612,6 +624,45 @@
               </div>
               {% endfor %}
             </div>
+
+            <!-- The code colours are a refinement of the four above, so
+                 they live behind a disclosure rather than in the first
+                 thing a reader meets. Nothing here is hidden from a
+                 keyboard or a screen reader: details/summary is the
+                 browser's own disclosure. -->
+            <details class="theme-builder-advanced">
+              <summary class="theme-builder-summary">{{ t('theme.advanced') }}</summary>
+              <p class="field-help">{{ t('theme.advanced_help') }}</p>
+              <div class="theme-builder-grid">
+                {% for key, label in (('keyword', 'theme.custom_keyword'), ('string', 'theme.custom_string'), ('comment', 'theme.custom_comment'), ('number', 'theme.custom_number'), ('function', 'theme.custom_function')) %}
+                <div class="field theme-builder-field">
+                  <label for="theme-custom-{{ key }}">{{ t(label) }}</label>
+                  <div class="hex-grid" role="radiogroup"
+                       aria-label="{{ t('theme.custom_grid', t(label)) }}">
+                    {% for swatch in theme_swatches %}
+                    <label class="hex-grid-cell" title="{{ swatch }}">
+                      <input type="radio" name="theme-custom-swatch-{{ key }}" value="{{ swatch }}"
+                             data-custom-key="{{ key }}"
+                             {% if config['theme_custom_' + key]|lower == swatch %}checked{% endif %}
+                             aria-label="{{ t('theme.custom_swatch', swatch) }}">
+                      <span class="hex-grid-fill" style="background: {{ swatch }}" aria-hidden="true"></span>
+                    </label>
+                    {% endfor %}
+                  </div>
+                  <div class="field-row">
+                    <input type="color" id="theme-custom-{{ key }}-picker" value="{{ config['theme_custom_' + key] }}"
+                           aria-label="{{ t(label) }}">
+                    <input type="text" id="theme-custom-{{ key }}" class="hex-input" spellcheck="false" autocomplete="off"
+                           inputmode="text" maxlength="7" value="{{ config['theme_custom_' + key] }}"
+                           aria-describedby="theme-builder-help theme-custom-{{ key }}-error">
+                  </div>
+                  <p class="field-error" id="theme-custom-{{ key }}-error" role="alert" hidden></p>
+                  <p class="preview-status" id="theme-custom-{{ key }}-status" hidden></p>
+                </div>
+                {% endfor %}
+              </div>
+            </details>
+
             <div class="field">
               <button id="theme-custom-reset" class="btn btn-small" type="button">{{ t('theme.custom_reset') }}</button>
               <p class="preview-status" id="theme-custom-saved" hidden></p>
@@ -1095,7 +1146,7 @@
 
         <!-- ---------- Step 1: language ---------- -->
         <section id="setup-panel-language" class="setup-panel"
-                 {% if setup_step != 1 %}hidden{% endif %}>
+                 {% if setup_step_key != 'language' %}hidden{% endif %}>
           <fieldset class="settings-group">
             <!-- tabindex="-1" so app.js can move focus to the question when
                  the step changes. Without it, focus would stay on the Next
@@ -1123,7 +1174,7 @@
 
         <!-- ---------- Step 2: reading font ---------- -->
         <section id="setup-panel-font" class="setup-panel"
-                 {% if setup_step != 2 %}hidden{% endif %}>
+                 {% if setup_step_key != 'font' %}hidden{% endif %}>
           <fieldset class="settings-group">
             <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.font_legend') }}</legend>
             <p class="field-help" id="setup-font-help">{{ t('setup.font_help') }}</p>
@@ -1166,12 +1217,12 @@
 
         <!-- ---------- Step 3: theme ---------- -->
         <section id="setup-panel-theme" class="setup-panel"
-                 {% if setup_step != 3 %}hidden{% endif %}>
+                 {% if setup_step_key != 'theme' %}hidden{% endif %}>
           <fieldset class="settings-group">
             <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.theme_legend') }}</legend>
             <p class="field-help" id="setup-theme-help">{{ t('setup.theme_help') }}</p>
             <div class="setup-choices" aria-describedby="setup-theme-help">
-              {% for key, palette in themes.items() %}
+              {% for key, palette in themes.items() if key != 'custom' %}
               <label class="setup-choice setup-choice-theme">
                 <input type="radio" name="setup-theme" value="{{ key }}"
                        {% if config.theme == key %}checked{% endif %}>
@@ -1188,14 +1239,79 @@
                 </span>
               </label>
               {% endfor %}
+              <!-- The reader's own colours are a theme choice, not a
+                   sentence pointing at Settings. Choosing it saves the
+                   theme straight away and adds the colour screen after
+                   this one. -->
+              <label class="setup-choice setup-choice-theme">
+                <input type="radio" name="setup-theme" value="custom"
+                       {% if config.theme == 'custom' %}checked{% endif %}>
+                <span class="setup-choice-text">
+                  <span class="setup-choice-name">{{ t('theme.custom') }}</span>
+                  <span class="setup-choice-note">{{ t('setup.theme_custom') }}</span>
+                </span>
+              </label>
             </div>
-            <p class="field-help">{{ t('setup.theme_custom') }}</p>
           </fieldset>
         </section>
 
-        <!-- ---------- Step 4: what this app does ---------- -->
+        <!-- ---------- Step 4: the reader's own colours ---------- -->
+        <!-- Only in the run when "Custom" was chosen on the step before.
+             The server marks it hidden on every other run, and app.js drops
+             it from the step list as well, so the progress line counts the
+             steps the reader actually sees. -->
+        <section id="setup-panel-custom" class="setup-panel"
+                 data-setup-optional="custom"
+                 {% if setup_step_key != 'custom' %}hidden{% endif %}>
+          <fieldset class="settings-group">
+            <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.custom_legend') }}</legend>
+            <p class="field-help" id="setup-custom-help">{{ t('setup.custom_help') }}</p>
+            <div class="theme-builder-grid" aria-describedby="setup-custom-help">
+              {% for key, label in (('page', 'theme.custom_page'), ('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('selection', 'theme.custom_selection')) %}
+              <div class="field theme-builder-field">
+                <label for="setup-theme-custom-{{ key }}">{{ t(label) }}</label>
+                <div class="hex-grid" role="radiogroup"
+                     aria-label="{{ t('theme.custom_grid', t(label)) }}">
+                  {% for swatch in theme_swatches %}
+                  <label class="hex-grid-cell" title="{{ swatch }}">
+                    <input type="radio" name="setup-theme-swatch-{{ key }}" value="{{ swatch }}"
+                           data-custom-key="{{ key }}"
+                           {% if config['theme_custom_' + key]|lower == swatch %}checked{% endif %}
+                           aria-label="{{ t('theme.custom_swatch', swatch) }}">
+                    <span class="hex-grid-fill" style="background: {{ swatch }}" aria-hidden="true"></span>
+                  </label>
+                  {% endfor %}
+                </div>
+                <div class="field-row">
+                  <input type="color" id="setup-theme-custom-{{ key }}-picker"
+                         value="{{ config['theme_custom_' + key] }}" aria-label="{{ t(label) }}">
+                  <input type="text" id="setup-theme-custom-{{ key }}" class="hex-input"
+                         spellcheck="false" autocomplete="off" inputmode="text" maxlength="7"
+                         value="{{ config['theme_custom_' + key] }}"
+                         aria-describedby="setup-custom-help setup-theme-custom-{{ key }}-error">
+                </div>
+                <p class="field-error" id="setup-theme-custom-{{ key }}-error" role="alert" hidden></p>
+                <p class="preview-status" id="setup-theme-custom-{{ key }}-status" hidden></p>
+              </div>
+              {% endfor %}
+              <!-- The code colours are not asked here. They are a
+                   refinement of a working theme, and the startup screen
+                   only needs the four colours that make the editor
+                   readable. The stored values are carried through hidden
+                   inputs so the palette preview and the save still send a
+                   complete theme. -->
+              {% for key in ('keyword', 'string', 'comment', 'number', 'function') %}
+              <input type="hidden" id="setup-theme-custom-{{ key }}"
+                     value="{{ config['theme_custom_' + key] }}">
+              {% endfor %}
+              <p class="field-help setup-advanced-note">{{ t('setup.custom_advanced') }}</p>
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- ---------- Step 5: what this app does ---------- -->
         <section id="setup-panel-tour" class="setup-panel"
-                 {% if setup_step != 4 %}hidden{% endif %}>
+                 {% if setup_step_key != 'tour' %}hidden{% endif %}>
           <h3 class="settings-legend setup-legend" tabindex="-1">{{ t('setup.tour_title') }}</h3>
           <ul class="setup-tour">
             <li>
