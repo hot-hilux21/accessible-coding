@@ -49,6 +49,18 @@ The code exists and is tested. Read the surrounding code before changing it; do 
 - Validation is user-feedback-driven: iterate feature → test with dyslexic users → refine → deploy.
 - Deployment: push to GitHub and update the hosted site on each feature completion.
 
+## UI System — HeroUI principles without the HeroUI runtime
+
+HeroUI v3 is React-only, so this app keeps Flask/Jinja and applies the same design principles in native HTML and CSS. Do not add the HeroUI package, React or Tailwind. When changing the UI:
+
+- **Semantic intent:** one primary action per context (Run). Everything else is secondary or tertiary. A toggle uses `aria-pressed` or `aria-expanded` for its state, never colour alone.
+- **Accessibility as foundation:** use native buttons, fieldsets, labels, `<details>`, and real radio groups before reaching for ARIA. Every target is at least 44px.
+- **Progressive disclosure:** start with the common settings and keep refinements such as the advanced code colours inside a disclosure. Do not make a reader scan a wall of controls.
+- **Predictable components:** one `.btn` family, one size scale, one focus ring, one disabled treatment. A button looks and behaves the same wherever it sits.
+- **Composition over configuration:** reuse the tokens in `static/css/style.css` and the existing component classes rather than adding a second styling system.
+- **Feedback:** every state has a visible and spoken version. Disabled, hover, focus, active and error states are all styled, and none of them hides the label.
+- **Continuity:** a change must survive every font, all six languages and RTL, every theme including Custom, high contrast, the chosen text size and spacing, reduced motion, and a screen reader.
+
 ## Design Quality Bar — no AI slop
 
 This app is used by people who will notice a decorative choice and be distracted by it. Machine-generated design is also the most likely thing to *hurt* a dyslexic reader: animated backgrounds, low-contrast text, and moving type all compete with the code. The bar below is a rejection list, not a wish list. A change that trips any of it is wrong even if it looks good.

@@ -1,0 +1,119 @@
+# Progress towards v2
+
+Last updated: 2026-10-28
+Current release: **1.0.0**
+Live site: https://accessible-coding.duckdns.org (Oracle Cloud, deployed from `main` by `.github/workflows/deploy.yml`)
+
+This file is the working checklist between v1 and v2. It records what is shipped, what was done in the latest pass, what is still open, and what still needs a human to confirm. Update it when a feature lands or the plan changes.
+
+---
+
+## 1. What is shipped in 1.0.0
+
+| Area | State |
+| --- | --- |
+| Editor | CodeMirror 5, Python mode, active line, bracket matching, 10 second run timeout |
+| Themes | High Contrast, Dark, Pastel, Light, Ocean, Forest, plus Custom |
+| Custom theme | Hex grid, native colour picker and hex text field for page, background, text and selection |
+| Code colours | Keyword, string, comment, number and function live under Settings then Colours then Advanced |
+| Onboarding | Language, font, theme (with an extra custom-colour step), what the app does. Custom code colours are carried through hidden inputs, not asked on the startup screen |
+| Fonts | OpenDyslexic (default), Atkinson Hyperlegible, Lexend, Nunito, Almarai, Mukta, plus running system fonts and user uploads |
+| Text controls | Size, line height, letter spacing and weight, separately for editor, output and shell |
+| Languages | English, Hindi, French, Spanish, Arabic (right to left), Ukrainian |
+| Text to speech | Output, errors, hover and click reading, voice choice, speed, hover delay |
+| Screen readers | Native landmarks, live regions, focus return on dialog close, setup steps announce themselves, no-JS readable setup and dictionary |
+| Errors | Plain-English translations of Python errors, with the original kept |
+| Shell and trace | Python shell sessions, line-by-line variable trace table |
+| Packaging | Windows `.exe` (PyInstaller, Inno Setup), browser build, gunicorn entry point |
+| Storage | Local JSON config, offline first, no account |
+
+---
+
+## 2. Done in this pass
+
+- Applied HeroUI v3 design principles without the HeroUI runtime (React and Tailwind are not in this app, and adding them would break the no-JavaScript setup screen and the token-based themes). Written down in `AGENTS.md` under **UI System** so the next change follows it.
+- Toolbar reduced to four clear groups: run tools, file tools, editor tools, and reference plus settings. The trace button no longer sits in a group of its own.
+- One button family: every `.btn`, `.btn-small` and `.tool-select` now clears the 44px target floor. Before this pass `.btn-small` and the toolbar select were 40px.
+- One disabled treatment for buttons that keeps the label readable. Measured at 11.89:1 against the background, so a disabled control is still legible instead of faded out.
+- The Settings and Dictionary triggers now carry `aria-expanded` and `aria-controls`, kept in sync on open, close and Escape. A screen reader hears the state of the dialog it can open.
+- `README.md` encoding repaired (the file held real mojibake, not just display noise), accessibility section added, stale feature list corrected, live URL replaced, installer URL updated.
+- `AGENTS.md` corrected: it still described the project as pre-development and listed the stack as undecided.
+
+### How this pass was checked
+
+- `python -m unittest discover -s tests -t .`: 703 tests, all passing.
+- `node tests/dom_harness.js`: 32 checks passing.
+- Ran the app on port 5077 with a throwaway profile. Setup, settings and dictionary dialogs open and close, `aria-expanded` flips correctly, no console errors.
+- Computed styles confirmed at runtime: every toolbar control renders 50px tall, disabled trace stays 50px, disabled contrast 11.89:1, primary button 14.29:1.
+
+### Not checked
+
+- Not re-tested with dyslexic readers after these changes.
+- No screen-reader pass with NVDA, JAWS or VoiceOver in this pass.
+- No visual screenshot review; layout was verified by DOM metrics, not by eye.
+- The deployed site only reflects these changes after the workflow finishes on `main`.
+
+---
+
+## 3. What needs doing for v2
+
+### P0: finish the accessibility promise
+
+- [ ] Screen-reader pass on Windows (NVDA) and macOS (VoiceOver): setup wizard, settings dialog, dictionary search, trace table, shell, error output.
+- [ ] Keyboard-only pass that covers every new control, including the hex grid and the Advanced disclosure.
+- [ ] WCAG 2.2 additions beyond 2.1 AA: focus not obscured (2.4.11), dragging alternatives (2.5.7), target size 24px minimum (2.5.8), consistent help (3.2.6).
+- [ ] Check Arabic right-to-left layout inside CodeMirror, not only around it. Code stays left-to-right, but gutter, minimap and scrollbars must not flip.
+- [ ] Test with 200% browser zoom and a 320px wide viewport; record any clipped overflow.
+- [ ] Confirm reduced motion is respected for every transition, not only the ones covered by tests.
+
+### P1: reading comfort
+
+- [ ] Let readers adjust the blur radius and choose which panes blur in focus mode (today the mode is fixed presets).
+- [ ] Add a reading ruler option (a horizontal highlight that follows the pointer) for line tracking.
+- [ ] Tune the custom theme contrast nudge: it currently corrects a failing colour, but it does not explain which colour it changed.
+- [ ] Allow exporting and importing a theme as a small JSON file, so a reader can carry settings between machines.
+- [ ] Review the font list against user demand; add any missing open-licence dyslexia font with its licence file.
+
+### P1: speech and language
+
+- [ ] Per-language voice selection, so switching to Hindi or Arabic does not keep an English voice.
+- [ ] Remember the last spoken position in the output, so "read from here" is possible after a long run.
+- [ ] Add pause and resume for long files instead of stop and restart.
+- [ ] Complete translation review for all six catalogues by a native speaker; the current strings are consistent but not professionally reviewed.
+
+### P2: editor and runtime
+
+- [ ] Large file handling: measure typing latency at 5,000 and 20,000 lines, then decide whether to add a lazy mode.
+- [ ] Multi-file projects (open a folder, not a single file). This is the largest single change in v2 and needs its own design pass.
+- [ ] Optional opt-in cloud sync (Google Drive or OneDrive). Offline remains the default and the only mode that works without an account.
+- [ ] Linux build and packaging.
+- [ ] Python-only remains the contract; any second language is a v3 question.
+
+### P2: operations
+
+- [ ] Add a health endpoint and a deploy check that fails loudly when the Oracle service does not come back up.
+- [ ] Fix the missing `/favicon.ico` (currently a 404 on every load).
+- [ ] Keep the Windows auto-update path tested against a real signed release, not only in unit tests.
+- [ ] Add a short changelog so readers can see what changed without reading commit history.
+
+---
+
+## 4. Open decisions for v2
+
+1. Multi-file projects: tabbed editor in the existing page, or a file tree in a second pane? Decide before writing code.
+2. Cloud sync: build it, or document a manual export and drop the promise? It is currently listed as optional and nothing depends on it.
+3. Reading ruler and blur radius: do they belong in Settings, or in the per-pane mini toolbar? Avoid growing Settings into a wall of controls.
+4. Whether to publish a public roadmap, given the project is solo-maintained and dates slip.
+
+---
+
+## 5. Definition of done for v2
+
+A feature is done when all of these hold:
+
+- It works in every font, all six languages, both text directions, every theme including Custom, and high contrast.
+- It clears WCAG 2.1 AA in `tests/test_contrast.py`, and the new WCAG 2.2 items above where they apply.
+- It is reachable and operable by keyboard and announced correctly by a screen reader.
+- It adds no layout shift, no clipped text and no console error.
+- It has a test that would fail if the behaviour regressed.
+- It is documented in `README.md` and, where it changes how the app is built, in `AGENTS.md`.

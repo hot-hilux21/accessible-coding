@@ -914,6 +914,9 @@
     } else {
       settingsDialog.setAttribute('open', '');
     }
+    // The trigger says whether the dialog it named is open, so a reader
+    // hears "expanded" and not just "Settings, button".
+    if (btnSettings) btnSettings.setAttribute('aria-expanded', 'true');
     // Land focus on the first real control, not the close button.
     var first = settingsDialog.querySelector('select, input, button');
     if (first) first.focus();
@@ -925,6 +928,7 @@
     } else {
       settingsDialog.removeAttribute('open');
     }
+    if (btnSettings) btnSettings.setAttribute('aria-expanded', 'false');
     // Send focus back where it came from, so keyboard and screen reader
     // users are not dropped at the top of the page.
     if (settingsOpener && typeof settingsOpener.focus === 'function') {
@@ -994,6 +998,7 @@
     } else {
       glossaryDialog.setAttribute('open', '');
     }
+    if (btnGlossary) btnGlossary.setAttribute('aria-expanded', 'true');
     // Land on the search box. Somebody who opens a dictionary is looking
     // something up, and typing at it is the shortest way there.
     if (glossarySearch) glossarySearch.focus();
@@ -1006,6 +1011,7 @@
     } else {
       glossaryDialog.removeAttribute('open');
     }
+    if (btnGlossary) btnGlossary.setAttribute('aria-expanded', 'false');
     if (glossaryOpener && typeof glossaryOpener.focus === 'function') {
       glossaryOpener.focus();
     }

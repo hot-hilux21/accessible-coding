@@ -311,7 +311,9 @@ body[data-gradient='off'] {
   background: var(--bg);
   color: var(--fg);
   cursor: pointer;
-  min-height: 40px;
+  /* The same 44px floor as every button beside it. A select is reached for
+     with a thumb too, and the toolbar mixes both kinds of control. */
+  min-height: 44px;
   transition: border-color 0.2s ease;
 }
 
@@ -422,7 +424,21 @@ input[type="range"] {
 .btn-small {
   font-size: 0.85em;
   padding: var(--space-1) var(--space-3);
-  min-height: 40px;
+  /* Same 44px target as the base button. A small button is smaller type
+     and less padding, not a smaller thing to hit. */
+  min-height: 44px;
+}
+
+/* One disabled appearance for every button. Dimming the border and the
+   words says "not yet" without pulling the label below AA; an opacity
+   fade would take the one piece of text the reader needs with it. */
+.btn:disabled,
+.btn:disabled:hover,
+.btn:disabled:active {
+  color: var(--muted);
+  border-color: var(--panel-border);
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* The armed state of a two-step destructive action. The error tokens are
