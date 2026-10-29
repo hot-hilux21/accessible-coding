@@ -2721,6 +2721,12 @@ def health():
     return jsonify({'status': 'ok'})
 
 
+@main_bp.route('/favicon.ico')
+def favicon():
+    """Browsers ask for /favicon.ico even when the page links an icon."""
+    return send_from_directory('static', 'favicon.svg', mimetype='image/svg+xml')
+
+
 def _origin_host(origin):
     """Host part of an Origin header, or '' for garbage/"null" values."""
     try:
