@@ -84,6 +84,14 @@ const KNOWN_IDS = new Set([
   'theme-custom-comment-status', 'theme-custom-number-status',
   'theme-custom-function-status',
   'theme-custom-reset', 'theme-custom-saved',
+  'theme-confirm-page', 'theme-confirm-bg', 'theme-confirm-fg',
+  'theme-confirm-selection', 'theme-confirm-keyword', 'theme-confirm-string',
+  'theme-confirm-comment', 'theme-confirm-number', 'theme-confirm-function',
+  'setup-theme-confirm-page', 'setup-theme-confirm-bg',
+  'setup-theme-confirm-fg', 'setup-theme-confirm-selection',
+  'setup-theme-confirm-keyword', 'setup-theme-confirm-string',
+  'setup-theme-confirm-comment', 'setup-theme-confirm-number',
+  'setup-theme-confirm-function',
   'setup-theme-custom-page', 'setup-theme-custom-bg', 'setup-theme-custom-fg',
   'setup-theme-custom-selection', 'setup-theme-custom-keyword',
   'setup-theme-custom-string', 'setup-theme-custom-comment',
@@ -640,7 +648,9 @@ const SANDBOX_THEMES = {
     selection: '#4d4300', highlight: '#1e1e1e',
   },
   dark: { name: 'Dark', bg: '#17181c', fg: '#e6e6e6', gutter_bg: '#1f2126',
-    selection: '#234a6b', highlight: '#23262c' },
+    selection: '#234a6b', highlight: '#23262c',
+    keyword: '#ff9a9a', string: '#93e6a8', comment: '#b4b4b4',
+    number: '#ffd93d', function: '#93d4ff' },
   pastel: { name: 'Pastel', bg: '#fbf6ec', fg: '#453f3a', gutter_bg: '#f2ecdf',
     selection: '#e3d2ab', highlight: '#f1ead9' },
   light: { name: 'Light', bg: '#fcfcfc', fg: '#2b2b2b', gutter_bg: '#f2f2f2',
@@ -673,6 +683,25 @@ const GLASS_MATERIAL_RADIOS = ['off', 'mica', 'frosted', 'acrylic'].map((value) 
 
 
 
+// The preset colour squares on the setup step. Choosing one starts the
+// reader's own theme from that preset, and it must not move focus: the
+// square the reader is standing on is where they are, and jumping the
+// heading back into view would scroll the page out from under them.
+//
+// Each query hands out fresh cells and records them. The per-language pages
+// run app.js again against the same shared dialog, so a single fixed array
+// would collect their change handlers too - and those pages have no tint
+// helper, so firing one would throw instead of testing anything. The first
+// registration is the real page's.
+const setupSwatchRegistrations = [];
+
+function makeSetupSwatchCells() {
+  return ['dark'].map((themeKey) =>
+    makeElement(`setup-swatch-${themeKey}-bg`,
+      { 'data-theme': themeKey, 'data-role': 'bg' },
+      { value: SANDBOX_THEMES[themeKey].bg }));
+}
+
 const SETUP_DIALOG = makeElement('setup-dialog', {}, {
   // Recorded rather than discarded: "the wizard was in the markup but never
   // opened" is a real failure that a noop would hide completely.
@@ -682,6 +711,11 @@ const SETUP_DIALOG = makeElement('setup-dialog', {}, {
     if (selector === 'input[name="setup-locale"]') return SETUP_LOCALE_RADIOS;
     if (selector === 'input[name="setup-font"]') return SETUP_FONT_RADIOS;
     if (selector === 'input[name="setup-theme"]') return SETUP_THEME_RADIOS;
+    if (selector === '.setup-swatch-cell') {
+      const cells = makeSetupSwatchCells();
+      setupSwatchRegistrations.push(cells[0]);
+      return cells;
+    }
     return [];
   },
   querySelector: (selector) => {
@@ -929,6 +963,38 @@ function makePage(locale, shared, bodyAttrs) {
               value: code,
               textContent: code,
             })),
+          }));
+        }
+        return found.get(id);
+      }
+      if (id === 'theme-builder') {
+        // The builder wires its per-key reset and confirm buttons by class,
+        // not by id. The generic stub answers querySelectorAll with nothing,
+        // so those buttons would never receive a listener and a check that
+        // pressed one would report a control that did nothing. The buttons
+        // are registered in the id map first, so the same object the wiring
+        // touched is the one a check fires at.
+        if (!found.has(id)) {
+          const keys = ['page', 'bg', 'fg', 'selection', 'keyword', 'string',
+            'comment', 'number', 'function'];
+          const buttonFor = (prefix, key) => {
+            const buttonId = prefix + '-' + key;
+            if (!found.has(buttonId)) {
+              found.set(buttonId, makeElement(buttonId, {
+                'data-key': key,
+                class: prefix === 'theme-confirm' ? 'theme-confirm-one' : 'theme-reset-one',
+              }));
+            }
+            return found.get(buttonId);
+          };
+          const confirms = keys.map((key) => buttonFor('theme-confirm', key));
+          const resets = keys.map((key) => buttonFor('theme-reset', key));
+          found.set(id, makeElement(id, {}, {
+            querySelectorAll: (selector) => {
+              if (selector === '.theme-confirm-one') return confirms;
+              if (selector === '.theme-reset-one') return resets;
+              return [];
+            },
           }));
         }
         return found.get(id);
@@ -2885,6 +2951,22 @@ function runThemeBuilderChecks() {
     }
   }
 
+  // A half-typed hex value must not repaint the theme. Typing "#ff0" on the
+  // way to "#ff0000" used to paint vivid yellow on the page for a split
+  // second, because the parser accepted a three-digit hex as a real colour.
+  const fgHeld = bodyStyle['--fg'];
+  fgField.value = '#ff0';
+  fire('theme-custom-fg', 'input');
+  if (bodyStyle['--fg'] !== fgHeld) {
+    failed = true;
+    console.log('FAIL a half-typed hex value repainted the theme: ' +
+      JSON.stringify(bodyStyle['--fg']));
+  } else {
+    console.log('     a half-typed hex value waits for six digits');
+  }
+  fgField.value = '#ffffff';
+  fire('theme-custom-fg', 'input');
+
   // The background is not drawn on itself, so it has no contrast question.
   // Judged anyway, it measured 1:1 against itself and was flagged "Too low"
   // the moment any other field was touched.
@@ -2915,16 +2997,29 @@ function runThemeBuilderChecks() {
     console.log('     the picker and the hex box stay in step');
   }
 
-  // A change saves the picks.
+  // Editing the hex box does not save on its own: the reader must confirm
+  // with the tick, so a stray value never becomes the theme mid-typing.
   const before = configPosts.length;
   fire('theme-custom-fg', 'change');
-  const saved = configPosts.slice(before).filter((p) => 'theme_custom_fg' in p);
+  const straySave = configPosts.slice(before).filter((p) => 'theme_custom_fg' in p);
+  if (straySave.length !== 0) {
+    failed = true;
+    console.log('FAIL a hex edit saved without a confirm press: ' +
+      JSON.stringify(straySave));
+  } else {
+    console.log('     a hex edit waits for a confirm press');
+  }
+
+  // The tick button saves the picks.
+  const beforeConfirm = configPosts.length;
+  fire('theme-confirm-fg', 'click');
+  const saved = configPosts.slice(beforeConfirm).filter((p) => 'theme_custom_fg' in p);
   if (saved.length !== 1 || saved[0].theme_custom_fg !== '#123456') {
     failed = true;
-    console.log('FAIL changing a pick did not save it: ' +
-      JSON.stringify(configPosts.slice(before)));
+    console.log('FAIL the confirm press did not save the pick: ' +
+      JSON.stringify(configPosts.slice(beforeConfirm)));
   } else {
-    console.log('     a changed pick is saved');
+    console.log('     the confirm press saves the pick');
   }
 
   // Reset restores the defaults and saves them. The page and selection
@@ -3161,6 +3256,26 @@ function runSetupChecks() {
                 JSON.stringify(configPosts.slice(themeBefore)));
   } else {
     console.log('     a theme chosen in the setup screen is saved, not just drawn');
+  }
+
+  // A preset colour square starts the reader's own theme from that preset,
+  // and it must not move focus: the square the reader is standing on is where
+  // they are. Re-focusing the heading scrolls the page out from under them,
+  // which is the bug this check exists to catch.
+  const swatch = setupSwatchRegistrations[0];
+  const swatchFocusBefore = setupFocusLog.length;
+  const swatchConfigBefore = configPosts.length;
+  swatch.__listeners.change.forEach((handler) =>
+    handler({ target: swatch, preventDefault: noop, stopPropagation: noop }));
+  if (setupFocusLog.length !== swatchFocusBefore) {
+    failed = true;
+    console.log('FAIL picking a setup preset colour moved focus back to the heading');
+  } else if (!configPosts.slice(swatchConfigBefore).some((p) => p.theme === 'custom')) {
+    failed = true;
+    console.log('FAIL picking a setup preset colour did not start the reader theme: ' +
+                JSON.stringify(configPosts.slice(swatchConfigBefore)));
+  } else {
+    console.log('     a preset colour square starts the reader theme without moving focus');
   }
 
   // The last one to finish: send the flag, then reload so the page is drawn

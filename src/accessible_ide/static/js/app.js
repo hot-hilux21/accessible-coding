@@ -1113,7 +1113,11 @@
     return 1;
   }
 
-  function showSetupStep(step) {
+  // opts.focus === false keeps the reader where they are. Picking a colour in
+  // the wizard starts a custom theme and redraws the panel they are already
+  // on; moving focus back to the legend there scrolled the dialog to the top
+  // and threw them off the colour they had just chosen.
+  function showSetupStep(step, opts) {
     var panels = setupPanels();
     var total = panels.length;
     if (!total) return;
@@ -1128,6 +1132,7 @@
     if (setupNext) {
       setupNext.textContent = step === total ? t('setup.start') : t('setup.next');
     }
+    if (opts && opts.focus === false) return;
     // Move focus to the new question. Staying on the Next button would
     // leave a screen reader announcing the same button after it changes.
     var heading = panels[step - 1].querySelector('.setup-legend');
@@ -1388,9 +1393,10 @@
       var picker = setupColourPicker(key);
       if (hex) {
         hex.addEventListener('input', function () {
-          if (picker && /^#[0-9a-fA-F]{6}$/.test(hex.value)) {
-            picker.value = hex.value;
-          }
+          // A half-typed "#ff0" parses as #ffff00 and flashes the page; wait
+          // for a complete #rrggbb before previewing.
+          if (!/^#[0-9a-fA-F]{6}$/.test(hex.value)) return;
+          if (picker) picker.value = hex.value;
           repaintSetupColours();
         });
         hex.addEventListener('change', function () {
@@ -1465,7 +1471,9 @@
     if (customRadio) customRadio.checked = true;
     applyTheme('custom');
     body.setAttribute('data-theme', 'custom');
-    if (typeof showSetupStep === 'function') showSetupStep(setupCurrentStep());
+    if (typeof showSetupStep === 'function') {
+      showSetupStep(setupCurrentStep(), { focus: false });
+    }
     if (typeof repaintSetupColours === 'function') repaintSetupColours();
     saveConfig(payload);
   }
@@ -3559,20 +3567,18 @@
       var picker = customFieldPicker(key);
       if (hex) {
         hex.addEventListener('input', function () {
-          if (picker && /^#[0-9a-fA-F]{6}$/.test(hex.value)) picker.value = hex.value;
+          // Mid-typing values such as "#ff0" parse as a colour and would
+          // flash the whole page as #ffff00 before the reader finishes. Only
+          // a complete #rrggbb previews.
+          if (!/^#[0-9a-fA-F]{6}$/.test(hex.value)) return;
+          if (picker) picker.value = hex.value;
           repaintCustomTheme();
-        });
-        hex.addEventListener('change', function () {
-          saveCustomTheme();
         });
       }
       if (picker) {
         picker.addEventListener('input', function () {
           hex.value = picker.value;
           repaintCustomTheme();
-        });
-        picker.addEventListener('change', function () {
-          saveCustomTheme();
         });
       }
     });
@@ -3607,6 +3613,16 @@
           customFieldHex(key).value = customDefaults[key];
           customFieldPicker(key).value = customDefaults[key];
           repaintCustomTheme();
+          saveCustomTheme();
+        });
+      });
+    // The tick beside each colour commits it. Nothing is saved by leaving a
+    // field, so a reader who clicks off does not overwrite the theme with a
+    // half-finished pick.
+    Array.prototype.forEach.call(
+      themeBuilder.querySelectorAll('.theme-confirm-one'),
+      function (button) {
+        button.addEventListener('click', function () {
           saveCustomTheme();
         });
       });

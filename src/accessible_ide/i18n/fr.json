@@ -285,6 +285,7 @@
   "theme.custom": "Personnalisé",
   "theme.custom_bg": "Fond de l'éditeur",
   "theme.custom_comment": "Commentaires",
+  "theme.custom_confirm": "Confirmer cette couleur",
   "theme.custom_contrast_fail": "Trop faible. Il faut au moins 4,5:1 par rapport à l'arrière-plan.",
   "theme.custom_contrast_fixed": "L'éditeur l'affiche en {0}.",
   "theme.custom_contrast_ok": "Passe le contrôle de contraste.",

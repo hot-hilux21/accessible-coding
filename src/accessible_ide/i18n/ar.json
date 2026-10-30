@@ -285,6 +285,7 @@
   "theme.custom": "مخصص",
   "theme.custom_bg": "خلفية المحرر",
   "theme.custom_comment": "التعليقات",
+  "theme.custom_confirm": "تأكيد هذا اللون",
   "theme.custom_contrast_fail": "منخفض جدًا. يجب أن يكون 4.5:1 على الأقل مقابل الخلفية.",
   "theme.custom_contrast_fixed": "يعرضه المحرر باللون {0}.",
   "theme.custom_contrast_ok": "يجتاز فحص التباين.",

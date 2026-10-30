@@ -639,6 +639,11 @@
                           aria-label="{{ t('theme.custom_reset') }}: {{ t(label) }}">
                     {{ icon('rotate-ccw') }}
                   </button>
+                  <button type="button" class="btn btn-small theme-confirm-one" id="theme-confirm-{{ key }}" data-key="{{ key }}"
+                          title="{{ t('theme.custom_confirm') }}: {{ t(label) }}"
+                          aria-label="{{ t('theme.custom_confirm') }}: {{ t(label) }}">
+                    {{ icon('check') }}
+                  </button>
                 </div>
                 <p class="field-error" id="theme-custom-{{ key }}-error" role="alert" hidden></p>
                 <p class="preview-status" id="theme-custom-{{ key }}-status" hidden></p>
@@ -676,6 +681,11 @@
                     <input type="text" id="theme-custom-{{ key }}" class="hex-input" spellcheck="false" autocomplete="off"
                            inputmode="text" maxlength="7" value="{{ config['theme_custom_' + key] }}"
                            aria-describedby="theme-builder-help theme-custom-{{ key }}-error">
+                    <button type="button" class="btn btn-small theme-confirm-one" id="theme-confirm-{{ key }}" data-key="{{ key }}"
+                            title="{{ t('theme.custom_confirm') }}: {{ t(label) }}"
+                            aria-label="{{ t('theme.custom_confirm') }}: {{ t(label) }}">
+                      {{ icon('check') }}
+                    </button>
                   </div>
                   <p class="field-error" id="theme-custom-{{ key }}-error" role="alert" hidden></p>
                   <p class="preview-status" id="theme-custom-{{ key }}-status" hidden></p>
@@ -688,6 +698,23 @@
               <button id="theme-custom-reset" class="btn btn-small" type="button">{{ t('theme.custom_reset') }}</button>
               <p class="preview-status" id="theme-custom-saved" hidden></p>
             </div>
+          </div>
+
+          <div class="field">
+            <label for="glass-tint-hex">{{ t('glass.tint_label') }}</label>
+            <div class="field-row">
+              <input type="color" id="glass-tint-picker"
+                     value="{{ config.glass_tint or themes[config.theme]['gutter_bg'] }}"
+                     data-theme-colour="{{ themes[config.theme]['gutter_bg'] }}"
+                     aria-label="{{ t('glass.tint_picker_label') }}">
+              <input type="text" id="glass-tint-hex" class="hex-input" spellcheck="false" autocomplete="off"
+                     inputmode="text" maxlength="7" placeholder="#223344"
+                     value="{{ config.glass_tint }}"
+                     aria-describedby="glass-tint-help glass-tint-error">
+              <button id="glass-tint-reset" class="btn" type="button">{{ t('glass.tint_reset') }}</button>
+            </div>
+            <p class="field-help" id="glass-tint-help">{{ t('glass.tint_help') }}</p>
+            <p class="field-error" id="glass-tint-error" role="alert" hidden></p>
           </div>
         </fieldset>
 
@@ -788,22 +815,6 @@
             <p class="field-help" id="glass-material-help">{{ t('glass.material_help') }}</p>
           </div>
 
-          <div class="field">
-            <label for="glass-tint-hex">{{ t('glass.tint_label') }}</label>
-            <div class="field-row">
-              <input type="color" id="glass-tint-picker"
-                     value="{{ config.glass_tint or themes[config.theme]['gutter_bg'] }}"
-                     data-theme-colour="{{ themes[config.theme]['gutter_bg'] }}"
-                     aria-label="{{ t('glass.tint_picker_label') }}">
-              <input type="text" id="glass-tint-hex" class="hex-input" spellcheck="false" autocomplete="off"
-                     inputmode="text" maxlength="7" placeholder="#223344"
-                     value="{{ config.glass_tint }}"
-                     aria-describedby="glass-tint-help glass-tint-error">
-              <button id="glass-tint-reset" class="btn" type="button">{{ t('glass.tint_reset') }}</button>
-            </div>
-            <p class="field-help" id="glass-tint-help">{{ t('glass.tint_help') }}</p>
-            <p class="field-error" id="glass-tint-error" role="alert" hidden></p>
-          </div>
           <p class="settings-hint">{{ t('glass.help') }}</p>
         </fieldset>
 
