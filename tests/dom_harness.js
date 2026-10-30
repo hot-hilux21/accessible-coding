@@ -54,6 +54,7 @@ const KNOWN_IDS = new Set([
   'blur-intensity', 'blur-intensity-label',
   'blur-field', 'theme-select', 'contrast-select', 'focus-mode',
   'reduce-motion', 'reduce-motion-state',
+  'sound-enabled', 'sound-enabled-state',
   // The background gradient switch and the theme builder. The builder is
   // hidden until the custom theme is chosen, so its fields are declared
   // here for the same reason as the setup screen: app.js has to treat them
@@ -925,7 +926,7 @@ function makePage(locale, shared, bodyAttrs) {
   const i18nScripts = {
     'i18n-data': makeElement('i18n-data', {}, { textContent: JSON.stringify(catalogue) }),
     'i18n-meta': makeElement('i18n-meta', {}, {
-      textContent: JSON.stringify({ locale, direction: locale === 'ar' ? 'rtl' : 'ltr' }),
+      textContent: JSON.stringify({ locale, direction: locale === 'ar' ? 'rtl' : 'ltr', audio: '/static/audio/' }),
     }),
     'panel-info': makeElement('panel-info', {}, {
       textContent: JSON.stringify(PANEL_INFO),
@@ -1115,6 +1116,14 @@ function makePage(locale, shared, bodyAttrs) {
     Promise, JSON, Math, Date, Number, String, Object, Array,
     parseInt, parseFloat, isNaN,
     CodeMirror,
+    // A stand-in for the browser's Audio. play() records the file so the
+    // sound checks can see what was asked for, and resolve like a real one.
+    Audio: function (src) {
+      this.src = src;
+      this.preload = '';
+      this.currentTime = 0;
+      this.play = () => { soundPlays.push(src); return Promise.resolve(); };
+    },
     SpeechSynthesisUtterance: function (text) { this.text = text; },
     window: {
       location: {
@@ -1159,6 +1168,10 @@ function fakeEventFor(page) {
 }
 
 const fetchCalls = [];
+// Every file name the page asked the browser to play, in order. The Audio
+// stub below records them, which is how a check can tell a sound that fired
+// from a switch that only looks like it fired.
+const soundPlays = [];
 // How many times anything asked to close the window. The Quit button does
 // this legitimately; the update flow must never do it at all, because the
 // app has no way of knowing whether the reader's work is saved.
@@ -1569,6 +1582,7 @@ const interactions = [
   ['theme-select', 'change'], ['contrast-select', 'change'],
   ['focus-mode', 'change'],
   ['reduce-motion', 'click'],
+  ['sound-enabled', 'click'],
   ['glass-tint-picker', 'input'], ['glass-tint-picker', 'change'],
   ['glass-tint-hex', 'input'], ['glass-tint-hex', 'change'],
   ['glass-tint-reset', 'click'],
@@ -1978,8 +1992,97 @@ function runMotionChecks() {
   }
 
   console.log('     fetch calls: ' + (fetchCalls.length ? fetchCalls.join(', ') : '(none)'));
+  runSoundChecks();
   runGlassChecks();
   runSpeechChecks();
+}
+
+// The sound switch, and the rule that reduce-motion silences it. A switch
+// that saves a preference the app ignores is worse than no switch, so this
+// listens to what was actually asked of the Audio stub rather than trusting
+// the button's own state.
+function runSoundChecks() {
+  const body = documentStub.body.__attributes;
+  const button = elements.get('sound-enabled');
+  const label = elements.get('sound-enabled-state');
+  const motion = elements.get('reduce-motion');
+
+  // Reduce-motion arrived here switched on, because the firing loop clicked
+  // it. That is the state the last check below wants, so turn it off first
+  // and let the listener hear something.
+  if (body['data-reduce-motion'] === 'true') fireElement(motion, 'click');
+
+  // The firing loop already clicked the sound switch once. Settle it to a
+  // known starting point: on.
+  if (body['data-sound'] !== 'true') fireElement(button, 'click');
+  if (body['data-sound'] !== 'true') {
+    failed = true;
+    console.log('FAIL the sound switch never turned the page on');
+    return;
+  }
+
+  const beforeOn = soundPlays.length;
+  fireElement(button, 'click'); // off
+  fireElement(button, 'click'); // on again: this press should be heard
+  const heard = soundPlays.slice(beforeOn);
+  if (heard.length !== 1 || !/press\.wav$/.test(heard[0])) {
+    failed = true;
+    console.log('FAIL turning the sound on played ' +
+                (heard.length ? JSON.stringify(heard) : 'nothing'));
+  } else {
+    console.log('     turning the sound on plays a click, so the switch is wired up');
+  }
+
+  if (button.getAttribute('aria-checked') !== body['data-sound']) {
+    failed = true;
+    console.log('FAIL the sound switch says aria-checked="' +
+                button.getAttribute('aria-checked') + '" but the page is set to "' +
+                body['data-sound'] + '"');
+  } else {
+    console.log('     the sound switch and the page agree with each other');
+  }
+
+  if (!label.textContent || label.textContent.indexOf('sound.') === 0 ||
+      label.textContent.indexOf('switch.') === 0) {
+    failed = true;
+    console.log('FAIL the sound label is missing or shows a raw key: ' + label.textContent);
+  } else {
+    console.log('     the sound label is a translated word');
+  }
+
+  // Reduce-motion silence. Asking for calm must stop the tone everywhere.
+  fireElement(motion, 'click');
+  if (body['data-reduce-motion'] !== 'true') {
+    failed = true;
+    console.log('FAIL reduce-motion did not turn on');
+    return;
+  }
+  fireElement(button, 'click'); // off
+  const beforeMuted = soundPlays.length;
+  fireElement(button, 'click'); // on, but motion is reduced
+  if (soundPlays.length !== beforeMuted) {
+    failed = true;
+    console.log('FAIL reduced motion did not silence the click: ' +
+                JSON.stringify(soundPlays.slice(beforeMuted)));
+  } else {
+    console.log('     reduced motion silences the sound without turning the setting off');
+  }
+  // Back to a calm-neutral state for whatever runs next.
+  fireElement(motion, 'click');
+  if (body['data-sound'] !== 'true') fireElement(button, 'click');
+
+  const saved = configPosts.filter((p) => 'sound_enabled' in p);
+  if (!saved.length) {
+    failed = true;
+    console.log('FAIL the sound choice was never saved');
+  } else if (typeof saved[saved.length - 1].sound_enabled !== 'boolean') {
+    failed = true;
+    console.log('FAIL sound_enabled was saved as ' +
+                JSON.stringify(saved[saved.length - 1].sound_enabled) +
+                ' rather than true/false');
+  } else {
+    console.log('     the sound choice is saved as true or false');
+  }
 }
 
 // The frosted-panel look. A switch that changes nothing is worse than no

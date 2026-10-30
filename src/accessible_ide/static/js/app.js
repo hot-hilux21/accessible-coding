@@ -101,6 +101,8 @@
   var ttsState = document.getElementById('tts-state');
   var btnReduceMotion = document.getElementById('reduce-motion');
   var reduceMotionState = document.getElementById('reduce-motion-state');
+  var soundButton = document.getElementById('sound-enabled');
+  var soundState = document.getElementById('sound-enabled-state');
   var btnTestVoice = document.getElementById('btn-test-voice');
   var autoUpdateEl = document.getElementById('auto-update-toggle');
   var autoUpdateState = document.getElementById('auto-update-state');
@@ -2239,6 +2241,7 @@
           answerForm.hidden = false;
           answerStatus.textContent = t('output.answer_waiting');
           answerInput.focus();
+          playSound('pause');
           if (ttsEnabled) {
             // Only what has not been said yet. The program is started again
             // from the top on every answer, so reading the whole output would
@@ -2255,9 +2258,11 @@
           errorMessage.textContent = data.error;
           errorPanel.hidden = false;
           highlightErrorLine(data.error_line);
+          playSound('error');
           if (ttsEnabled) speak(data.error);
         } else {
           errorPanel.hidden = true;
+          playSound('success');
           if (ttsEnabled) speak(data.output || t('speak.finished'));
         }
       })
@@ -2273,6 +2278,7 @@
         outputEl.textContent = t('output.runner_unreachable');
         errorMessage.textContent = t('output.server_down');
         errorPanel.hidden = false;
+        playSound('error');
       });
   }
 
@@ -2874,6 +2880,91 @@
       speak(t('speak.enabled'));
     }
   });
+
+  // ---------- Sound ----------
+  // Four short tones, generated offline by scripts/make_sounds.py and
+  // shipped with the app, so they play with no network: a run starting,
+  // finishing, failing or waiting on an answer, and a click on a button.
+  //
+  // Two things can silence them. The reader's own Sound setting, and
+  // reduce-motion - a reader who asked for calm asked for it everywhere,
+  // and a sudden tone is the loudest thing this app can do.
+  var soundClips = {};
+  var soundEnabled = body.getAttribute('data-sound') === 'true';
+
+  function loadSound(name) {
+    if (Object.prototype.hasOwnProperty.call(soundClips, name)) {
+      return soundClips[name];
+    }
+    var clip = null;
+    try {
+      clip = new Audio(META.audio + name + '.wav');
+      clip.preload = 'auto';
+    } catch (error) {
+      // No Audio constructor: the app works, it just does not speak.
+      clip = null;
+    }
+    soundClips[name] = clip;
+    return clip;
+  }
+
+  function playSound(name) {
+    if (!soundEnabled || reduceMotion) return;
+    var clip = loadSound(name);
+    if (!clip) return;
+    try {
+      clip.currentTime = 0;
+      var started = clip.play();
+      // A browser that has not seen a click yet may refuse to start audio.
+      // That is not a fault worth reporting: the next press is allowed.
+      if (started && typeof started.catch === 'function') {
+        started.catch(function () {});
+      }
+    } catch (error) {
+      // Silence is an acceptable outcome for a sound effect.
+    }
+  }
+
+  function paintSoundSwitch() {
+    if (!soundButton) return;
+    soundButton.setAttribute('aria-checked', soundEnabled ? 'true' : 'false');
+    soundButton.classList.toggle('active', soundEnabled);
+    if (soundState) {
+      soundState.textContent = soundEnabled ? t('switch.on') : t('switch.off');
+    }
+  }
+
+  function applySound(on) {
+    soundEnabled = !!on;
+    body.setAttribute('data-sound', soundEnabled ? 'true' : 'false');
+    paintSoundSwitch();
+  }
+
+  paintSoundSwitch();
+
+  if (soundButton) {
+    soundButton.addEventListener('click', function () {
+      var next = !soundEnabled;
+      applySound(next);
+      saveConfig({ sound_enabled: next });
+      // Play the click that turned it on, so the reader hears what they
+      // just chose. Turning it off stays silent, which is the point.
+      if (next) playSound('press');
+    });
+  }
+
+  // One listener for the whole page rather than one per button: the
+  // toolbar, the dialogs and the settings panels all get the click without
+  // every one of them remembering to ask for it.
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    if (!target.closest('button, .btn')) return;
+    // The Sound switch plays its own click after saving, so skip it here to
+    // avoid two tones on one press.
+    if (target.closest('#sound-enabled')) return;
+    playSound('press');
+  }, true);
 
   // ---------- Motion ----------
   // The CSS stops transitions and animations when the body says so. What

@@ -283,6 +283,12 @@ DEFAULT_CONFIG = {
     # otherwise a reader who has asked for reduced motion at the OS level
     # could never turn movement back on here.
     'reduce_motion': None,
+    # A short sound when the code starts, finishes, fails or waits on an
+    # answer, and a soft click on buttons. On by default because it is
+    # feedback, not decoration - it tells a reader who is not watching the
+    # output pane that something happened. Also silenced by reduce-motion,
+    # since a reader who asked for calm asked for it everywhere.
+    'sound_enabled': True,
     # Which material the panels are made of. "off" is the default on
     # purpose: a see-through surface can cost contrast, and contrast is
     # the one thing this app is not allowed to trade away for a nicer
@@ -2048,6 +2054,7 @@ CONFIG_TYPES = {
     'blur_intensity': (int, float),
     'contrast': str,
     'reduce_motion': bool,
+    'sound_enabled': bool,
     'glass_material': str,
     'glass_tint': str,
     'theme_custom_page': str,
