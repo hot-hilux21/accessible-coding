@@ -323,6 +323,14 @@ DEFAULT_CONFIG = {
     # Hovering pauses here before speaking, so that passing the pointer
     # across a row of buttons does not start a queue of voices.
     'tts_hover_delay': 600,
+    # The three panes can be read on hover too, each off until the reader
+    # asks for it. They are separate from the scope above because their
+    # words are not page text: the code is not on the page at all, and
+    # output can be hundreds of lines. Default off: a pointer drifting
+    # across the code should not start reading the file back.
+    'tts_hover_code': False,
+    'tts_hover_output': False,
+    'tts_hover_shell': False,
     'tts_click_to_speak': True,
     # The speech API does not say whether a voice is male or female, so
     # this is a preference applied to what is installed, not a promise.
@@ -2058,6 +2066,9 @@ CONFIG_TYPES = {
     'tts_rate': (int, float),
     'tts_hover_scope': str,
     'tts_hover_delay': (int, float),
+    'tts_hover_code': bool,
+    'tts_hover_output': bool,
+    'tts_hover_shell': bool,
     'tts_click_to_speak': bool,
     'tts_voice_gender': str,
     'auto_update': bool,

@@ -93,6 +93,9 @@
   var ttsHoverScopeEl = document.getElementById('tts-hover-scope');
   var ttsHoverDelay = document.getElementById('tts-hover-delay');
   var ttsHoverDelayLabel = document.getElementById('tts-hover-delay-label');
+  var ttsHoverCodeEl = document.getElementById('tts-hover-code');
+  var ttsHoverOutputEl = document.getElementById('tts-hover-output');
+  var ttsHoverShellEl = document.getElementById('tts-hover-shell');
   var ttsClickEl = document.getElementById('tts-click');
   var ttsClickState = document.getElementById('tts-click-state');
   var ttsState = document.getElementById('tts-state');
@@ -184,6 +187,9 @@
   var speechVoiceName = '';
   var ttsHoverScopeValue = 'controls';
   var ttsHoverDelayMs = 600;
+  var ttsHoverCode = false;
+  var ttsHoverOutput = false;
+  var ttsHoverShell = false;
   var ttsClickToSpeak = true;
   var ttsVoiceGenderValue = 'male';
 
@@ -1961,12 +1967,61 @@
   var hoverTimer = null;
   var hoverTarget = null;
 
-  function hoverTargetFor(el) {
-    if (ttsHoverScope === 'off' || !ttsEnabled) return null;
+  function hoverTargetFor(el, event) {
+    if (!ttsEnabled) return null;
+    var pane = hoverPaneKey(el, event);
+    if (pane) return pane;
+    if (ttsHoverScope === 'off') return null;
     var control = closestOf(el, HOVER_CONTROLS);
     if (control) return control;
     if (ttsHoverScope !== 'all') return null;
     return closestOf(el, HOVER_TEXT);
+  }
+
+  // The line under the pointer, or null when the editor cannot be asked -
+  // which is also the case in a test without a real CodeMirror.
+  function pointerLine(event) {
+    if (!event || !editor || typeof editor.coordsChar !== 'function') return null;
+    var pos = editor.coordsChar({ left: event.clientX, top: event.clientY });
+    if (!pos || pos.line == null) return null;
+    return pos.line;
+  }
+
+  // The three panes can be read on hover as well, when the reader ticks
+  // them. A key comes back rather than an element: the code's words depend
+  // on which line the pointer is on, and naming the line means moving down
+  // the code reads each line as it arrives instead of one endless
+  // paragraph. The panes come first so that pointing at code or results
+  // reads them, and only a pointer over none of the three falls through to
+  // the page's own controls and text.
+  function hoverPaneKey(el, event) {
+    if (ttsHoverCode && closestOf(el, '#editor, .CodeMirror')) {
+      var line = pointerLine(event);
+      if (line !== null) return 'code:' + line;
+      return null;
+    }
+    if (ttsHoverOutput && closestOf(el, '#output')) return 'output';
+    if (ttsHoverShell && shellOutput && closestOf(el, '#shell-output')) {
+      return 'shell';
+    }
+    return null;
+  }
+
+  // What a pane key says. The results and the shell are capped like every
+  // other spoken phrase: a long run is cut at a word boundary rather than
+  // read back whole. The code pane reads the one line, not the file.
+  function hoverPaneWords(key) {
+    if (key === 'output') {
+      return shorten(cleanText(outputEl ? outputEl.textContent : ''));
+    }
+    if (key === 'shell') {
+      return shorten(cleanText(shellOutput ? shellOutput.textContent : ''));
+    }
+    if (key.indexOf('code:') === 0 && editor && editor.getLine) {
+      var line = parseInt(key.slice(5), 10);
+      if (!isNaN(line)) return shorten(cleanText(editor.getLine(line)));
+    }
+    return '';
   }
 
   function clearHover() {
@@ -1978,7 +2033,7 @@
   }
 
   function onMouseOver(event) {
-    var target = hoverTargetFor(event && event.target);
+    var target = hoverTargetFor(event && event.target, event);
     if (!target) {
       clearHover();
       return;
@@ -1990,15 +2045,17 @@
     hoverTarget = target;
     hoverTimer = setTimeout(function () {
       hoverTimer = null;
-      var words = whatToSay(hoverTarget);
+      var words = typeof hoverTarget === 'string'
+        ? hoverPaneWords(hoverTarget)
+        : whatToSay(hoverTarget);
       if (words) speak(words);
     }, Math.max(0, ttsHoverDelay || 0));
   }
 
   function onMouseOut(event) {
-    var from = hoverTargetFor(event && event.target);
+    var from = hoverTargetFor(event && event.target, event);
     if (!from) return;
-    var to = hoverTargetFor(event && event.relatedTarget);
+    var to = hoverTargetFor(event && event.relatedTarget, event);
     if (to === from) return;
     clearHover();
   }
@@ -3834,6 +3891,29 @@
     });
   }
 
+  // Each pane tick saves on its own, and drops whatever was waiting for the
+  // same reason the scope change does: a phrase queued under the old
+  // setting is no longer what the reader asked to hear.
+  [
+    [ttsHoverCodeEl, 'code'],
+    [ttsHoverOutputEl, 'output'],
+    [ttsHoverShellEl, 'shell'],
+  ].forEach(function (pair) {
+    var el = pair[0];
+    var name = pair[1];
+    if (!el) return;
+    el.addEventListener('change', function () {
+      var on = !!el.checked;
+      if (name === 'code') ttsHoverCode = on;
+      else if (name === 'output') ttsHoverOutput = on;
+      else ttsHoverShell = on;
+      clearHover();
+      saveConfig({ tts_hover_code: ttsHoverCode,
+                   tts_hover_output: ttsHoverOutput,
+                   tts_hover_shell: ttsHoverShell });
+    });
+  });
+
   if (ttsHoverDelay) {
     ttsHoverDelay.addEventListener('input', function () {
       ttsHoverDelayMs = parseFloat(ttsHoverDelay.value);
@@ -4817,6 +4897,9 @@
   ttsHoverScopeValue = body.getAttribute('data-tts-hover-scope') || 'controls';
   ttsHoverDelayMs = parseFloat(body.getAttribute('data-tts-hover-delay') || '600');
   if (isNaN(ttsHoverDelayMs)) ttsHoverDelayMs = 600;
+  ttsHoverCode = body.getAttribute('data-tts-hover-code') === 'true';
+  ttsHoverOutput = body.getAttribute('data-tts-hover-output') === 'true';
+  ttsHoverShell = body.getAttribute('data-tts-hover-shell') === 'true';
   ttsVoiceGenderValue = body.getAttribute('data-tts-voice-gender') || 'male';
   ttsClickToSpeak = true;
   if (ttsClickEl) {

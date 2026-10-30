@@ -104,7 +104,8 @@ const KNOWN_IDS = new Set([
   'glass-tint-picker', 'glass-tint-hex', 'glass-tint-error', 'glass-tint-reset',
   'tts-toggle', 'tts-state', 'tts-voice', 'tts-rate', 'tts-rate-label',
   'tts-voice-gender', 'tts-hover-scope', 'tts-hover-delay',
-  'tts-hover-delay-label', 'tts-click', 'tts-click-state',
+  'tts-hover-delay-label', 'tts-hover-code', 'tts-hover-output',
+  'tts-hover-shell', 'tts-click', 'tts-click-state',
   'btn-test-voice',
   'auto-update-toggle', 'auto-update-state', 'btn-check-update',
   'update-status', 'update-version',
@@ -370,6 +371,9 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
     'data-tts-rate': '0.9',
     'data-tts-hover-scope': 'controls',
     'data-tts-hover-delay': '600',
+    'data-tts-hover-code': 'false',
+    'data-tts-hover-output': 'false',
+    'data-tts-hover-shell': 'false',
     'data-tts-voice-gender': 'male',
     ...extraAttributes,
   };
@@ -814,6 +818,11 @@ const editorInstance = {
   focus: noop,
   operation: (fn) => fn(),
   getDoc: () => ({ getLine: () => '', getSelection: () => '' }),
+  // The pointer-to-line mapping the hover reading uses. The stub answers
+  // with a line derived from the vertical position, so a check can put the
+  // pointer over line 3 and see that line read, rather than the file.
+  coordsChar: (coords) => ({ line: Math.floor((coords && coords.top) || 0) }),
+  getLine: (line) => String(editorValue.split('\n')[line] || ''),
   replaceSelection: noop,
   // Whether the editor holds focus, so the run press can be checked to fire
   // only while the reader is in the code and not while they are elsewhere on
@@ -1566,6 +1575,8 @@ const interactions = [
   ['tts-toggle', 'click'], ['tts-voice', 'change'],
   ['tts-voice-gender', 'change'],
   ['tts-hover-scope', 'change'],
+  ['tts-hover-code', 'change'], ['tts-hover-output', 'change'],
+  ['tts-hover-shell', 'change'],
   ['tts-hover-delay', 'input'], ['tts-hover-delay', 'change'],
   ['tts-click', 'click'],
   ['tts-rate', 'input'], ['tts-rate', 'change'],
@@ -4774,7 +4785,109 @@ setTimeout(() => {
   // Both synchronous, like the layout checks above: neither waits on a reply.
   runGlossaryChecks();
   runQuitChecks();
+  // The hover reading waits on the delay timer before it speaks, so it runs
+  // in its own window the way the reload checks do.
+  setTimeout(runPaneHoverChecks, 150);
   // Last, because it asserts on the final exit and the checks above are
   // still in flight when it starts.
   setTimeout(runShellChecks, 200);
 }, 50);
+
+// Hovering the code, the results or the shell reads that pane, when the
+// reader has ticked it. This is the whole point of the three ticks: reading
+// used to mean selecting a line and pressing a button, and the results and
+// the shell could not be read at all. The ticks stand on their own, so they
+// are exercised with the page scope switched off: turning the panes on is
+// not a way of turning the rest of the page back on.
+function runPaneHoverChecks() {
+  const codeTick = elements.get('tts-hover-code');
+  const outputTick = elements.get('tts-hover-output');
+  const shellTick = elements.get('tts-hover-shell');
+  const ttsToggle = elements.get('tts-toggle');
+  const scopeSelect = elements.get('tts-hover-scope');
+  const delaySlider = elements.get('tts-hover-delay');
+  const savedEditor = editorValue;
+
+  if (ttsToggle.getAttribute('aria-checked') !== 'true') {
+    fire('tts-toggle', 'click');
+  }
+  scopeSelect.value = 'off';
+  fire('tts-hover-scope', 'change');
+  delaySlider.value = '0';
+  fire('tts-hover-delay', 'input');
+  fire('tts-hover-delay', 'change');
+
+  // A tick that is never saved is a switch that does nothing. The tick for
+  // the code is set first and its save is checked before it is used.
+  codeTick.checked = true;
+  fire('tts-hover-code', 'change');
+  const tickSaved = configPosts.filter((p) => 'tts_hover_code' in p);
+  if (!tickSaved.length || tickSaved[tickSaved.length - 1].tts_hover_code !== true) {
+    failed = true;
+    console.log('FAIL ticking "read the code on hover" was not saved: ' +
+                JSON.stringify(tickSaved));
+  } else {
+    console.log('     a pane tick is saved on its own');
+  }
+
+  editorValue = 'first line\nsecond line\nthird line';
+  spokenUtterances.length = 0;
+  fireDocument('mouseover', {
+    target: elements.get('editor'),
+    clientX: 10,
+    clientY: 1,
+    relatedTarget: null,
+    preventDefault: noop,
+    stopPropagation: noop,
+  });
+
+  // The pane ticks answer after the hover delay, so the assertion waits for
+  // the timer the same way the reader waits for the voice.
+  setTimeout(() => {
+    const heard = spokenUtterances.map((u) => u.text).join(' | ');
+    if (heard.indexOf('second line') === -1) {
+      failed = true;
+      console.log('FAIL hovering the code did not read the line under the pointer: "' +
+                  heard + '"');
+    } else if (heard.indexOf('first line') !== -1 || heard.indexOf('third line') !== -1) {
+      failed = true;
+      console.log('FAIL hovering the code read more than the one line: "' + heard + '"');
+    } else {
+      console.log('     hovering the code reads the line under the pointer, and only that line');
+    }
+
+    // The results pane is a different tick: the code being read says nothing
+    // about the results being read.
+    ttsHoverCodeOff();
+    outputTick.checked = true;
+    fire('tts-hover-output', 'change');
+    elements.get('output').textContent = 'Hello from the program';
+    spokenUtterances.length = 0;
+    fireDocument('mouseover', {
+      target: elements.get('output'),
+      clientX: 10,
+      clientY: 0,
+      relatedTarget: null,
+      preventDefault: noop,
+      stopPropagation: noop,
+    });
+    setTimeout(() => {
+      const outHeard = spokenUtterances.map((u) => u.text).join(' | ');
+      if (!outHeard) {
+        failed = true;
+        console.log('FAIL hovering the results read nothing with the results tick on');
+      } else {
+        console.log('     hovering the results reads them, with only the results tick on');
+      }
+      editorValue = savedEditor;
+    }, 20);
+  }, 20);
+}
+
+// Turn the code tick back off the way the reader would, through the control
+// rather than the setting, so the handler is what is being exercised.
+function ttsHoverCodeOff() {
+  const codeTick = elements.get('tts-hover-code');
+  codeTick.checked = false;
+  fire('tts-hover-code', 'change');
+}
