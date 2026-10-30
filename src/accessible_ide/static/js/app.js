@@ -455,6 +455,17 @@
     '--error-fg', '--error-line', '--focus-ring'
   ];
 
+  // Only these picks are text drawn on the editor background, so only these
+  // have a contrast question to answer. Asking the others the same question
+  // is asking about nothing: the background measured against itself is 1:1,
+  // so "Editor background" was flagged "Too low" the moment any other field
+  // was touched, and the page and selection colours were judged against a
+  // background they are not drawn on. Those three are instrument panels, not
+  // text; the text placed on them is clamped in customChrome, so no pick of
+  // theirs can fail.
+  var TEXT_ON_BACKGROUND = ['fg', 'keyword', 'string', 'comment',
+    'number', 'function'];
+
   function customPalette(picks) {
     var T = AccessibleTint;
     var bg = T.parseHex(picks.bg);
@@ -1325,6 +1336,14 @@
       var field = setupColourHex(key);
       var bgField = setupColourHex('bg');
       if (!status || !field || !bgField) return;
+      // The wizard asks for four colours and the code colours are carried
+      // through hidden. Of the four, only the text colour is drawn on the
+      // background, so only it has a contrast question; the other three are
+      // panels and are shown no status line at all.
+      if (TEXT_ON_BACKGROUND.indexOf(key) === -1) {
+        status.hidden = true;
+        return;
+      }
       var ratio = 0;
       try {
         ratio = AccessibleTint.contrastRatio(
@@ -1337,7 +1356,9 @@
       status.hidden = false;
       status.textContent = ratio >= 4.5
         ? t('theme.custom_contrast_ok')
-        : t('theme.custom_contrast_fail');
+        : t('theme.custom_contrast_fail') +
+          ' ' + t('theme.custom_contrast_fixed',
+                  correctedTextColour(key, setupColourHex, setupColourFields));
     }
 
     function repaintSetupColours() {
@@ -3448,10 +3469,17 @@
 
   // The contrast of a raw pick against the picked background, shown under
   // the field. The server clamps a pick that fails, so this is a preview
-  // of what will happen to the colour, not a rejection of it.
+  // of what will happen to the colour, not a rejection of it, and it names
+  // the colour that replaces the pick rather than only saying it was too
+  // low: a reader who cannot see the swatch has no other way to know their
+  // choice was changed.
   function paintCustomStatus(key) {
     var status = customFieldStatus(key);
     if (!status) return;
+    if (TEXT_ON_BACKGROUND.indexOf(key) === -1) {
+      status.hidden = true;
+      return;
+    }
     var bg = customFieldHex('bg').value;
     var colour = customFieldHex(key).value;
     var ratio = 0;
@@ -3465,7 +3493,27 @@
     status.hidden = false;
     status.textContent = ratio >= 4.5
       ? t('theme.custom_contrast_ok')
-      : t('theme.custom_contrast_fail');
+      : t('theme.custom_contrast_fail') +
+        ' ' + t('theme.custom_contrast_fixed',
+                correctedTextColour(key, customFieldHex, themeBuilderFields));
+  }
+
+  // The colour the editor will actually use for this pick, taken from the
+  // same derivation that paints the theme so the message cannot drift from
+  // what is shown. An unparseable field is mid-typing; the caller has
+  // already decided the pick fails, and customPalette throws on it, so the
+  // message falls back to the pick itself rather than claiming a colour.
+  function correctedTextColour(key, fieldFor, keys) {
+    var picks = {};
+    keys.forEach(function (name) {
+      var field = fieldFor(name);
+      picks[name] = field ? field.value : '';
+    });
+    try {
+      return customPalette(picks)[key] || picks[key];
+    } catch (error) {
+      return picks[key];
+    }
   }
 
   function repaintCustomTheme() {

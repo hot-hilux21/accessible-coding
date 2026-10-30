@@ -286,6 +286,7 @@
   "theme.custom_bg": "एडिटर पृष्ठभूमि",
   "theme.custom_comment": "टिप्पणियाँ",
   "theme.custom_contrast_fail": "बहुत हल्का। पृष्ठभूमि के मुकाबले कम से कम 4.5:1 होना चाहिए।",
+  "theme.custom_contrast_fixed": "एडिटर इसे {0} रंग में दिखाता है।",
   "theme.custom_contrast_ok": "कंट्रास्ट जाँच पास करता है।",
   "theme.custom_fg": "पाठ का रंग",
   "theme.custom_function": "फ़ंक्शन",

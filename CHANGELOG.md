@@ -40,6 +40,10 @@ Everything below landed on `main` after v1.1.0 and is on the live site now.
   rest.
 - Custom code colours moved under **Settings → Colours → Advanced**; the first
   run asks for page, background, text and selection colours only.
+- The custom theme contrast note names the colour the editor uses when a pick
+  fails AA, instead of only saying it was too low. The background, page and
+  selection fields no longer show a note: they are not drawn on the background,
+  so measuring them against it flagged the editor background as "Too low".
 - One offline icon set replaces the toolbar emoji, and toolbar labels can be
   hidden.
 

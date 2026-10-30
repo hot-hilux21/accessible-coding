@@ -286,6 +286,7 @@
   "theme.custom_bg": "Фон редактора",
   "theme.custom_comment": "Коментарі",
   "theme.custom_contrast_fail": "Занадто низький. Потрібно щонайменше 4.5:1 щодо фону.",
+  "theme.custom_contrast_fixed": "Редактор показує його як {0}.",
   "theme.custom_contrast_ok": "Проходить перевірку контрасту.",
   "theme.custom_fg": "Колір тексту",
   "theme.custom_function": "Функції",

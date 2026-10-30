@@ -286,6 +286,7 @@
   "theme.custom_bg": "Editor background",
   "theme.custom_comment": "Comments",
   "theme.custom_contrast_fail": "Too low. Needs to be at least 4.5:1 against the background.",
+  "theme.custom_contrast_fixed": "The editor shows it as {0}.",
   "theme.custom_contrast_ok": "Passes the contrast check.",
   "theme.custom_fg": "Text colour",
   "theme.custom_function": "Functions",

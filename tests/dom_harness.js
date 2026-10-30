@@ -2857,13 +2857,52 @@ function runThemeBuilderChecks() {
   if (!fgStatus) {
     failed = true;
     console.log('FAIL an unreadable pick cannot be checked: no contrast status line');
-  } else if (fgStatus.textContent !== CATALOGUE['theme.custom_contrast_fail']) {
+  } else if (!fgStatus.textContent.startsWith(
+      CATALOGUE['theme.custom_contrast_fail'])) {
     failed = true;
     console.log('FAIL an unreadable pick is not flagged: ' +
       JSON.stringify(fgStatus.textContent));
   } else {
     console.log('     an unreadable pick is flagged');
   }
+
+  // Flagging a pick is not enough: the reader cannot see the swatch, so the
+  // message has to name the colour the editor will use instead, and that
+  // colour has to be a different one - the failing pick is not a correction.
+  {
+    const named = fgStatus
+      ? (fgStatus.textContent.match(/#[0-9a-fA-F]{6}/) || [])[0]
+      : null;
+    if (!named) {
+      failed = true;
+      console.log('FAIL a flagged pick does not say which colour is used instead: ' +
+        JSON.stringify(fgStatus && fgStatus.textContent));
+    } else if (named.toLowerCase() === '#777777') {
+      failed = true;
+      console.log('FAIL a flagged pick claims the failing colour is the corrected one');
+    } else {
+      console.log('     a flagged pick names the colour that replaces it (' + named + ')');
+    }
+  }
+
+  // The background is not drawn on itself, so it has no contrast question.
+  // Judged anyway, it measured 1:1 against itself and was flagged "Too low"
+  // the moment any other field was touched.
+  bgField.value = '#222222';
+  fire('theme-custom-bg', 'input');
+  const bgStatus = elements.get('theme-custom-bg-status');
+  if (!bgStatus) {
+    failed = true;
+    console.log('FAIL the background field has no status line to check');
+  } else if (!bgStatus.hidden) {
+    failed = true;
+    console.log('FAIL the background is flagged against itself: ' +
+      JSON.stringify(bgStatus.textContent));
+  } else {
+    console.log('     a background pick carries no contrast warning');
+  }
+  bgField.value = '#0b0b0b';
+  fire('theme-custom-bg', 'input');
 
   // The picker and the hex box are two views of one value.
   fgPicker.value = '#123456';

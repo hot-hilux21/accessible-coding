@@ -286,6 +286,7 @@
   "theme.custom_bg": "Fondo del editor",
   "theme.custom_comment": "Comentarios",
   "theme.custom_contrast_fail": "Demasiado bajo. Debe ser al menos 4,5:1 contra el fondo.",
+  "theme.custom_contrast_fixed": "El editor lo muestra como {0}.",
   "theme.custom_contrast_ok": "Pasa la comprobación de contraste.",
   "theme.custom_fg": "Color del texto",
   "theme.custom_function": "Funciones",

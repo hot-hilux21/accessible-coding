@@ -93,13 +93,13 @@ This file is the working checklist between v1 and v2. It records what is shipped
 
 - [ ] Let readers adjust the blur radius and choose which panes blur in focus mode (today the mode is fixed presets).
 - [x] Add a reading ruler option (a horizontal highlight that follows the pointer) for line tracking. It lives in **Settings → Reading**, is off by default, and shades the line under the pointer with `background` only, so it costs no contrast and never draws over the text. The caret and the keyboard are untouched: this is a pointer aid, not a second cursor.
-- [ ] Tune the custom theme contrast nudge: it currently corrects a failing colour, but it does not explain which colour it changed.
-- [ ] Allow exporting and importing a theme as a small JSON file, so a reader can carry settings between machines.
+- [x] Tune the custom theme contrast nudge. A failing pick now names the colour the editor uses instead, taken from the same derivation that paints the theme, so the message cannot drift from what is shown. The background, page and selection fields stopped being flagged: they were measured against the background they are not drawn on, so "Editor background" read "Too low" the moment any other field was touched.
+- [x] Allow exporting and importing settings as a small JSON file, so a reader can carry them between machines. The existing Settings backup (`/api/config/export`, `/api/config/import`) already carries every setting including the custom theme and is validated exactly as the panel is, so no separate theme file was needed.
 - [ ] Review the font list against user demand; add any missing open-licence dyslexia font with its licence file.
 
 ### P1: speech and language
 
-- [ ] Per-language voice selection, so switching to Hindi or Arabic does not keep an English voice.
+- [x] Per-language voice selection, so switching to Hindi or Arabic does not keep an English voice. The voice is chosen per language and gender from the system list, and `tests/dom_harness.js` holds the names it must pick for all six languages.
 - [ ] Remember the last spoken position in the output, so "read from here" is possible after a long run.
 - [ ] Add pause and resume for long files instead of stop and restart.
 - [ ] Complete translation review for all six catalogues by a native speaker; the current strings are consistent but not professionally reviewed.
