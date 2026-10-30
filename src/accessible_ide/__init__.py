@@ -18,6 +18,10 @@ def create_app():
 
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
+    # The theme list is ordered on purpose (four common presets first, the
+    # reader's own colours last) and both the setup step and the Settings
+    # dropdown read that order. Sorting the keys would throw it away.
+    app.json.sort_keys = False
 
     # Host header validation.
     # On the public web the host is whatever the platform gave us, so this

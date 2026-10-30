@@ -943,6 +943,17 @@ class ThemeApiTests(ConfigApiTestCase):
                 for key in ("name", "bg", "fg", "keyword", "string", "comment"):
                     self.assertIn(key, palette)
 
+    def test_the_four_common_themes_come_first_and_custom_last(self):
+        # The setup step and the Settings dropdown are both built from this
+        # one response, so the order cannot drift between the two screens.
+        keys = list(self.client.get("/api/themes").get_json())
+        self.assertEqual(keys[:4], list(routes.SETUP_QUICK_THEMES))
+        self.assertEqual(keys[-1], "custom")
+        self.assertEqual(
+            sorted(keys[4:-1]),
+            sorted(set(routes.THEMES) - set(routes.SETUP_QUICK_THEMES)),
+        )
+
 
 class ConfigBackupTests(ConfigApiTestCase):
     """GET /api/config/export and POST /api/config/import.

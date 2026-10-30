@@ -689,7 +689,8 @@ class TryItOutPanelTests(RenderedPageFixture):
         # which is how OpenDyslexic shipped broken.
         options = re.findall(r"<option value=\"[^\"]+\"[^>]*>", self.html)
         font_options = [o for o in options if "data-family" in o]
-        self.assertEqual(len(font_options), len(routes._all_fonts()))
+        # One list on the settings screen and one on the setup screen.
+        self.assertEqual(len(font_options), 2 * len(routes._all_fonts()))
         for option in font_options:
             with self.subTest(option=option[:60]):
                 self.assertRegex(option, r'data-family="[^"]+"')
@@ -878,24 +879,30 @@ class SetupWizardTests(RenderedPageFixture):
 
     def test_the_language_choices_are_named_in_their_own_language(self):
         # A reader who cannot read the current language still has to be
-        # able to find their own. The endonym is what the radio is named
-        # by, and the English name is only there as a second line.
-        radios = re.findall(r'<input type="radio" name="setup-locale"[^>]*>', self.html)
-        self.assertEqual(len(radios), len(i18n.LANGUAGES))
-        for radio in radios:
-            with self.subTest(radio=radio):
-                self.assertRegex(radio, r'value="[a-z]{2}"')
-        endonyms = re.findall(r'class="setup-choice-name" lang="([a-z]{2})"', self.html)
-        self.assertEqual(sorted(endonyms), sorted(i18n.LANGUAGES))
-        # The choice already saved is the one that comes up ticked.
-        self.assertRegex(self.html, r'name="setup-locale"[^>]*checked')
+        # able to find their own. The endonym is what the option is named
+        # by, and the English name is only there beside it.
+        select = re.search(
+            r'<select id="setup-locale".*?</select>', self.html, re.S
+        )
+        self.assertIsNotNone(select, "no language list in the setup screen")
+        assert select is not None
+        options = re.findall(r"<option[^>]*>", select.group(0))
+        self.assertEqual(len(options), len(i18n.LANGUAGES))
+        for option in options:
+            with self.subTest(option=option):
+                self.assertRegex(option, r'value="[a-z]{2}"')
+                self.assertRegex(option, r'lang="[a-z]{2}"')
+        # The choice already saved is the one that comes up selected.
+        self.assertRegex(select.group(0), r'value="[a-z]{2}"[^>]*selected')
 
-    def test_the_choices_are_real_radios_in_labelled_groups(self):
-        # Arrow keys, Tab and the checked announcement all come from the
-        # browser this way. A div with role="radiogroup" needs all three
-        # reimplemented before it is as usable.
-        self.assertIn('name="setup-locale"', self.html)
-        self.assertIn('name="setup-font"', self.html)
+    def test_the_choices_are_real_controls_in_labelled_groups(self):
+        # A native select needs no reimplementation: the browser supplies
+        # the list, the keyboard and the announcement. The theme step keeps
+        # real radios, because a swatch is a picture of the theme and a
+        # native list cannot draw one.
+        self.assertIn('id="setup-locale"', self.html)
+        self.assertIn('id="setup-font"', self.html)
+        self.assertIn('name="setup-theme"', self.html)
         self.assertEqual(
             self.html.count("<fieldset"), self.html.count("</fieldset>"),
             "unbalanced fieldsets in the setup screen",
@@ -934,25 +941,47 @@ class SetupWizardTests(RenderedPageFixture):
         # are the first thing read on this step.
         self.assertGreater(
             body.index("setup-font-upload"),
-            body.index('name="setup-font"'),
+            body.index('id="setup-font"'),
             "the reader's own font should be offered after the bundled ones",
         )
 
     def test_every_font_is_shown_in_its_own_font_before_it_is_chosen(self):
-        # This is the whole point of the step. A list of names, all set in
-        # the same typeface, asks the reader to trust a label.
-        radios = re.findall(r'<input type="radio" name="setup-font"[^>]*>', self.html)
-        self.assertEqual(len(radios), len(routes._all_fonts()))
-        samples = re.findall(
-            r'class="setup-sample"\s+style="font-family: ([^"]+)"', self.html
+        # A list of names, all set in the same typeface, asks the reader to
+        # trust a label. Each option carries its stack, and the sample line
+        # under the list is drawn in whichever face is selected.
+        options = re.findall(r'<option value="[^"]+"[^>]*data-family="[^"]+"[^>]*>', self.html)
+        self.assertEqual(len(options), 2 * len(routes._all_fonts()))
+        sample = re.search(
+            r'id="setup-font-sample"\s+style="font-family: ([^"]+)"', self.html
         )
-        self.assertEqual(len(samples), len(routes._all_fonts()))
-        for family, radio in zip(samples, radios):
-            with self.subTest(font=family):
-                self.assertIn(f'data-family="{family}"', radio)
+        self.assertIsNotNone(sample, "the font step has no preview line")
+        assert sample is not None
+        self.assertTrue(sample.group(1).strip())
         # And the choice carries the stack, so app.js does not keep a
         # second copy that can drift from this list.
         self.assertIn("data-family", self.js)
+        self.assertIn("setup-font-sample", self.js)
+
+    def test_the_theme_step_leads_with_four_faces_then_a_longer_list(self):
+        # Fifteen equal squares on the first screen is a wall. The four most
+        # readers want are tiles, the rest are one dropdown away, and the
+        # reader's own colours come after both - on this screen and in the
+        # Settings list, which is fed from the same ordering on the server.
+        radios = re.findall(r'name="setup-theme" value="([^"]+)"', self.html)
+        self.assertEqual(radios, list(routes.SETUP_QUICK_THEMES) + ["custom"])
+
+        more = re.search(
+            r'<select id="setup-theme-more".*?</select>', self.html, re.S
+        )
+        self.assertIsNotNone(more, "the rest of the presets have no list")
+        assert more is not None
+        values = re.findall(r'<option value="([^"]*)"', more.group(0))
+        self.assertEqual(values[0], "", "the longer list needs a blank first line")
+        self.assertEqual(
+            values[1:],
+            [key for key in routes.ordered_themes()
+             if key not in routes.SETUP_QUICK_THEMES],
+        )
 
     def test_there_is_a_way_out_that_does_not_depend_on_escape(self):
         # Escape is blocked on purpose, because the screen exists to be

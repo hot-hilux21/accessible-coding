@@ -127,6 +127,7 @@ const KNOWN_IDS = new Set([
   // The same font choice offered on the first-run screen. app.js looks both
   // up on the way in, so an id missing here would be reported as unknown.
   'setup-font-upload', 'setup-font-upload-status',
+  'setup-locale', 'setup-font', 'setup-font-sample', 'setup-theme-more',
   'preview-status', 'btn-reset-config', 'btn-reset-all',
   'btn-export-config', 'btn-import-config', 'config-file-input', 'backup-status',
   'highlight-color-hex', 'highlight-color-picker', 'highlight-error',
@@ -305,6 +306,10 @@ const SELECT_OPTIONS = {
 };
 
 const optionsFor = (values) => values.map((v) => makeElement(v, {}, { value: v, textContent: v }));
+
+// The setup screen's dropdowns. They are not in SELECT_OPTIONS because the
+// font list carries a data-family per option, which optionsFor cannot give.
+const SETUP_SELECT_IDS = new Set(['setup-locale', 'setup-font', 'setup-theme-more']);
 
 // The nine picks the theme builder starts with, mirroring the defaults in
 // routes.py. The builder's fields are hex boxes, so a stub that left them
@@ -540,7 +545,8 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
   // happens to any value the page's markup does not offer. Without this the
   // stub would keep whatever it was given, and the code under test could
   // not tell a valid choice from an impossible one.
-  if (SELECT_OPTIONS[id] || id.endsWith('-select') || id === 'tts-voice') {
+  if (SELECT_OPTIONS[id] || id.endsWith('-select') || id === 'tts-voice'
+      || SETUP_SELECT_IDS.has(id)) {
     let chosen = extraProps.value !== undefined ? extraProps.value : el.value;
     Object.defineProperty(el, 'value', {
       get: () => chosen,
@@ -555,6 +561,13 @@ function makeElement(id, extraAttributes = {}, extraProps = {}) {
     // extraProps may have supplied the option list, so start from the
     // default selection rather than from a value no option matches.
     chosen = (el.options || []).some((o) => o.value === chosen) ? chosen : '';
+    // A real select answers with the index of the chosen option, and app.js
+    // reads it to find the option that carries the font's CSS stack.
+    Object.defineProperty(el, 'selectedIndex', {
+      get: () => (el.options || []).findIndex((o) => o.value === chosen),
+      enumerable: true,
+      configurable: true,
+    });
   }
 
   el.__listeners = listeners;
@@ -616,20 +629,28 @@ const SETUP_PANELS = [
   makeSetupPanel('tour', false),
 ];
 
-// The radios, carrying the same data-family stacks the template renders, so
-// the live preview is held to the font the code would really apply.
-const SETUP_FONT_RADIOS = FONT_OPTIONS.map((option) => {
-  const value = option.value;
-  return makeElement(`setup-font-${value}`, {
-    name: 'setup-font',
-    'data-family': option.__attributes['data-family'],
-  }, { value, checked: value === 'OpenDyslexic' });
+// The language list on the first step, as one dropdown. The value is what
+// app.js saves; the option's lang is what a screen reader reads it in.
+const SETUP_LOCALE_SELECT = makeElement('setup-locale', {}, {
+  tagName: 'SELECT',
+  options: ['en', 'hi', 'fr', 'es', 'ar', 'uk'].map((code) =>
+    makeElement(`setup-locale-${code}`, { lang: code },
+      { value: code, textContent: code })),
+  value: 'en',
 });
 
-const SETUP_LOCALE_RADIOS = ['en', 'hi', 'fr', 'es', 'ar', 'uk'].map((code) =>
-  makeElement(`setup-locale-${code}`, { name: 'setup-locale' },
-    { value: code, checked: code === 'en' })
-);
+// The font dropdown, carrying the same data-family stacks the template
+// renders, so the live preview is held to the font the code would really
+// apply.
+const SETUP_FONT_SELECT = makeElement('setup-font', {}, {
+  tagName: 'SELECT',
+  options: FONT_OPTIONS,
+  value: 'OpenDyslexic',
+});
+
+// The one preview line under the list. app.js rewrites its family when the
+// choice changes, which is the whole point of the step.
+const SETUP_FONT_SAMPLE = makeElement('setup-font-sample', {}, { tagName: 'CODE' });
 
 // Each theme's panel colour and the three token colours sitting on it, which is
 // what the server embeds in the page. The browser needs both to work out the
@@ -671,13 +692,23 @@ const SANDBOX_THEMES = {
     selection: '#484848', highlight: '#151515' },
 };
 
-// The theme choices in the wizard, one per theme the server offers. The
-// custom theme is among them, so a reader can pick it before the app has
-// ever been used.
-const SETUP_THEME_RADIOS = Object.keys(SANDBOX_THEMES).map((key) =>
+// The four faces the wizard draws, then the reader's own theme. The rest of
+// the presets live in the "More themes" list beside them.
+const SETUP_QUICK_THEMES = ['light', 'dark', 'high-contrast', 'amoled']
+  .filter((key) => key in SANDBOX_THEMES);
+
+const SETUP_THEME_RADIOS = SETUP_QUICK_THEMES.concat(['custom']).map((key) =>
   makeElement(`setup-theme-${key}`, { name: 'setup-theme' },
     { value: key, checked: key === 'high-contrast' })
 );
+
+const SETUP_THEME_MORE = makeElement('setup-theme-more', {}, {
+  tagName: 'SELECT',
+  options: Object.keys(SANDBOX_THEMES)
+    .filter((key) => key !== 'custom' && !SETUP_QUICK_THEMES.includes(key))
+    .map((key) => makeElement(`setup-theme-more-${key}`, {}, { value: key, textContent: key })),
+  value: '',
+});
 
 // The four materials, in the order the template renders them. "off" starts
 // chosen, because that is the default and the safe answer.
@@ -713,8 +744,6 @@ const SETUP_DIALOG = makeElement('setup-dialog', {}, {
   showModal() { SETUP_DIALOG.__modalOpens += 1; },
   querySelectorAll: (selector) => {
     if (selector === '.setup-panel') return SETUP_PANELS;
-    if (selector === 'input[name="setup-locale"]') return SETUP_LOCALE_RADIOS;
-    if (selector === 'input[name="setup-font"]') return SETUP_FONT_RADIOS;
     if (selector === 'input[name="setup-theme"]') return SETUP_THEME_RADIOS;
     if (selector === '.setup-swatch-cell') {
       const cells = makeSetupSwatchCells();
@@ -1013,6 +1042,20 @@ function makePage(locale, shared, bodyAttrs) {
         // One dialog with three steps and two sets of radios inside it,
         // rather than a flat element the generic path could invent.
         if (!found.has(id)) found.set(id, SETUP_DIALOG);
+        return found.get(id);
+      }
+      if (id === 'setup-locale' || id === 'setup-font' || id === 'setup-theme-more'
+          || id === 'setup-font-sample') {
+        // The wizard's own dropdowns and its preview line. They carry the
+        // lists the template renders, so a check cannot choose a language
+        // or a font the page does not offer.
+        const stub = {
+          'setup-locale': SETUP_LOCALE_SELECT,
+          'setup-font': SETUP_FONT_SELECT,
+          'setup-theme-more': SETUP_THEME_MORE,
+          'setup-font-sample': SETUP_FONT_SAMPLE,
+        }[id];
+        if (!found.has(id)) found.set(id, stub);
         return found.get(id);
       }
       if (id === 'glossary-dialog') {
@@ -3322,13 +3365,14 @@ function runSetupChecks() {
     console.log('     stepping back works, and Back hides itself on the first step');
   }
 
-  // A font is shown on the page, not just ticked in a list. The point of the
+  // A font is shown on the page, not just named in a list. The point of the
   // step is to see the font before agreeing to it.
-  const opendyslexic = SETUP_FONT_RADIOS.find((radio) => radio.value === 'OpenDyslexic');
   const fontBefore = configPosts.length;
-  opendyslexic.__listeners.change.forEach((handler) =>
-    handler({ target: opendyslexic, preventDefault: noop, stopPropagation: noop }));
-  const wantedFamily = opendyslexic.getAttribute('data-family');
+  SETUP_FONT_SELECT.value = 'OpenDyslexic';
+  SETUP_FONT_SELECT.__listeners.change.forEach((handler) =>
+    handler({ target: SETUP_FONT_SELECT, preventDefault: noop, stopPropagation: noop }));
+  const chosenFontOption = SETUP_FONT_SELECT.options[SETUP_FONT_SELECT.selectedIndex];
+  const wantedFamily = chosenFontOption.getAttribute('data-family');
   // The font reaches the page through the token the stylesheet reads, not
   // through an inline family on the body: the output and the shell name a
   // token of their own, so an inline family never reached them. Checking the
@@ -3339,6 +3383,15 @@ function runSetupChecks() {
                 `"${bodyStyle['--font-ui']}" rather than "${wantedFamily}"`);
   } else {
     console.log('     a chosen font is applied to the page straight away');
+  }
+  // The sample line under the list follows the choice, so the reader is
+  // judging real text in that face rather than a label.
+  if (SETUP_FONT_SAMPLE.style.fontFamily !== wantedFamily) {
+    failed = true;
+    console.log('FAIL the setup font sample stayed in "' +
+                SETUP_FONT_SAMPLE.style.fontFamily + '" rather than "' + wantedFamily + '"');
+  } else {
+    console.log('     the setup font sample is drawn in the chosen face');
   }
   if (!configPosts.slice(fontBefore).some((p) => p.font === 'OpenDyslexic')) {
     failed = true;
@@ -3374,10 +3427,11 @@ function runSetupChecks() {
 
   // A theme is shown on the page too: the editor behind the wizard repaints
   // so the reader sees the theme against real code, not just the swatches.
-  const ocean = SETUP_THEME_RADIOS.find((radio) => radio.value === 'ocean');
+  // Ocean lives in the longer list now, so this also covers that control.
   const themeBefore = configPosts.length;
-  ocean.__listeners.change.forEach((handler) =>
-    handler({ target: ocean, preventDefault: noop, stopPropagation: noop }));
+  SETUP_THEME_MORE.value = 'ocean';
+  SETUP_THEME_MORE.__listeners.change.forEach((handler) =>
+    handler({ target: SETUP_THEME_MORE, preventDefault: noop, stopPropagation: noop }));
   if (documentStub.body.__attributes['data-theme'] !== 'ocean') {
     failed = true;
     console.log('FAIL choosing a theme in the setup screen did not apply it: ' +
@@ -3483,10 +3537,10 @@ function runSetupChecks() {
       let redrawn = 0;
       const realReload = sandbox.window.location.reload;
       sandbox.window.location.reload = () => { redrawn += 1; };
-      const localeRadio = SETUP_LOCALE_RADIOS.find((radio) => radio.value === 'ar');
       const localeBefore = configPosts.length;
-      localeRadio.__listeners.change.forEach((handler) =>
-        handler({ target: localeRadio, preventDefault: noop, stopPropagation: noop }));
+      SETUP_LOCALE_SELECT.value = 'ar';
+      SETUP_LOCALE_SELECT.__listeners.change.forEach((handler) =>
+        handler({ target: SETUP_LOCALE_SELECT, preventDefault: noop, stopPropagation: noop }));
       const localePost = configPosts.slice(localeBefore).find((p) => p.locale === 'ar');
       if (!localePost) {
         failed = true;

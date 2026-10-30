@@ -1262,23 +1262,23 @@
                  the step changes. Without it, focus would stay on the Next
                  button and the reader would not be told what changed. -->
             <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.language_legend') }}</legend>
-            <!-- Native radios, not a div with role="radiogroup". Arrow-key
-                 movement, the checked state and the announcement all come
-                 from the browser, which is the only version of this that
-                 works reliably. -->
-            <div class="setup-choices">
-              {% for code, endonym_label, english_name, lang_direction in languages %}
-              <label class="setup-choice">
-                <input type="radio" name="setup-locale" value="{{ code }}"
-                       {% if config.locale == code %}checked{% endif %}>
-                <span class="setup-choice-text">
-                  <span class="setup-choice-name" lang="{{ code }}">{{ endonym_label }}</span>
-                  <span class="setup-choice-note">{{ english_name }}</span>
-                </span>
-              </label>
-              {% endfor %}
+            <!-- One native select, the same control the Settings screen
+                 uses. Six radio rows read as a wall of choices on the very
+                 first screen, and a list the browser opens is the thing every
+                 reader already knows how to work. The English name is kept
+                 beside the language's own name, because a reader who cannot
+                 yet read the app may not recognise their own language written
+                 in it. -->
+            <div class="field">
+              <label for="setup-locale">{{ t('language.label') }}</label>
+              <select id="setup-locale" aria-describedby="setup-language-help">
+                {% for code, endonym_label, english_name, lang_direction in languages %}
+                <option value="{{ code }}" lang="{{ code }}"
+                        {% if config.locale == code %}selected{% endif %}>{{ endonym_label }}{% if english_name != endonym_label %} ({{ english_name }}){% endif %}</option>
+                {% endfor %}
+              </select>
+              <p class="field-help" id="setup-language-help">{{ t('setup.language_help', t('nav.settings')) }}</p>
             </div>
-            <p class="field-help">{{ t('setup.language_help', t('nav.settings')) }}</p>
           </fieldset>
         </section>
 
@@ -1288,30 +1288,31 @@
           <fieldset class="settings-group">
             <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.font_legend') }}</legend>
             <p class="field-help" id="setup-font-help">{{ t('setup.font_help') }}</p>
-            <div class="setup-choices" aria-describedby="setup-font-help">
-              {% for key, font in fonts.items() %}
-              <label class="setup-choice setup-choice-font">
-                <input type="radio" name="setup-font" value="{{ key }}"
-                       data-family="{{ font.family }}"
-                       {% if config.font == key %}checked{% endif %}>
-                <span class="setup-choice-text">
-                  <span class="setup-choice-name">{{ font.name }}</span>
-                  <!-- The sample is written in the font it is demonstrating,
-                       server-side, so a reader without JavaScript still sees
-                       a true preview rather than eight identical lines. -->
-                  <code class="setup-sample"
-                        style="font-family: {{ font.family }}">{{ t('setup.font_sample') }}</code>
-                </span>
-              </label>
-              {% endfor %}
+            {% set current_font = fonts.get(config.font) or fonts.values() | first %}
+            <div class="field">
+              <label for="setup-font">{{ t('reading.font') }}</label>
+              <select id="setup-font" aria-describedby="setup-font-help">
+                {% for key, font in fonts.items() %}
+                <option value="{{ key }}"
+                        data-family="{{ font.family }}"
+                        data-bundled="{{ 'true' if font.bundled else 'false' }}"
+                        {% if config.font == key %}selected{% endif %}>{{ font.name }}</option>
+                {% endfor %}
+              </select>
+              <!-- Written in the font it is demonstrating, server-side, so a
+                   reader without JavaScript still sees a true preview rather
+                   than one line in the default face. app.js rewrites it when
+                   the choice changes. -->
+              <code class="setup-sample" id="setup-font-sample"
+                    style="font-family: {{ current_font.family }}">{{ t('setup.font_sample') }}</code>
             </div>
 
-            <!-- The reader's own font, offered last. A file from their own
-                 computer is a deliberate extra rather than a place to start,
-                 so the app's own faces stay the first thing read. The file
-                 formats the picker accepts are written out under it, because
-                 a file dialog that silently greys out every file the reader
-                 has is the worst way to learn what was wanted. -->
+            <!-- The reader's own font, offered after the list. A file from
+                 their own computer is a deliberate extra rather than a place
+                 to start, so the app's own faces stay the first thing read.
+                 The file formats the picker accepts are written out under it,
+                 because a file dialog that silently greys out every file the
+                 reader has is the worst way to learn what was wanted. -->
             <div class="field setup-font-custom">
               <label for="setup-font-upload">{{ t('reading.upload_font') }}</label>
               <div class="field-row">
@@ -1331,8 +1332,11 @@
           <fieldset class="settings-group">
             <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.theme_legend') }}</legend>
             <p class="field-help" id="setup-theme-help">{{ t('setup.theme_help') }}</p>
+            <!-- Four faces and nothing else. Fifteen equal squares was the
+                 wall this step was; the four most readers want are here, and
+                 the rest are one list away. -->
             <div class="setup-choices" aria-describedby="setup-theme-help">
-              {% for key, palette in themes.items() if key != 'custom' %}
+              {% for key, palette in themes.items() if key in quick_themes %}
               <label class="setup-choice setup-choice-theme">
                 <input type="radio" name="setup-theme" value="{{ key }}"
                        {% if config.theme == key %}checked{% endif %}>
@@ -1352,6 +1356,20 @@
                 </span>
               </label>
               {% endfor %}
+            </div>
+
+            <div class="field">
+              <label for="setup-theme-more">{{ t('setup.theme_more') }}</label>
+              <select id="setup-theme-more" aria-describedby="setup-theme-help">
+                <option value="">{{ t('setup.theme_more_choose') }}</option>
+                {% for key, palette in themes.items() if key not in quick_themes and key != 'custom' %}
+                <option value="{{ key }}"
+                        {% if config.theme == key %}selected{% endif %}>{{ t('theme.' + key) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="setup-choices">
               <!-- The reader's own colours are a theme choice, not a
                    sentence pointing at Settings. Choosing it saves the
                    theme straight away and adds the colour screen after

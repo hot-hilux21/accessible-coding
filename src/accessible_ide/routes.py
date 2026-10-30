@@ -640,6 +640,22 @@ THEMES = {
     }
 }
 
+# The four faces nearly every reader wants, in the order they are offered.
+# The rest are still there, under one "more themes" list, because fifteen
+# equal-looking squares on the first screen is a wall, not a choice. The
+# order lives here rather than in the template so the settings dropdown and
+# the setup step cannot disagree about it.
+SETUP_QUICK_THEMES = ('light', 'dark', 'high-contrast', 'amoled')
+
+
+def ordered_themes():
+    """Every preset, with the four common ones first."""
+    ordered = {key: THEMES[key] for key in SETUP_QUICK_THEMES}
+    ordered.update(
+        (key, palette) for key, palette in THEMES.items() if key not in ordered)
+    return ordered
+
+
 # The colours a reader can pick for their own theme. The rest of the
 # palette is derived from these with rules that cannot cost contrast (see
 # custom_palette), so the builder only has to check the colours the reader
@@ -1369,7 +1385,7 @@ def index():
     # table the template reads. The template indexes themes[config.theme]
     # for the glass picker's swatch, and a missing 'custom' would be a
     # KeyError on the first paint of a reader who chose it.
-    themes = dict(THEMES)
+    themes = ordered_themes()
     themes['custom'] = custom_palette(config)
     chrome = custom_chrome(themes['custom']) if theme == 'custom' else None
     glass_tint = panel_tint_for(theme, config.get('glass_tint', ''))
@@ -1397,6 +1413,10 @@ def index():
     return render_template('index.html',
                          config=config,
                          themes=themes,
+                         # The four the setup step shows as tiles, in that
+                         # order. Passed rather than repeated in the template
+                         # so the tiles and the dropdown split the same list.
+                         quick_themes=SETUP_QUICK_THEMES,
                          body_style=body_style,
                          # The colour the panels actually get. The stored
                          # tint is whatever the reader chose; this is that
@@ -2613,7 +2633,7 @@ def update_apply_api():
 
 @main_bp.route('/api/themes')
 def themes_api():
-    themes = dict(THEMES)
+    themes = ordered_themes()
     themes['custom'] = custom_palette(load_config())
     return jsonify(themes)
 

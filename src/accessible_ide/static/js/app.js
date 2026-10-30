@@ -1215,10 +1215,13 @@
       });
     }
 
-    var localeRadios = setupDialog.querySelectorAll('input[name="setup-locale"]');
-    Array.prototype.forEach.call(localeRadios, function (radio) {
-      radio.addEventListener('change', function () {
-        var chosen = radio.value;
+    // The language is one dropdown, the same control the Settings screen
+    // uses, rather than six rows on the first screen. A change reloads,
+    // because the whole page is drawn in the chosen language.
+    var setupLocaleSelect = document.getElementById('setup-locale');
+    if (setupLocaleSelect) {
+      setupLocaleSelect.addEventListener('change', function () {
+        var chosen = setupLocaleSelect.value;
         if (!chosen || chosen === META.locale) return;
         body.setAttribute('data-locale', chosen);
         // Saving the step first is what stops the reload from throwing
@@ -1232,7 +1235,7 @@
             setupError();
           });
       });
-    });
+    }
 
     // Choosing a font applies it to the whole page, wizard included, rather
     // than to a snippet in isolation: the point is to see the font against
@@ -1240,60 +1243,47 @@
     // reader who chooses a font and then skips does not lose the choice.
     // Shared with a font the reader adds, so the two cannot come to mean
     // different things.
+    var setupFontSelect = document.getElementById('setup-font');
+    var setupFontSample = document.getElementById('setup-font-sample');
+
     function chooseSetupFont(key, family) {
       applyFont(key, family);
       body.setAttribute('data-font', key);
+      // The sample line is written in the font it is demonstrating, so the
+      // choice is judged against real text rather than taken on trust. The
+      // server wrote the saved font's sample; this keeps it in step.
+      if (setupFontSample) setupFontSample.style.fontFamily = family || '';
       saveConfig({ font: key }).then(function (result) {
         if (!result || !result.ok) setupError();
       });
     }
 
-    // A font the reader adds joins the list as one more choice, and is
-    // ticked, so the group still holds exactly one answer rather than
-    // showing none while a font is plainly in use.
-    function addSetupFontRadio(key, font) {
-      var choices = setupDialog.querySelector('#setup-panel-font .setup-choices');
-      if (!choices) return null;
+    // A font the reader adds joins the dropdown as one more choice, and is
+    // selected, so the control always names the font that is in use.
+    function addSetupFontOption(key, font) {
+      if (!setupFontSelect) return null;
       var family = (font && font.family) || '';
-      var label = document.createElement('label');
-      label.className = 'setup-choice setup-choice-font';
-      label.innerHTML =
-        '<input type="radio" name="setup-font">' +
-        '<span class="setup-choice-text">' +
-        '<span class="setup-choice-name"></span>' +
-        '<code class="setup-sample"></code>' +
-        '</span>';
-      var radio = label.querySelector('input');
-      var name = label.querySelector('.setup-choice-name');
-      var sample = label.querySelector('.setup-sample');
-      if (radio) {
-        radio.value = key;
-        radio.setAttribute('data-family', family);
-      }
-      if (name) name.textContent = (font && font.name) || key;
-      if (sample) {
-        // Written in the font it is demonstrating, like the ones the server
-        // rendered, so it can be judged the same way rather than taken on
-        // trust.
-        sample.textContent = t('setup.font_sample');
-        sample.style.fontFamily = family;
-      }
-      choices.appendChild(label);
-      if (radio) radio.checked = true;
-      return radio;
+      var option = document.createElement('option');
+      option.value = key;
+      option.textContent = (font && font.name) || key;
+      option.setAttribute('data-family', family);
+      setupFontSelect.appendChild(option);
+      setupFontSelect.value = key;
+      return option;
     }
 
-    var fontRadios = setupDialog.querySelectorAll('input[name="setup-font"]');
-    Array.prototype.forEach.call(fontRadios, function (radio) {
-      radio.addEventListener('change', function () {
-        chooseSetupFont(radio.value, radio.getAttribute('data-family'));
+    if (setupFontSelect) {
+      setupFontSelect.addEventListener('change', function () {
+        var chosen = setupFontSelect.options[setupFontSelect.selectedIndex];
+        chooseSetupFont(setupFontSelect.value,
+          chosen && chosen.getAttribute('data-family'));
       });
-    });
+    }
 
     if (setupFontUpload) {
       setupFontUpload.addEventListener('change', function () {
         uploadFontFile(setupFontUpload, setupFontUploadStatus, function (data) {
-          addSetupFontRadio(data.key, data.font);
+          addSetupFontOption(data.key, data.font);
           chooseSetupFont(data.key, data.font && data.font.family);
           showStatus(
             setupFontUploadStatus, t('font.upload_success', data.key), false);
@@ -1301,25 +1291,51 @@
       });
     }
 
+    // One place decides what choosing a theme does, whether it came from one
+    // of the four tiles, the longer list, or a colour square on a tile.
+    // opts.focus === false is used by the list, where the reader is working a
+    // dropdown and moving focus away mid-choice would be a small theft.
+    function chooseSetupTheme(chosen, opts) {
+      if (!chosen) return;
+      // The editor behind the wizard repaints so the reader sees the theme
+      // against real code, not just the swatches.
+      applyTheme(chosen);
+      body.setAttribute('data-theme', chosen);
+      // Choosing Custom adds the colour step; choosing a preset takes it
+      // away. The progress line has to be recounted either way.
+      showSetupStep(setupCurrentStep(), opts);
+      // Saved straight away, so a reader who chooses a theme and then
+      // skips does not lose the choice.
+      saveConfig({ theme: chosen }).then(function (result) {
+        if (!result || !result.ok) setupError();
+      });
+    }
+
     var themeRadios = setupDialog.querySelectorAll('input[name="setup-theme"]');
     Array.prototype.forEach.call(themeRadios, function (radio) {
       radio.addEventListener('change', function () {
-        var chosen = radio.value;
-        if (!chosen) return;
-        // The editor behind the wizard repaints so the reader sees the
-        // theme against real code, not just the swatches.
-        applyTheme(chosen);
-        body.setAttribute('data-theme', chosen);
-        // Choosing Custom adds the colour step; choosing a preset takes it
-        // away. The progress line has to be recounted either way.
-        showSetupStep(setupCurrentStep());
-        // Saved straight away, so a reader who chooses a theme and then
-        // skips does not lose the choice.
-        saveConfig({ theme: chosen }).then(function (result) {
-          if (!result || !result.ok) setupError();
-        });
+        // A tile wins over a choice from the longer list, so the list goes
+        // back to its placeholder rather than naming a theme that is no
+        // longer on.
+        var longer = document.getElementById('setup-theme-more');
+        if (longer) longer.value = '';
+        chooseSetupTheme(radio.value);
       });
     });
+
+    // The rest of the presets, one list away. Picking one clears the tiles,
+    // so exactly one control names the theme in use rather than a tile
+    // staying lit for a theme that is no longer on.
+    var setupThemeMore = document.getElementById('setup-theme-more');
+    if (setupThemeMore) {
+      setupThemeMore.addEventListener('change', function () {
+        if (!setupThemeMore.value) return;
+        Array.prototype.forEach.call(themeRadios, function (radio) {
+          radio.checked = false;
+        });
+        chooseSetupTheme(setupThemeMore.value, { focus: false });
+      });
+    }
 
     // ---------- The custom colours step ----------
     // The same nine roles and the same live preview as the builder in

@@ -50,6 +50,7 @@ Jump to any section:
 - **Text-to-speech** — reads your code and errors aloud, with hover and click reading
 - **Sounds** — a short tone when your code starts, finishes, fails or waits for an answer, and a soft click on buttons, each with a switch in Settings
 - **About** — the version, the licence and a credits list you can edit in `src/accessible_ide/templates/index.html`
+- **First run** — a short wizard asks for language, font and theme with the same dropdowns as Settings, shows a line of text in the font you are choosing, and keeps Next, Back and Skip in a footer you can always see. A **Reset all settings** button sits in the corner of every screen for the case where the font or colour you picked cannot be read.
 - **Screen readers** — native landmarks, live regions, focus management and spoken step changes; no ARIA invented where the browser already does the job
 - **Errors** — plain-English messages, no jargon
 - **Storage** — offline-first, settings saved to your computer

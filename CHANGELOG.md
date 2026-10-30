@@ -51,6 +51,26 @@ nothing until v2 is tagged without a suffix.
 - One offline icon set replaces the toolbar emoji, and toolbar labels can be
   hidden.
 
+### Getting started
+
+- The first-run wizard asks for language and font with the same dropdowns the
+  Settings screen uses, and shows a live line of text in the font being chosen,
+  instead of six radio rows of names set in one typeface.
+- The theme step leads with four tiles (Light, Dark, High Contrast, Black
+  AMOLED), puts the other presets in one **More themes** list, and keeps the
+  reader's own colours after both. The Settings theme list reads from the same
+  server-side ordering, so the two screens cannot disagree.
+- Next, Back and Skip sit in a footer pinned to the foot of the dialog, so the
+  way forward is visible from the first question rather than below it.
+- Small click sounds on Run, on a pause, and on a failed run, off with one
+  switch and silent under reduced motion.
+- **Settings → About** names the version and carries the credits list.
+- **Reset all settings** sits in the bottom corner of every screen. A font or a
+  colour that cannot be read is the one thing a reader cannot undo from inside
+  the app, so the reset asks once, then puts every setting back.
+- The Run tooltip and the tour quote the key the reader actually bound, rather
+  than always saying Ctrl+Enter.
+
 ### Packaging and operations
 
 - `/health` is polled by `deploy.yml`, so a green deploy now means a serving

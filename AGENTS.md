@@ -45,6 +45,7 @@ The code exists and is tested. Read the surrounding code before changing it; do 
 
 - Prefer plain-language, accessible UI copy everywhere — error messages must be jargon-free English.
 - Persist user preferences (fonts, themes, blur config) to the config store; never hardcode them.
+- The theme order lives in `routes.py` (`SETUP_QUICK_THEMES`, `ordered_themes()`) and reaches both the setup step and the Settings dropdown through `/api/themes`. Do not sort or re-list themes in the template or in JavaScript; `app.json.sort_keys` is off so that order survives the JSON response.
 - Dyslexia-friendly fonts are bundled, not downloaded at runtime (OpenDyslexic, Atkinson Hyperlegible, plus Comic Sans/Courier New options and user-uploaded `.ttf`/`.woff`).
 - Validation is user-feedback-driven: iterate feature → test with dyslexic users → refine → deploy.
 - Deployment: push to GitHub and update the hosted site on each feature completion.
