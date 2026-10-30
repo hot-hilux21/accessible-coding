@@ -112,7 +112,7 @@
     </div>
 
     <div class="toolbar" role="toolbar" aria-label="{{ t('nav.tools') }}">
-      <button id="btn-run" class="btn btn-primary" title="{{ t('nav.run_title') }}"
+      <button id="btn-run" class="btn btn-primary" title="{{ t('nav.run_title', config.get('run_key', 'Ctrl+Enter')) }}"
               aria-label="{{ t('nav.run') }}">
         <span class="btn-icon" aria-hidden="true">{{ icon('play') }}</span><span class="btn-label">{{ t('nav.run') }}</span>
       </button>
@@ -1435,7 +1435,7 @@
               <p class="setup-tour-name">{{ t('setup.tour_run_title') }}</p>
               <!-- The button name is interpolated rather than written out,
                    so this line cannot drift from the button it points at. -->
-              <p class="setup-tour-text">{{ t('setup.tour_run_text', t('nav.run')) }}</p>
+              <p class="setup-tour-text">{{ t('setup.tour_run_text', t('nav.run'), config.get('run_key', 'Ctrl+Enter')) }}</p>
             </li>
             <li>
               <p class="setup-tour-name">{{ t('setup.tour_speak_title') }}</p>

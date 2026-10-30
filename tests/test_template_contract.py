@@ -983,6 +983,16 @@ class SetupWizardTests(RenderedPageFixture):
         self.assertIn("btn-setup-again", self.js)
         self.assertIn("setup_complete: false", self.js)
 
+    def test_the_run_hint_quotes_the_key_the_reader_actually_set(self):
+        # The tooltip and the tour used to name Ctrl+Enter in every
+        # language, so a reader who rebound Run was told the wrong key,
+        # and a reader in a language whose word for Enter is not "Enter"
+        # saw a key that appeared nowhere else. The hint reads the stored
+        # combination now.
+        html = render_with({"run_key": "Shift+Enter"})
+        self.assertIn('title="Run code (Shift+Enter)"', html)
+        self.assertIn("or Shift+Enter,", html)
+
     def test_the_tour_points_at_buttons_by_their_translated_names(self):
         # The names are interpolated rather than typed in, so a line
         # cannot quietly point at a button that has been renamed.
