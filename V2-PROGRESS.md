@@ -42,6 +42,13 @@ This file is the working checklist between v1 and v2. It records what is shipped
 - `README.md` brought back in line with the shipped app: 15 presets rather than 6, the per-colour reset, the reading ruler, the per-pane toolbars, and a short standards note for the WCAG 2.2 items. `AGENTS.md` now names those items in the accessibility bar so the next change cannot quietly drop them.
 - Committed as `ca6c6fb`, *Apply RTL at the document, add a reading ruler, close WCAG 2.2 gaps*.
 
+### Deployment pass
+
+- **The live site was down from 29 October until 30 October.** The server rebooted, PM2 had never been told to save its process list, so nothing came back. Deploy run #8 then failed against the name `accessible-coding-py`, which does not exist, and the workflow still had no way to tell that the site was dead.
+- `run.sh` loads `.env` and runs gunicorn, so `SECRET_KEY`, `PORT` and `ALLOWED_HOSTS` actually reach the app and the production server replaces the Flask development server. PM2 starts the process from it.
+- `deploy.yml` restarts the process that exists, starts it if it is missing, runs `pm2 save` so a reboot resurrects it, and fails the run when `/health` does not answer. A green deploy now means a serving site.
+- Committed as `c7196de`, *Keep the live site up across reboots*.
+
 ### Accessibility pass 2
 
 - **Arabic right to left was not applied at all.** `direction` was computed in `routes.py` and handed to the template, and nothing put it on the document, so Arabic claimed to be right to left and rendered left to right. The template now renders `<html lang="ar" dir="rtl">`, and `.CodeMirror` pins `direction: ltr` so the editor, gutter, caret and scrollbar do not mirror Python that is still written left to right.
@@ -106,7 +113,7 @@ This file is the working checklist between v1 and v2. It records what is shipped
 
 ### P2: operations
 
-- [ ] Add a health endpoint and a deploy check that fails loudly when the Oracle service does not come back up.
+- [x] Add a health endpoint and a deploy check that fails loudly when the Oracle service does not come back up. Shipped: `/health` existed but nothing checked it. `deploy.yml` now polls it and fails the run, and `pm2 save` keeps the process across a reboot.
 - [x] Fix the missing `/favicon.ico` (was a 404 on every load). Shipped: the app serves a real icon.
 - [ ] Keep the Windows auto-update path tested against a real signed release, not only in unit tests.
 - [ ] Add a short changelog so readers can see what changed without reading commit history.
