@@ -112,7 +112,7 @@ print('GET /health ->', r15.status_code, r15.get_json())
 
 # --- Access code gate (simulate web deployment) ---
 routes.ACCESS_CODE = 'test-code-123'
-os.environ['RENDER'] = '1'  # simulate web deployment
+os.environ['WEB'] = '1'  # simulate web deployment
 
 # Without code -> 403
 r16 = run('print("hi")')
@@ -146,7 +146,7 @@ print('POST /api/run (blocked, no code) ->', r21.get_json())
 assert 'not allowed' in r21.get_json()['error'], 'sandbox not active without access code'
 
 routes.ACCESS_CODE = 'test-code-123'
-del os.environ['RENDER']
+del os.environ['WEB']
 
 # --- Language switching, end to end ---
 # The reader picks a language; the whole page and every sentence the server

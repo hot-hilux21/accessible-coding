@@ -27,15 +27,15 @@ Thumbs.db
 # Config (user-specific)
 .accessible-ide/
 
+# Local environment (secrets). Copy .env.example to .env.
+.env
+.env.*
+!.env.example
+
 # Test artifacts
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Vercel (keep project.json, ignore local env + build output)
-.vercel/.env*
-.vercel/output/
-.vercel/README.txt
 
 # Security scan output
 bandit_report.json

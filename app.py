@@ -5,7 +5,7 @@ AccessibleIDE - Main entry point.
 Desktop app: runs a local Flask server in a background thread and shows
 the IDE in a native window (PyWebView / WebView2) - no browser needed.
 
-Web deployment (Render) uses `wsgi:app` via gunicorn and never reaches
+Web deployment (Oracle Cloud) uses `wsgi:app` via gunicorn and never reaches
 the `__main__` block below.
 """
 import os

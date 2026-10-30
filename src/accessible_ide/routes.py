@@ -44,10 +44,6 @@ def on_public_web():
     if os.environ.get('WEB') == '1' or os.environ.get('SANDBOX') == '1':
         return True
 
-    # Every platform-as-a-service sets a variable of its own name.
-    if os.environ.get('RENDER') or os.environ.get('RAILWAY'):
-        return True
-
     # gunicorn, uWSGI, waitress and uvicorn are web servers. Werkzeug, which
     # the desktop app runs on, is not - and that difference is the whole
     # reason this fallback is safe.

@@ -197,8 +197,7 @@ class ShutdownCsrfTests(unittest.TestCase):
 
     def post(self, headers=None, env=None):
         clean = {k: v for k, v in os.environ.items()
-                 if k not in ("WEB", "SANDBOX", "RENDER", "RAILWAY",
-                              "SERVER_SOFTWARE")}
+                 if k not in ("WEB", "SANDBOX", "SERVER_SOFTWARE")}
         clean.update(env or {})
         with mock.patch.dict(os.environ, clean, clear=True):
             app = create_app()

@@ -2,8 +2,8 @@
 # Production entry point for the Oracle Cloud deployment, run under PM2.
 #
 # The app reads its settings from the environment (SECRET_KEY, PORT), and
-# PM2 does not read .env files, so load it here. ALLOWED_HOSTS is also in
-# .env but nothing in the app reads it yet, so it is not a control.
+# PM2 does not read .env files, so load it here. See .env.example for the
+# variables that matter.
 # Run with: pm2 start run.sh --name accessible-coding
 set -a
 . "$(dirname "$0")/.env"

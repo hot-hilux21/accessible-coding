@@ -28,8 +28,7 @@ class WebDetectionTests(unittest.TestCase):
 
     def call(self, **env):
         clean = {k: v for k, v in os.environ.items()
-                 if k not in ('WEB', 'SANDBOX', 'RENDER', 'RAILWAY',
-                              'SERVER_SOFTWARE')}
+                 if k not in ('WEB', 'SANDBOX', 'SERVER_SOFTWARE')}
         clean.update(env)
         with mock.patch.dict(os.environ, clean, clear=True):
             return routes.on_public_web()
@@ -53,12 +52,6 @@ class WebDetectionTests(unittest.TestCase):
         # "definitely not the web" by accident in either direction.
         self.assertFalse(self.call(WEB='0'))
 
-    def test_render_is_the_web(self):
-        self.assertTrue(self.call(RENDER='true'))
-
-    def test_railway_is_the_web(self):
-        self.assertTrue(self.call(RAILWAY='1'))
-
     def test_every_real_web_server_is_the_web(self):
         for server in WEB_SERVERS:
             with self.subTest(server=server):
@@ -77,8 +70,7 @@ class HostHeaderTests(unittest.TestCase):
 
     def get(self, host, **env):
         clean = {k: v for k, v in os.environ.items()
-                 if k not in ('WEB', 'SANDBOX', 'RENDER', 'RAILWAY',
-                              'SERVER_SOFTWARE')}
+                 if k not in ('WEB', 'SANDBOX', 'SERVER_SOFTWARE')}
         clean.update(env)
         with mock.patch.dict(os.environ, clean, clear=True):
             app = create_app()
@@ -91,19 +83,16 @@ class HostHeaderTests(unittest.TestCase):
         # This is the DNS-rebinding guard. It must keep working.
         self.assertEqual(self.get('evil.example').status_code, 403)
 
-    def test_railway_is_answered_normally(self):
-        self.assertEqual(
-            self.get('accessible-ide.up.railway.app', RAILWAY='1').status_code,
-            200)
-
-    def test_render_is_answered_normally(self):
-        self.assertEqual(
-            self.get('accessible-coding.onrender.com', RENDER='1').status_code,
-            200)
-
     def test_a_web_server_answers_normally(self):
         self.assertEqual(
             self.get('anything.example',
+                     SERVER_SOFTWARE='gunicorn/21.2.0').status_code,
+            200)
+
+    def test_the_hosted_site_is_answered_normally(self):
+        # The live host, behind the Oracle gunicorn server.
+        self.assertEqual(
+            self.get('accessible-coding.duckdns.org',
                      SERVER_SOFTWARE='gunicorn/21.2.0').status_code,
             200)
 
@@ -113,8 +102,7 @@ class ShutdownTests(unittest.TestCase):
 
     def post(self, **env):
         clean = {k: v for k, v in os.environ.items()
-                 if k not in ('WEB', 'SANDBOX', 'RENDER', 'RAILWAY',
-                              'SERVER_SOFTWARE')}
+                 if k not in ('WEB', 'SANDBOX', 'SERVER_SOFTWARE')}
         clean.update(env)
         with mock.patch.dict(os.environ, clean, clear=True):
             app = create_app()
@@ -140,11 +128,7 @@ class ShutdownTests(unittest.TestCase):
         self.assertEqual(reply.status_code, 403)
         exit_.assert_not_called()
 
-    def test_railway_may_not_quit(self):
-        with mock.patch.object(routes.os, '_exit') as exit_:
-            reply = self.post(RAILWAY='1')
-        self.assertEqual(reply.status_code, 403)
-        exit_.assert_not_called()
+
 
 
 if __name__ == '__main__':

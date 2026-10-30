@@ -1,4 +1,4 @@
-"""Vercel entry point for AccessibleIDE."""
+"""WSGI entry point for AccessibleIDE, served by gunicorn."""
 import os
 import sys
 
