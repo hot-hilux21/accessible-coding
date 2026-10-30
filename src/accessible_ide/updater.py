@@ -1,4 +1,4 @@
-"""Checking for a newer build of AccessibleIDE, and installing it.
+"""Checking for a newer build of AccessibleCoding, and installing it.
 
 Why this is hand-written rather than a library
 ---------------------------------------------
@@ -64,14 +64,22 @@ REPO = 'accessible-coding'
 # The file the app downloads when an update is offered is the Setup
 # installer, not the portable exe that sits beside it in the release.
 #
-# An installed AccessibleIDE is a folder, not a file: the program lives next
+# An installed AccessibleCoding is a folder, not a file: the program lives next
 # to an _internal folder holding the interpreter and every library it uses.
 # Replacing the program on its own leaves an older _internal folder beside a
 # newer exe, which is a mismatch at best. Replacing both means replacing
 # files that are open, in a folder a normal user cannot write to, while the
 # reader may still have unsaved work. The installer already does all of that
 # correctly, and is already published, so the app hands the job to it.
-ASSET_NAME = 'AccessibleIDE-Setup.exe'
+ASSET_NAME = 'AccessibleCoding-Setup.exe'
+# The installer's earlier name. A reader who installed while the app was
+# called AccessibleIDE still runs the updater from that build, and that
+# copy insists its download be named AccessibleIDE-Setup.exe, so the
+# release publishes the installer under both names and this build accepts
+# either. The older copy also reads the manifest's url, so that url still
+# points at the older name. Remove both once the last build named the old
+# way has aged out.
+LEGACY_ASSET_NAMES = ('AccessibleIDE-Setup.exe',)
 MANIFEST_NAME = 'version.json'
 
 RELEASES_BASE = f'https://github.com/{OWNER}/{REPO}/releases'
@@ -278,7 +286,7 @@ def _open_url(url: str, timeout: int, accept: str):
     request = urllib.request.Request(url, headers={
         # Without this GitHub serves the API's JSON error bodies, which are
         # small and would be mistaken for a manifest.
-        'User-Agent': f'AccessibleIDE/{current_version()}',
+        'User-Agent': f'AccessibleCoding/{current_version()}',
         'Accept': accept,
     })
     try:
@@ -347,7 +355,7 @@ def fetch_manifest(timeout: int = DEFAULT_TIMEOUT, channel: str = DEFAULT_CHANNE
 def cache_path() -> Path:
     """Where the last check is remembered between launches."""
     base = os.environ.get('LOCALAPPDATA') or str(Path.home())
-    return Path(base) / 'AccessibleIDE' / 'update-check.json'
+    return Path(base) / 'AccessibleCoding' / 'update-check.json'
 
 
 def should_check(force: bool = False, now: float | None = None) -> bool:
@@ -423,7 +431,7 @@ def check(force: bool = False, channel: str = DEFAULT_CHANNEL) -> dict:
 def update_dir() -> Path:
     """Where a downloaded build waits until the app closes."""
     base = os.environ.get('LOCALAPPDATA') or str(Path.home())
-    return Path(base) / 'AccessibleIDE' / 'updates'
+    return Path(base) / 'AccessibleCoding' / 'updates'
 
 
 def sha256_of(path: Path) -> str:
@@ -662,7 +670,9 @@ def pending_build() -> tuple[Path, str] | None:
         version = str(state['version'])
     except (OSError, ValueError, KeyError, TypeError):
         return None
-    if staged.name != ASSET_NAME or not staged.is_file():
+    if staged.name != ASSET_NAME and staged.name not in LEGACY_ASSET_NAMES:
+        return None
+    if not staged.is_file():
         return None
     if not is_newer(version, current_version()):
         return None

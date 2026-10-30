@@ -1,5 +1,5 @@
 """
-AccessibleIDE - A fully accessible IDE for dyslexic and neurodivergent learners.
+AccessibleCoding - A fully accessible IDE for dyslexic and neurodivergent learners.
 """
 import os
 import secrets
@@ -7,7 +7,7 @@ import secrets
 from flask import Flask, jsonify, request
 
 __version__ = "1.0.0"
-__author__ = "AccessibleIDE Contributors"
+__author__ = "AccessibleCoding Contributors"
 
 
 def create_app():

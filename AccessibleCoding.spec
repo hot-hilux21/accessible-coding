@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for AccessibleIDE Windows exe."""
+"""PyInstaller spec for AccessibleCoding Windows exe."""
 
 import os
 
@@ -50,7 +50,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='AccessibleIDE',
+    name='AccessibleCoding',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

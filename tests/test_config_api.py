@@ -968,7 +968,7 @@ class ConfigBackupTests(ConfigApiTestCase):
     def test_export_names_the_app_and_carries_the_settings(self):
         self.post_settings(font="Nunito", font_size=20)
         body = json.loads(self.export().get_data(as_text=True))
-        self.assertEqual(body["app"], "AccessibleIDE")
+        self.assertEqual(body["app"], "AccessibleCoding")
         self.assertIn("version", body)
         self.assertEqual(body["config"]["font"], "Nunito")
         self.assertEqual(body["config"]["font_size"], 20)

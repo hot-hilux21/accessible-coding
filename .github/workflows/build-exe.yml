@@ -8,8 +8,8 @@ name: Build Exe (beta build)
 # several tags old. Nothing here touches "latest", which is the one name
 # that means two different things to GitHub and to the app.
 # Download:
-#   exe:      https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE.exe
-#   installer: https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleIDE-Setup.exe
+#   exe:      https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleCoding.exe
+#   installer: https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleCoding-Setup.exe
 # The manifest beside them, version.json, describes the installer: that is
 # what the app downloads when it offers an update to someone who installed it.
 
@@ -93,7 +93,7 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "Stamping version $version"
       - name: Build onefile exe
-        run: pyinstaller AccessibleIDE.spec --noconfirm
+        run: pyinstaller AccessibleCoding.spec --noconfirm
       # No manifest is written here. The manifest is what the updater reads to
       # decide what to download, and what it downloads is the Setup
       # installer, not this portable exe. So the manifest is written by the
@@ -102,8 +102,8 @@ jobs:
       - name: Upload exe artifact
         uses: actions/upload-artifact@v7
         with:
-          name: AccessibleIDE-windows
-          path: dist/AccessibleIDE.exe
+          name: AccessibleCoding-windows
+          path: dist/AccessibleCoding.exe
 
   build-installer:
     name: Build Setup installer
@@ -138,7 +138,7 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "Stamping version $version"
       - name: Build onedir app
-        run: pyinstaller AccessibleIDE-onedir.spec --noconfirm
+        run: pyinstaller AccessibleCoding-onedir.spec --noconfirm
       - name: Download installer prerequisites
         shell: pwsh
         run: |
@@ -176,18 +176,26 @@ jobs:
           # The manifest names the file, its size and its checksum, and the
           # app refuses anything that does not match, so this step decides
           # what an update is.
+          #
+          # The address names the installer's older file name on purpose.
+          # A reader who installed while the app was still called
+          # AccessibleIDE runs the updater from that build, and that copy
+          # refuses any download not named AccessibleIDE-Setup.exe, so the
+          # release publishes the installer under both names and this address
+          # is the one both builds accept. Switch it back to the new name
+          # once the last build named the old way has aged out.
           python tools/stamp_version.py manifest `
             --version "${{ steps.stamp.outputs.version }}" `
-            --file installer/AccessibleIDE-Setup.exe `
+            --file installer/AccessibleCoding-Setup.exe `
             --out installer/version.json `
             --url "https://github.com/${{ github.repository }}/releases/download/beta/AccessibleIDE-Setup.exe" `
             --notes "Automatic build of the main branch."
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:
-          name: AccessibleIDE-Setup
+          name: AccessibleCoding-Setup
           path: |
-            installer/AccessibleIDE-Setup.exe
+            installer/AccessibleCoding-Setup.exe
             installer/version.json
 
   publish-beta:
@@ -202,12 +210,12 @@ jobs:
       - name: Download exe
         uses: actions/download-artifact@v8
         with:
-          name: AccessibleIDE-windows
+          name: AccessibleCoding-windows
           path: release/
       - name: Download installer
         uses: actions/download-artifact@v8
         with:
-          name: AccessibleIDE-Setup
+          name: AccessibleCoding-Setup
           path: release/
       # Published to "beta", the channel a reader is on by default, so the
       # newest main-branch build is the one sitting in the release people
@@ -230,6 +238,12 @@ jobs:
             --version "$version" \
             --url "https://github.com/${{ github.repository }}/releases/download/beta/AccessibleIDE-Setup.exe" \
             --repo "${{ github.repository }}"
+      # The installer is published under both names. See the manifest step:
+      # a build running the updater from before the rename only accepts the
+      # older file name, and it is this copy that lets it update itself
+      # instead of being stranded.
+      - name: Publish the installer under its older name too
+        run: cp release/AccessibleCoding-Setup.exe release/AccessibleIDE-Setup.exe
       - name: Update beta release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -244,6 +258,7 @@ jobs:
             --notes "The newest build. Every push to main and every tagged release lands here, so this is always the current work." \
             --prerelease \
             --repo "${{ github.repository }}" 2>/dev/null || true
-          gh release upload beta release/AccessibleIDE.exe release/AccessibleIDE-Setup.exe \
+          gh release upload beta release/AccessibleCoding.exe \
+            release/AccessibleCoding-Setup.exe release/AccessibleIDE-Setup.exe \
             release/version.json \
             --clobber --repo "${{ github.repository }}"

@@ -22,7 +22,7 @@ from accessible_ide import updater  # noqa: E402
 
 PINNED = f"{updater.OWNER}/{updater.REPO}"
 GOOD_URL = (
-    f"https://github.com/{PINNED}/releases/download/v0.4.0-beta/AccessibleIDE.exe"
+    f"https://github.com/{PINNED}/releases/download/v0.4.0-beta/AccessibleCoding.exe"
 )
 
 
@@ -49,7 +49,7 @@ class AddressTests(unittest.TestCase):
     def test_an_address_from_another_owner_is_refused(self):
         url = (
             "https://github.com/someone-else/accessible-coding"
-            "/releases/download/v0.4.0-beta/AccessibleIDE.exe"
+            "/releases/download/v0.4.0-beta/AccessibleCoding.exe"
         )
         with self.assertRaises(check_publish.CheckError):
             check_publish.verify_publish(PINNED, url, "0.4.0-beta", None)
@@ -57,7 +57,7 @@ class AddressTests(unittest.TestCase):
     def test_an_address_that_is_not_a_release_asset_is_refused(self):
         with self.assertRaises(check_publish.CheckError):
             check_publish.verify_publish(
-                PINNED, "https://example.com/AccessibleIDE.exe", "0.4.0-beta", None
+                PINNED, "https://example.com/AccessibleCoding.exe", "0.4.0-beta", None
             )
 
     def test_plain_http_is_refused(self):

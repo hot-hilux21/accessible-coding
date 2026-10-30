@@ -1,5 +1,5 @@
 /* ============================================================
-   AccessibleIDE - Frontend logic
+   AccessibleCoding - Frontend logic
    CodeMirror editor, code runner, config persistence, TTS
    ============================================================ */
 
@@ -222,7 +222,7 @@
     indentWithTabs: false,
     lineWrapping: true,
     autofocus: true,
-    value: '# Welcome to AccessibleIDE!\n# Write Python code and press Run (or Ctrl+Enter).\n\nprint("Hello, world!")\n\nfor i in range(3):\n    print("Counting:", i)\n'
+    value: '# Welcome to AccessibleCoding!\n# Write Python code and press Run (or Ctrl+Enter).\n\nprint("Hello, world!")\n\nfor i in range(3):\n    print("Counting:", i)\n'
   });
 
   // ---------- Unsaved-changes tracking ----------

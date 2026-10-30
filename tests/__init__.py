@@ -1,4 +1,4 @@
-"""Tests for AccessibleIDE.
+"""Tests for AccessibleCoding.
 
 Uses only the standard library's unittest, so the project needs no
 test dependencies installed. Run from the repo root with:

@@ -8,7 +8,7 @@ these tests pin the difference between "something" and "us", because that
 difference is the whole fix.
 
 Everything here stays on this machine and on ephemeral ports, so the
-suite cannot collide with a real running AccessibleIDE or with itself.
+suite cannot collide with a real running AccessibleCoding or with itself.
 """
 
 import http.server
@@ -71,7 +71,7 @@ def _ephemeral_port():
 
     Bind to 0, read the number, close: nothing else has used it yet in
     practice, and the alternative - hardcoding 5000 - would collide with
-    a real AccessibleIDE running beside the tests.
+    a real AccessibleCoding running beside the tests.
     """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(('127.0.0.1', 0))
@@ -102,7 +102,7 @@ class IsOurServerTests(unittest.TestCase):
 
     def test_something_else_answering_is_not_us(self):
         # The regression this file exists for. A real server, healthy,
-        # on the port - but not AccessibleIDE, so pointing the window at
+        # on the port - but not AccessibleCoding, so pointing the window at
         # it would show a stranger's page or a 404 instead of the IDE.
         server = _serve(404)
         self.addCleanup(server.server_close)

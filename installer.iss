@@ -1,14 +1,14 @@
 ; ============================================================
-; AccessibleIDE - Windows Setup (Inno Setup)
+; AccessibleCoding - Windows Setup (Inno Setup)
 ; Installs the app to a directory of the user's choice,
 ; installs Python and adds it to PATH, installs the
 ; Microsoft Visual C++ runtime, and creates shortcuts.
 ; ============================================================
 
-#define MyAppName "AccessibleIDE"
+#define MyAppName "AccessibleCoding"
 #define MyAppVersion "1.0.0"
-#define MyAppExeName "AccessibleIDE.exe"
-#define MyAppPublisher "AccessibleIDE"
+#define MyAppExeName "AccessibleCoding.exe"
+#define MyAppPublisher "AccessibleCoding"
 #define MyAppURL "https://accessible-coding.duckdns.org"
 
 [Setup]
@@ -18,11 +18,11 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
-DefaultDirName={commonpf}\HotHilux_21\AccessibleIDE
-DefaultGroupName=AccessibleIDE
+DefaultDirName={commonpf}\HotHilux_21\AccessibleCoding
+DefaultGroupName=AccessibleCoding
 DisableProgramGroupPage=yes
 OutputDir=installer
-OutputBaseFilename=AccessibleIDE-Setup
+OutputBaseFilename=AccessibleCoding-Setup
 Compression=lzma2
 SolidCompression=yes
 ; The app keeps itself up to date by running this installer, and by then the
@@ -64,20 +64,20 @@ SetupIconFile=src\accessible_ide\assets\icon.ico
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-WelcomeLabel1=Welcome to AccessibleIDE Setup
-WelcomeLabel2=This will install AccessibleIDE on your computer.%n%nAccessibleIDE is a code editor made for dyslexic and neurodivergent learners. It uses dyslexia-friendly fonts, a focus mode that quiets the rest of the screen, and plain-English error messages.%n%nClick Next to continue, or Cancel to exit.
+WelcomeLabel1=Welcome to AccessibleCoding Setup
+WelcomeLabel2=This will install AccessibleCoding on your computer.%n%nAccessibleCoding is a code editor made for dyslexic and neurodivergent learners. It uses dyslexia-friendly fonts, a focus mode that quiets the rest of the screen, and plain-English error messages.%n%nClick Next to continue, or Cancel to exit.
 ; One label sits above the license text. Inno calls it LicenseLabel3 when a
 ; license file is in use. LicenseLabel1 and LicenseLabel2 are not names this
 ; version knows: using them compiles with a warning and the label shows Inno's
 ; own wording instead.
-LicenseLabel3=Please read the license below, then choose whether to accept it. AccessibleIDE is free and open source. The MIT license lets you use, change, and share it, as long as the license and the copyright notice stay with any copy you pass on.
+LicenseLabel3=Please read the license below, then choose whether to accept it. AccessibleCoding is free and open source. The MIT license lets you use, change, and share it, as long as the license and the copyright notice stay with any copy you pass on.
 LicenseAccepted=I &accept the license
 LicenseNotAccepted=I &do not accept the license
-FinishedLabel=Setup has finished installing AccessibleIDE on your computer.%n%nClick Finish to open AccessibleIDE.
-SelectDirLabel3=Setup will install AccessibleIDE into the following folder.%n%nTo use a different folder, type a new one or click Browse.
-ReadyLabel1=Setup is now ready to begin installing AccessibleIDE on your computer.
+FinishedLabel=Setup has finished installing AccessibleCoding on your computer.%n%nClick Finish to open AccessibleCoding.
+SelectDirLabel3=Setup will install AccessibleCoding into the following folder.%n%nTo use a different folder, type a new one or click Browse.
+ReadyLabel1=Setup is now ready to begin installing AccessibleCoding on your computer.
 ReadyLabel2a=Click Install to continue with the current settings, or click Back if you need to review or change anything.
-BeveledLabel=AccessibleIDE - a code editor built for dyslexic readers
+BeveledLabel=AccessibleCoding - a code editor built for dyslexic readers
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
@@ -86,7 +86,7 @@ Name: "installpython"; Description: "Install Python and add it to PATH"; GroupDe
 [Files]
 ; restartreplace is why this does not stop with "MoveFile failed; code 183".
 ; The app is launched by the [Run] entry at the bottom of this file, so the
-; ordinary way to meet that error is to run Setup again while AccessibleIDE
+; ordinary way to meet that error is to run Setup again while AccessibleCoding
 ; is still open. Windows lets Setup delete a running program, but the name
 ; stays taken until the last handle on it closes, so the rename that follows
 ; fails with "Cannot create a file when that file already exists" and the
@@ -94,7 +94,7 @@ Name: "installpython"; Description: "Install Python and add it to PATH"; GroupDe
 ; that is still in use to be replaced at the next restart, and asks for that
 ; restart when it finishes. It has no effect without administrator rights,
 ; which PrivilegesRequired=admin above already gives.
-Source: "dist\AccessibleIDE\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace
+Source: "dist\AccessibleCoding\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace
 Source: "installer\prereqs\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "installer\prereqs\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "installer\prereqs\python-3.13.16-amd64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: ShouldInstallPython
@@ -108,12 +108,18 @@ Filename: "{tmp}\python-3.13.16-amd64.exe"; Parameters: "/quiet InstallAllUsers=
 ; runasoriginaluser because Setup is elevated and the app must not be;
 ; nowait so Setup does not sit waiting on the program it just started.
 Filename: "{app}\{#MyAppExeName}"; Check: ShouldRelaunch; Flags: nowait runasoriginaluser
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch AccessibleIDE"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch AccessibleCoding"; Flags: nowait postinstall skipifsilent
+
+[InstallDelete]
+; Earlier builds installed the program as AccessibleIDE.exe. Setup upgrades an
+; existing install in place, keeping its folder, so without this the old exe
+; would sit beside the new one for good after the rename.
+Type: files; Name: "{app}\AccessibleIDE.exe"
 
 [Icons]
-Name: "{group}\AccessibleIDE"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Uninstall AccessibleIDE"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\AccessibleIDE"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\AccessibleCoding"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\Uninstall AccessibleCoding"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\AccessibleCoding"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Code]
 { Returns True if a usable Python (3.10+) is already installed. }

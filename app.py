@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AccessibleIDE - Main entry point.
+AccessibleCoding - Main entry point.
 
 Desktop app: runs a local Flask server in a background thread and shows
 the IDE in a native window (PyWebView / WebView2) - no browser needed.
@@ -47,7 +47,7 @@ def _wait_for_server(url, timeout=15):
 
 
 def _is_our_server(url, timeout=2):
-    """Return True if a healthy AccessibleIDE is answering at this url.
+    """Return True if a healthy AccessibleCoding is answering at this url.
 
     A port being bound only proves *something* is listening on it. After an
     update, a half-dead copy of this app can still hold the port without
@@ -87,15 +87,15 @@ def _show_error(message):
     try:
         import webview
         webview.create_window(
-            'AccessibleIDE',
+            'AccessibleCoding',
             html=(
                 '<!DOCTYPE html><html lang="en"><head>'
-                '<meta charset="utf-8"><title>AccessibleIDE</title></head>'
+                '<meta charset="utf-8"><title>AccessibleCoding</title></head>'
                 '<body style="font-family:sans-serif;padding:2em;'
                 'font-size:18px;line-height:1.6">'
-                f'<h1 style="font-size:1.4em">AccessibleIDE could not start</h1>'
+                f'<h1 style="font-size:1.4em">AccessibleCoding could not start</h1>'
                 f'<p>{message}</p>'
-                '<p>Close this window and open AccessibleIDE again.</p>'
+                '<p>Close this window and open AccessibleCoding again.</p>'
                 '</body></html>'
             ),
             width=700,
@@ -123,7 +123,7 @@ def _run_desktop(port):
     existing = f'http://127.0.0.1:{port}'
     if _port_in_use(port) and _is_our_server(existing):
         webview.create_window(
-            'AccessibleIDE',
+            'AccessibleCoding',
             existing,
             width=1200,
             height=800,
@@ -137,7 +137,7 @@ def _run_desktop(port):
     chosen = _free_port(port)
     if chosen is None:
         _show_error(
-            'Another program is using the local address AccessibleIDE needs, '
+            'Another program is using the local address AccessibleCoding needs, '
             'and it is not responding.'
         )
         sys.exit(1)
@@ -147,7 +147,7 @@ def _run_desktop(port):
     threading.Thread(target=_start_server, args=(chosen,), daemon=True).start()
     if not _wait_for_server(url):
         _show_error(
-            'The local part of AccessibleIDE did not start. This is a problem '
+            'The local part of AccessibleCoding did not start. This is a problem '
             'on this computer, not with your internet connection.'
         )
         sys.exit(1)
@@ -155,7 +155,7 @@ def _run_desktop(port):
     _tidy_leftover_updates()
 
     webview.create_window(
-        'AccessibleIDE',
+        'AccessibleCoding',
         url,
         width=1200,
         height=800,

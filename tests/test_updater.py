@@ -80,14 +80,14 @@ class VersionOrderingTests(unittest.TestCase):
 
 class DownloadAddressTests(unittest.TestCase):
     def test_a_release_asset_of_this_project_is_allowed(self):
-        url = f"{updater.RELEASES_BASE}/download/v1.0/AccessibleIDE.exe"
+        url = f"{updater.RELEASES_BASE}/download/v1.0/AccessibleCoding.exe"
         self.assertEqual(updater._allowed_asset_url(url), url)
 
     def test_somewhere_else_is_refused(self):
         # The manifest is fetched from the internet and names the file to
         # run. Anything not on this project's releases is refused outright.
         for url in (
-            "https://evil.example.com/AccessibleIDE.exe",
+            "https://evil.example.com/AccessibleCoding.exe",
             "https://github.com/someone-else/project/releases/download/v1/a.exe",
             f"{updater.RELEASES_BASE}/../../evil.exe",
             # Plain http, even on the right project: a download that gets run
@@ -183,7 +183,7 @@ class ManifestTests(unittest.TestCase):
     def good_manifest(self, **overrides):
         manifest = {
             "version": "9.9.9",
-            "url": f"{updater.RELEASES_BASE}/download/v9.9.9/AccessibleIDE.exe",
+            "url": f"{updater.RELEASES_BASE}/download/v9.9.9/AccessibleCoding.exe",
             "sha256": "a" * 64,
             "size": 3,
             "notes": "A test build.",
@@ -277,7 +277,7 @@ class ChannelTests(unittest.TestCase):
                 lambda: pathlib.Path(tmp.name) / "check.json")
         manifest = {
             "version": "9.9.9",
-            "url": f"{updater.RELEASES_BASE}/download/v9.9.9/AccessibleIDE.exe",
+            "url": f"{updater.RELEASES_BASE}/download/v9.9.9/AccessibleCoding.exe",
             "sha256": "a" * 64,
             "size": 3,
         }
@@ -387,7 +387,7 @@ class StagingTests(unittest.TestCase):
         import hashlib
         manifest = {
             "version": "9.9.9",
-            "url": f"{updater.RELEASES_BASE}/download/v9.9.9/AccessibleIDE.exe",
+            "url": f"{updater.RELEASES_BASE}/download/v9.9.9/AccessibleCoding.exe",
             "sha256": hashlib.sha256(body).hexdigest(),
             "size": len(body),
         }
@@ -408,7 +408,7 @@ class StagingTests(unittest.TestCase):
         with self.assertRaises(updater.UpdateError):
             updater.stage(self.manifest_for(body, sha256="b" * 64))
         # Nothing left behind that could be mistaken for a good build.
-        leftovers = list(pathlib.Path(self.tmp.name).rglob("AccessibleIDE.exe"))
+        leftovers = list(pathlib.Path(self.tmp.name).rglob("AccessibleCoding.exe"))
         self.assertEqual(leftovers, [])
 
     def test_the_wrong_size_is_refused(self):
@@ -501,7 +501,7 @@ class CheckResultTests(unittest.TestCase):
         self.addCleanup(os.environ.pop, "ACCESSIBLE_IDE_UPDATE_TEST", None)
         swapped(self, updater, "fetch_manifest", lambda *a, **k: {
             "version": "99.0.0",
-            "url": f"{updater.RELEASES_BASE}/download/v99/AccessibleIDE.exe",
+            "url": f"{updater.RELEASES_BASE}/download/v99/AccessibleCoding.exe",
             "sha256": "a" * 64,
             "size": 1,
             "notes": "Fixed the thing.",
@@ -516,7 +516,7 @@ class CheckResultTests(unittest.TestCase):
         self.addCleanup(os.environ.pop, "ACCESSIBLE_IDE_UPDATE_TEST", None)
         swapped(self, updater, "fetch_manifest", lambda *a, **k: {
             "version": updater.current_version(),
-            "url": f"{updater.RELEASES_BASE}/download/v/AccessibleIDE.exe",
+            "url": f"{updater.RELEASES_BASE}/download/v/AccessibleCoding.exe",
             "sha256": "a" * 64,
             "size": 1,
         })

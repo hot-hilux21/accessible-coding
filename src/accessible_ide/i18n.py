@@ -1,4 +1,4 @@
-"""Translations for the AccessibleIDE interface.
+"""Translations for the AccessibleCoding interface.
 
 Every visible word in the app comes from a JSON catalogue in this folder.
 ``en.json`` is the reference: it must define every key, and every other
@@ -37,7 +37,7 @@ LANGUAGES: dict[str, tuple[str, str, str]] = {
 # Sentences that legitimately stay in English regardless of locale, so
 # the leftover-English check does not cry wolf on them.
 _ALLOWED_ENGLISH = {
-    "AccessibleIDE",
+    "AccessibleCoding",
     "GitHub",
     "Python",
     "Windows",

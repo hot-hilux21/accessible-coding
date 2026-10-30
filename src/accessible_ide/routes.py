@@ -1,5 +1,5 @@
 """
-Main routes for AccessibleIDE.
+Main routes for AccessibleCoding.
 """
 from flask import Blueprint, render_template, request, jsonify, make_response, send_from_directory, has_request_context
 import hmac
@@ -2358,7 +2358,7 @@ def config_export_api():
     # file the app wrote has to be a file the app can read back.
     config = {key: value for key, value in config.items() if value is not None}
     payload = json.dumps(
-        {'app': 'AccessibleIDE', 'version': __version__, 'config': config},
+        {'app': 'AccessibleCoding', 'version': __version__, 'config': config},
         indent=2, ensure_ascii=False,
     )
     response = make_response(payload)

@@ -1,4 +1,4 @@
-"""Smoke test for AccessibleIDE (includes security checks)."""
+"""Smoke test for AccessibleCoding (includes security checks)."""
 import sys
 import os
 import io

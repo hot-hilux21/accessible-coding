@@ -1,8 +1,8 @@
-# AGENTS.md — AccessibleIDE (Dyslexia IDE)
+# AGENTS.md — AccessibleCoding (Dyslexia IDE)
 
 ## Project Overview
 
-AccessibleIDE is a fully accessible, open-source IDE prioritizing dyslexic and neurodivergent learners. Python-first, with dyslexia-friendly fonts, configurable focus/blur modes, text-to-speech, plain-English errors, and customizable syntax highlighting.
+AccessibleCoding is a fully accessible, open-source IDE prioritizing dyslexic and neurodivergent learners. Python-first, with dyslexia-friendly fonts, configurable focus/blur modes, text-to-speech, plain-English errors, and customizable syntax highlighting.
 
 - **Authoritative spec:** `accessible-ide-requirements.md` (root) — read this before planning any feature. The MVP feature checklist is in section 10.
 - **Status:** Shipped. Flask web app and Windows `.exe`; version 1.0.0.

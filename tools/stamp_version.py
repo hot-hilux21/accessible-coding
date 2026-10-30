@@ -4,8 +4,8 @@ Run by CI in two steps:
 
     python tools/stamp_version.py stamp --version 0.2.2-beta.dev.181
     python tools/stamp_version.py manifest --version 0.2.2-beta.dev.181 \\
-        --file installer/AccessibleIDE-Setup.exe --out installer/version.json \\
-        --url https://github.com/OWNER/REPO/releases/download/latest/AccessibleIDE-Setup.exe
+        --file installer/AccessibleCoding-Setup.exe --out installer/version.json \\
+        --url https://github.com/OWNER/REPO/releases/download/latest/AccessibleCoding-Setup.exe
 
 The file the manifest describes is the installer, not the portable exe that
 sits beside it in the release. The updater installs a new build by handing

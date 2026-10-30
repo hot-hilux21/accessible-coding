@@ -860,7 +860,7 @@ class ReaderInputTests(unittest.TestCase):
 class PackagingTests(unittest.TestCase):
     """Both builds have to ship the child programs on disk."""
 
-    SPECS = ("AccessibleIDE.spec", "AccessibleIDE-onedir.spec")
+    SPECS = ("AccessibleCoding.spec", "AccessibleCoding-onedir.spec")
 
     def test_both_specs_bundle_the_traced_child(self):
         # It is launched by path, not imported, so PyInstaller has to be told

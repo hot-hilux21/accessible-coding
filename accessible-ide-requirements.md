@@ -1,4 +1,4 @@
-# AccessibleIDE — Project Requirements & Specifications
+# AccessibleCoding — Project Requirements & Specifications
 
 **Project Goal:** Build a fully accessible IDE prioritizing dyslexic & neurodivergent learners, with Python-first support, dyslexia-friendly fonts, configurable focus/blur modes, text-to-speech, and customizable syntax highlighting.
 

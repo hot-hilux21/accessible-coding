@@ -1,4 +1,4 @@
-"""WSGI entry point for AccessibleIDE, served by gunicorn."""
+"""WSGI entry point for AccessibleCoding, served by gunicorn."""
 import os
 import sys
 

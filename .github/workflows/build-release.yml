@@ -69,7 +69,7 @@ jobs:
           python tools/stamp_version.py stamp --version $version
           "version=$version" >> $env:GITHUB_OUTPUT
       - name: Build exe
-        run: pyinstaller AccessibleIDE.spec --noconfirm
+        run: pyinstaller AccessibleCoding.spec --noconfirm
       # Code signing, off until it is asked for. Every step below is skipped
       # while SIGNPATH_ORGANIZATION_ID is blank, so this workflow goes on
       # building and releasing exactly as it did before and starts signing the
@@ -85,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: unsigned-exe
-          path: dist/AccessibleIDE.exe
+          path: dist/AccessibleCoding.exe
           if-no-files-found: error
       - name: Sign the exe
         if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
@@ -107,11 +107,11 @@ jobs:
           # release that quietly ships the unsigned build would fetch a
           # signing request, pay for a ceremony and change nothing a reader
           # can see.
-          $signed = Get-ChildItem signed-exe -Recurse -Filter AccessibleIDE.exe |
+          $signed = Get-ChildItem signed-exe -Recurse -Filter AccessibleCoding.exe |
             Select-Object -First 1
           if (-not $signed) { throw "the signing request returned no exe" }
-          Copy-Item $signed.FullName dist\AccessibleIDE.exe -Force
-          $signature = Get-AuthenticodeSignature dist\AccessibleIDE.exe
+          Copy-Item $signed.FullName dist\AccessibleCoding.exe -Force
+          $signature = Get-AuthenticodeSignature dist\AccessibleCoding.exe
           if ($signature.Status -ne 'Valid') {
             throw "the signed exe did not verify: $($signature.Status)"
           }
@@ -122,8 +122,8 @@ jobs:
       - name: Upload exe artifact
         uses: actions/upload-artifact@v7
         with:
-          name: AccessibleIDE-windows
-          path: dist/AccessibleIDE.exe
+          name: AccessibleCoding-windows
+          path: dist/AccessibleCoding.exe
 
   build-installer:
     name: Build Setup installer
@@ -148,7 +148,7 @@ jobs:
           python tools/stamp_version.py stamp --version $version
           "version=$version" >> $env:GITHUB_OUTPUT
       - name: Build onedir app
-        run: pyinstaller AccessibleIDE-onedir.spec --noconfirm
+        run: pyinstaller AccessibleCoding-onedir.spec --noconfirm
       - name: Download installer prerequisites
         shell: pwsh
         run: |
@@ -185,7 +185,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: unsigned-setup
-          path: installer/AccessibleIDE-Setup.exe
+          path: installer/AccessibleCoding-Setup.exe
           if-no-files-found: error
       - name: Sign the installer
         if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
@@ -202,11 +202,11 @@ jobs:
         if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
         shell: pwsh
         run: |
-          $signed = Get-ChildItem signed-setup -Recurse -Filter AccessibleIDE-Setup.exe |
+          $signed = Get-ChildItem signed-setup -Recurse -Filter AccessibleCoding-Setup.exe |
             Select-Object -First 1
           if (-not $signed) { throw "the signing request returned no installer" }
-          Copy-Item $signed.FullName installer\AccessibleIDE-Setup.exe -Force
-          $signature = Get-AuthenticodeSignature installer\AccessibleIDE-Setup.exe
+          Copy-Item $signed.FullName installer\AccessibleCoding-Setup.exe -Force
+          $signature = Get-AuthenticodeSignature installer\AccessibleCoding-Setup.exe
           if ($signature.Status -ne 'Valid') {
             throw "the signed installer did not verify: $($signature.Status)"
           }
@@ -228,12 +228,19 @@ jobs:
           # not. The manifest is built in the build job, before the channel
           # job that decides the same thing, so the decision is repeated here
           # from the tag rather than passed across the job boundary.
+          #
+          # The address names the installer's older file name, for the same
+          # reason the main-branch build does: a reader running a build from
+          # before the rename has an updater that refuses any download not
+          # named AccessibleIDE-Setup.exe. The release publishes the installer
+          # under both names. Switch this back to the new name once the last
+          # build named the old way has aged out.
           $tag = "${{ github.ref_name }}"
           $version = $tag -replace '^v', ''
           $stable = if ($version.Contains('-')) { '' } else { '--stable' }
           python tools/stamp_version.py manifest `
             --version "${{ steps.stamp.outputs.version }}" `
-            --file installer/AccessibleIDE-Setup.exe `
+            --file installer/AccessibleCoding-Setup.exe `
             --out installer/version.json `
             --url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/AccessibleIDE-Setup.exe" `
             --notes "Release ${{ github.ref_name }}." `
@@ -241,9 +248,9 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:
-          name: AccessibleIDE-Setup
+          name: AccessibleCoding-Setup
           path: |
-            installer/AccessibleIDE-Setup.exe
+            installer/AccessibleCoding-Setup.exe
             installer/version.json
 
   release:
@@ -259,18 +266,23 @@ jobs:
       - name: Download exe
         uses: actions/download-artifact@v8
         with:
-          name: AccessibleIDE-windows
+          name: AccessibleCoding-windows
           path: release/
       - name: Download installer
         uses: actions/download-artifact@v8
         with:
-          name: AccessibleIDE-Setup
+          name: AccessibleCoding-Setup
           path: release/
+      # Published under both names, so an installed build from before the
+      # rename can still find the file its updater insists on.
+      - name: Publish the installer under its older name too
+        run: cp release/AccessibleCoding-Setup.exe release/AccessibleIDE-Setup.exe
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release/AccessibleIDE.exe
+            release/AccessibleCoding.exe
+            release/AccessibleCoding-Setup.exe
             release/AccessibleIDE-Setup.exe
             release/version.json
           generate_release_notes: true
@@ -333,7 +345,8 @@ jobs:
           # The two builds ride along, because the README sends readers here
           # and a download link has to land on a file rather than on the
           # manifest that only says where the file is.
-          gh release upload beta release/AccessibleIDE.exe release/AccessibleIDE-Setup.exe \
+          gh release upload beta release/AccessibleCoding.exe \
+            release/AccessibleCoding-Setup.exe release/AccessibleIDE-Setup.exe \
             --clobber --repo "${{ github.repository }}"
       - name: Check the stable channel can move
         if: steps.channels.outputs.stable == 'true'
@@ -341,7 +354,7 @@ jobs:
           python tools/check_publish.py check \
             --channel stable \
             --version "${GITHUB_REF_NAME#v}" \
-            --url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/AccessibleIDE.exe" \
+            --url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/AccessibleCoding.exe" \
             --repo "${{ github.repository }}"
       - name: Point the stable channel at this release
         if: steps.channels.outputs.stable == 'true'

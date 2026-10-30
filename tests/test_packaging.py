@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT / 'src'))
 
 from accessible_ide import i18n  # noqa: E402
 
-SPECS = ('AccessibleIDE.spec', 'AccessibleIDE-onedir.spec')
+SPECS = ('AccessibleCoding.spec', 'AccessibleCoding-onedir.spec')
 
 # Every directory the app reads from disk at run time. The desktop build and
 # the hosted copy both need all of them; only the desktop one is frozen.
@@ -123,7 +123,7 @@ class MissingCatalogueTests(unittest.TestCase):
         self.assertEqual(i18n.load_catalogue('fr'),
                          i18n.load_catalogue('en'))
         self.assertEqual(i18n.load_catalogue('fr')['app.title'],
-                         'AccessibleIDE - Code comfortably')
+                         'AccessibleCoding - Code comfortably')
 
     def test_an_unknown_language_falls_back_rather_than_failing(self):
         # A language we never heard of is not an error, it is English.
