@@ -40,5 +40,8 @@ jobs:
             curl -fsS http://127.0.0.1:3000/health
             # Health alone only proves something is listening, which is how a
             # deploy of old code passed. Ask for a word that only the current
-            # build prints, so a stale checkout fails the run instead.
-            curl -fsS http://127.0.0.1:3000/ | grep -q 'AccessibleCoding'
+            # build prints, so a stale checkout fails the run instead. Read to
+            # a file first: grep -q closes the pipe on the first match and
+            # curl then fails writing the rest of the page.
+            curl -fsS http://127.0.0.1:3000/ -o /tmp/accessible-coding-page.html
+            grep -q 'AccessibleCoding' /tmp/accessible-coding-page.html
