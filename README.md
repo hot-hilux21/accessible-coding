@@ -49,7 +49,7 @@ Jump to any section:
 - **Per-pane toolbars** — each of the editor, output and shell has its own text toolbar, and anything you leave alone keeps following the settings you already chose
 - **Text-to-speech** — reads your code and errors aloud, with hover and click reading
 - **Sounds** — a short tone when your code starts, finishes, fails or waits for an answer, and a soft click on buttons, each with a switch in Settings
-- **About** — the version, the licence and a credits list you can edit in `src/accessible_ide/templates/index.html`
+- **About** — the version, the licence and a credits list you can edit in `src/accessible_ide/routes.py` (`DEFAULT_CREDITS`)
 - **First run** — a short wizard asks for language, font and theme with the same dropdowns as Settings, shows a line of text in the font you are choosing, and keeps Next, Back and Skip in a footer you can always see. A **Reset all settings** button sits in the corner of every screen for the case where the font or colour you picked cannot be read.
 - **Screen readers** — native landmarks, live regions, focus management and spoken step changes; no ARIA invented where the browser already does the job
 - **Errors** — plain-English messages, no jargon
@@ -540,7 +540,7 @@ accessible-coding/
 │   ├── assets/              # Fonts (OpenDyslexic, Atkinson Hyperlegible, Lexend, Nunito, Almarai, Mukta)
 │   ├── i18n/                # Translation catalogues (en, hi, fr, es, ar, uk)
 │   ├── static/              # CSS + JavaScript (CodeMirror, app logic) + the interface sounds in static/audio
-│   ├── templates/           # HTML page (the About credits list lives here, ready to edit)
+│   ├── templates/           # HTML page (the About credits list is passed in from `routes.py`, ready to edit)
 │   ├── routes.py            # Flask routes, themes and settings validation
 │   ├── shell.py             # Python shell sessions
 │   ├── trace_runner.py      # Line-by-line variable trace
