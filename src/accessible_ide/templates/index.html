@@ -109,6 +109,12 @@
       <span class="brand-logo" aria-hidden="true"></span>
       <h1 class="brand-name">{{ t('brand.name') }}</h1>
       <span class="version-badge">v{{ version }}</span>
+      {# Credits sit beside the name rather than inside Settings because they
+         are the one thing on that panel a reader looks for without knowing
+         where to look. This opens Settings and lands on them. #}
+      <button id="btn-credits" class="btn btn-small brand-credits" type="button"
+              aria-haspopup="dialog" aria-controls="settings-dialog"
+              title="{{ t('about.button_title') }}">{{ t('about.button') }}</button>
     </div>
 
     <div class="toolbar" role="toolbar" aria-label="{{ t('nav.tools') }}">
@@ -1118,7 +1124,7 @@
           </div>
         </fieldset>
 
-        <fieldset class="settings-group" id="group-about">
+        <fieldset class="settings-group" id="group-about" tabindex="-1">
           <legend class="settings-legend">{{ t('group.about') }}</legend>
           <p class="settings-hint">{{ t('about.summary') }}</p>
           <p class="field-help">{{ t('about.version', version) }}</p>
@@ -1128,10 +1134,9 @@
              it, so nothing breaks if the list changes length. #}
           <h3 class="field-label-static">{{ t('about.credits_title') }}</h3>
           <ul class="about-credits">
-            <li>OpenDyslexic and Atkinson Hyperlegible, the bundled reading fonts.</li>
-            <li>CodeMirror 5, the code editor.</li>
-            <li>Flask, the web framework.</li>
-            <li>Your name, your project, or a thank-you goes here.</li>
+            {% for credit in credits %}
+            <li>{{ credit }}</li>
+            {% endfor %}
           </ul>
           <p class="field-help">{{ t('about.credits_note') }}</p>
         </fieldset>

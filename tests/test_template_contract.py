@@ -2396,3 +2396,32 @@ class EmergencyResetTests(RenderedPageFixture):
         # moves rather than leaving the reader with nothing on screen.
         self.assertIn("is-ducked", self.js)
         self.assertIn(".reset-all.is-ducked", self.css)
+
+
+class CreditsButtonTests(RenderedPageFixture):
+    """The Credits button in the top bar, above the toolbar, opens Settings
+    straight onto the About group with the credits list the reader edits."""
+
+    def test_the_button_sits_in_the_top_bar(self):
+        self.assertIn('id="btn-credits"', self.html)
+        self.assertIn("<header class=\"topbar\"", self.html)
+        self.assertLess(
+            self.html.index('id="btn-credits"'),
+            self.html.index("</header>"),
+            "the Credits button is not in the top bar",
+        )
+
+    def test_the_button_asks_for_the_group_it_opens(self):
+        self.assertIn(
+            'aria-controls="settings-dialog"', self.html,
+            "the Credits button opens a dialog it does not name",
+        )
+        self.assertIn('aria-haspopup="dialog"', self.html)
+
+    def test_open_settings_can_land_on_a_group(self):
+        self.assertIn("function openSettings(targetID)", self.js)
+        self.assertIn("getElementById(targetID)", self.js)
+        self.assertIn("openSettings('group-about')", self.js)
+
+    def test_the_about_group_is_the_focus_target(self):
+        self.assertIn('id="group-about" tabindex="-1"', self.html)

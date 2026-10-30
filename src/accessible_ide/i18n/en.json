@@ -3,6 +3,8 @@
   "about.credits_title": "Credits",
   "about.summary": "A free, open-source editor for learning Python. Your code stays on this computer.",
   "about.version": "Version {0}",
+  "about.button": "Credits",
+  "about.button_title": "Open the About group, with the credits list you can edit.",
   "app.description": "A fully accessible IDE for dyslexic and neurodivergent learners.",
   "app.skip_to_editor": "Skip to editor",
   "app.title": "AccessibleCoding - Code comfortably",

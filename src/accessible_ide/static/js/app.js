@@ -132,6 +132,7 @@
   var keyStopStatus = document.getElementById('keys-stop-status');
   var settingsDialog = document.getElementById('settings-dialog');
   var btnSettings = document.getElementById('btn-settings');
+  var btnCredits = document.getElementById('btn-credits');
   var btnSettingsClose = document.getElementById('btn-settings-close');
   var settingsStatus = document.getElementById('settings-status');
   var btnQuit = document.getElementById('btn-quit');
@@ -971,7 +972,9 @@
   }
 
   // ---------- Settings dialog ----------
-  function openSettings() {
+  // targetID is optional: the Credits button opens the same dialog but lands
+  // on the group it names, instead of on the first control at the top.
+  function openSettings(targetID) {
     settingsOpener = document.activeElement;
     syncBlurField();
     if (typeof settingsDialog.showModal === 'function') {
@@ -982,6 +985,12 @@
     // The trigger says whether the dialog it named is open, so a reader
     // hears "expanded" and not just "Settings, button".
     if (btnSettings) btnSettings.setAttribute('aria-expanded', 'true');
+    var target = targetID && document.getElementById(targetID);
+    if (target) {
+      target.scrollIntoView({ block: 'start' });
+      target.focus();
+      return;
+    }
     // Land focus on the first real control, not the close button.
     var first = settingsDialog.querySelector('select, input, button');
     if (first) first.focus();
@@ -4431,6 +4440,12 @@
   });
 
   btnSettings.addEventListener('click', openSettings);
+
+  if (btnCredits) {
+    btnCredits.addEventListener('click', function () {
+      openSettings('group-about');
+    });
+  }
 
   settingsDialog.addEventListener('cancel', function (event) {
     // Escape was pressed. Let the dialog close itself, then put focus

@@ -40,7 +40,7 @@ const KNOWN_IDS = new Set([
   'btn-run', 'btn-stop', 'btn-save', 'btn-open', 'btn-read-line', 'btn-clear', 'btn-quit',
   'editor', 'output', 'error-panel', 'error-message', 'file-input',
   'settings-dialog', 'settings-title', 'settings-status', 'btn-settings',
-  'btn-settings-close', 'font-select',
+  'btn-settings-close', 'btn-credits', 'font-select',
   // The four areas the chosen font is used in. app.js looks all four up on
   // the way in, so an id missing from here would be reported as unknown
   // rather than quietly skipped - and the boxes have to exist for the "an

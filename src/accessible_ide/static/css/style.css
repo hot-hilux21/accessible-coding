@@ -425,6 +425,12 @@ body[data-gradient='off'] {
   letter-spacing: normal;
 }
 
+/* The Credits button sits next to the name in the brand group, top left, so
+   the credits are reachable without hunting through the Settings dialog. */
+.brand-credits {
+  margin-inline-start: 0;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

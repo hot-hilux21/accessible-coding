@@ -647,6 +647,21 @@ THEMES = {
 # the setup step cannot disagree about it.
 SETUP_QUICK_THEMES = ('light', 'dark', 'high-contrast', 'amoled')
 
+# The maintainer's own words, one credit per line, written in English on
+# purpose. This constant is the template the maintainer edits to put their
+# name and thank-yous in; the reader who runs the app never edits it.
+DEFAULT_CREDITS = (
+    'OpenDyslexic and Atkinson Hyperlegible, the bundled reading fonts.',
+    'CodeMirror 5, the code editor.',
+    'Flask, the web framework.',
+    'Your name, your project, or a thank-you goes here.',
+)
+
+
+def credits_list():
+    """The lines the About group shows, in the order they should read."""
+    return list(DEFAULT_CREDITS)
+
 
 def ordered_themes():
     """Every preset, with the four common ones first."""
@@ -1479,6 +1494,10 @@ def index():
                          # The presses offered for running and stopping, handed
                          # over as data so the list the reader sees and the
                          # list the server accepts are the same list.
+                         # The maintainer's own credits, one line each, so the
+                         # list the reader sees is the list somebody can edit
+                         # in the source rather than a block of HTML.
+                         credits=credits_list(),
                          run_keys=RUN_KEYS,
                          stop_keys=STOP_KEYS,
                          t=i18n.make_translator(locale))
