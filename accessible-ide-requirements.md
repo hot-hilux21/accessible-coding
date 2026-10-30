@@ -30,9 +30,9 @@ Jump to any section:
 
 | Aspect | Requirement |
 |--------|-------------|
-| **Primary Platform** | Browser-based web app (Streamlit, Vercel, or similar) |
+| **Primary Platform** | Browser-based web app (Flask, server-rendered) |
 | **Secondary Platform** | Windows .exe desktop (PyInstaller or equivalent) |
-| **Hosting** | Free, reliable service with guaranteed uptime (Vercel, Streamlit Cloud, Railway, etc.) |
+| **Hosting** | Oracle Cloud: nginx in front of gunicorn, kept alive by PM2 |
 | **Linux Support** | Secondary priority; focus browser + Windows exe first |
 | **Offline Capability** | Offline-first architecture; all work saved locally |
 
@@ -136,7 +136,7 @@ Jump to any section:
 
 | Component | Technology |
 |-----------|-----------|
-| **Browser App** | Python (Flask/FastAPI/Streamlit) + Frontend (HTML/CSS/JS or React) |
+| **Browser App** | Python (Flask) + Frontend (HTML/CSS/JS, server-rendered) |
 | **Desktop (Windows exe)** | Python + PyInstaller (or PyO3 for Rust backend if needed) |
 | **Version Control** | Git + GitHub (public repo from day 1) |
 | **Config Format** | JSON or TOML |
@@ -213,7 +213,7 @@ Jump to any section:
 - [ ] Dyslexia-friendly font toggle (OpenDyslexic + Atkinson)
 - [ ] Focus mode (blur line numbers OR entire gutter)
 - [ ] Error messages in plain English
-- [ ] Streamlit or Flask web version
+- [ ] Flask web version
 - [ ] Windows .exe (PyInstaller)
 - [ ] GitHub public repo
 
@@ -250,7 +250,7 @@ Jump to any section:
 - **Dyslexia-Friendly Fonts:** OpenDyslexic (free), Atkinson Hyperlegible (free)
 - **Python REPL Options:** IPython, built-in `code` module, Jupyter kernel
 - **Editor Components:** Monaco (VSCode-based), CodeMirror (lightweight), Ace (customizable)
-- **Deployment:** Streamlit Cloud, Vercel, Railway, Render
+- **Deployment:** Oracle Cloud (nginx + gunicorn under PM2)
 - **Desktop Packaging:** PyInstaller, PyO3, Nuitka
 - **TTS Engines:** pyttsx3, eSpeak, Coqui TTS, ReciteMe (API)
 - **Accessibility Standards:** WCAG 2.1, W3C ARIA guidelines
@@ -260,11 +260,11 @@ Jump to any section:
 ## 13. Next Steps
 
 1. **Design Phase:** Sketch UI mockups (focus mode wireframes, theme customizer)
-2. **Tech Stack Finalization:** Choose Streamlit vs Flask; decide on editor component
+2. **Tech Stack:** Flask with server rendering and CodeMirror 5; no bundler
 3. **Prototype:** Build minimal Python editor + runner in chosen framework
 4. **TTS Integration:** Test ReciteMe + open-source alternatives
 5. **User Testing:** Recruit 2–3 dyslexic testers; gather initial feedback
-6. **Release:** Deploy v0.1 (MVP) to GitHub + Streamlit Cloud/Vercel
+6. **Release:** Deploy v0.1 (MVP) to GitHub + Oracle Cloud
 7. **Iterate:** Push updates monthly; prioritize user feedback
 
 ---
