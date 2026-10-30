@@ -1,7 +1,7 @@
 # Progress towards v2
 
 Last updated: 2026-10-30
-Current release: **1.1.0** (tagged 2026-10-22). v2 is not released yet; the work below is on `main` and on the live site.
+Current release: **2.0.0-beta** (tagged 2026-10-30, published to the beta channel). Last stable: **1.1.0** (tagged 2026-10-22). The `-beta` suffix moves the beta channel only, so the stable channel and the installed-build update path stay on 1.1.0 until v2 is tagged without a suffix. The beta channel also carries every push to `main`, so the two move together.
 Live site: https://accessible-coding.duckdns.org (Oracle Cloud, deployed from `main` by `.github/workflows/deploy.yml`)
 
 This file is the working checklist between v1 and v2. It records what is shipped, what was done in the latest pass, what is still open, and what still needs a human to confirm. Update it when a feature lands or the plan changes.

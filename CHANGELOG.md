@@ -7,9 +7,13 @@ the one being released.
 
 ---
 
-## Unreleased (v2)
+## 2.0.0-beta — 2026-10-30
 
-Everything below landed on `main` after v1.1.0 and is on the live site now.
+The v2 work, released on the beta channel. Everything below landed on `main`
+after v1.1.0 and is on the live site. The `-beta` suffix keeps the stable
+channel and the installed-build update path on 1.1.0: the beta tag moves the
+beta channel only, so a reader who installed a stable build is offered
+nothing until v2 is tagged without a suffix.
 
 ### Accessibility
 
