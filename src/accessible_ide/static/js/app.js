@@ -173,6 +173,7 @@
   var setupSkip = document.getElementById('setup-skip');
   var btnSetupAgain = document.getElementById('btn-setup-again');
   var btnResetConfig = document.getElementById('btn-reset-config');
+  var btnResetAll = document.getElementById('btn-reset-all');
   var btnExportConfig = document.getElementById('btn-export-config');
   var btnImportConfig = document.getElementById('btn-import-config');
   var configFileInput = document.getElementById('config-file-input');
@@ -1502,30 +1503,34 @@
     });
   }
 
-  // Reset every setting to the defaults. Two clicks on purpose: the first
-  // arms the button, the second does it, so a reader who pressed it by
-  // accident has a visible way out. The button disarms itself after a few
-  // seconds so it cannot stay dangerous. Reloading is the point, exactly
-  // as it is for the language picker and the setup screen: the whole page
-  // is drawn by the server from the saved config, so a reload is the only
-  // way every control and every panel agrees with what was just reset.
-  if (btnResetConfig) {
+  // Reset every setting to the defaults. One function for the button in
+  // Settings and the emergency one in the corner, so the two cannot come to
+  // mean different things. Two clicks on purpose: the first arms the button,
+  // the second does it, so a reader who pressed it by accident has a visible
+  // way out. The button disarms itself after a few seconds so it cannot stay
+  // dangerous. Reloading is the point, exactly as it is for the language
+  // picker and the setup screen: the whole page is drawn by the server from
+  // the saved config, so a reload is the only way every control and every
+  // panel agrees with what was just reset.
+  function wireResetButton(button) {
+    if (!button) return;
     var resetArmed = false;
     var resetTimer = null;
-    btnResetConfig.addEventListener('click', function () {
+    var idleLabel = button.textContent;
+    button.addEventListener('click', function () {
       if (!resetArmed) {
         resetArmed = true;
-        btnResetConfig.textContent = t('settings.reset_confirm');
-        btnResetConfig.classList.add('is-armed');
+        button.textContent = t('settings.reset_confirm');
+        button.classList.add('is-armed');
         resetTimer = setTimeout(function () {
           resetArmed = false;
-          btnResetConfig.textContent = t('settings.reset_config');
-          btnResetConfig.classList.remove('is-armed');
+          button.textContent = idleLabel;
+          button.classList.remove('is-armed');
         }, 6000);
         return;
       }
       clearTimeout(resetTimer);
-      btnResetConfig.disabled = true;
+      button.disabled = true;
       fetch('/api/config/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1545,15 +1550,49 @@
     });
 
     function resetFailed() {
-      btnResetConfig.disabled = false;
-      btnResetConfig.textContent = t('settings.reset_config');
-      btnResetConfig.classList.remove('is-armed');
+      button.disabled = false;
+      button.textContent = idleLabel;
+      button.classList.remove('is-armed');
       resetArmed = false;
       if (settingsStatus) {
         settingsStatus.textContent = t('settings.not_saved');
         settingsStatus.classList.add('is-error');
       }
     }
+  }
+
+  wireResetButton(btnResetConfig);
+  wireResetButton(btnResetAll);
+
+  // WCAG 2.4.11, focus not obscured, for the corner button. It floats over
+  // the panes, so a control it covered would leave a keyboard user with
+  // nothing on screen to show where focus went. When the newly focused
+  // control sits under it, the button steps aside and comes back as soon as
+  // focus moves on. It is never the target itself, so Tab still reaches it.
+  if (btnResetAll) {
+    document.addEventListener('focusin', function (event) {
+      var target = event.target;
+      if (!target || typeof target.getBoundingClientRect !== 'function' ||
+          typeof btnResetAll.getBoundingClientRect !== 'function' ||
+          btnResetAll === target ||
+          (btnResetAll.contains && btnResetAll.contains(target))) {
+        btnResetAll.classList.remove('is-ducked');
+        return;
+      }
+      var inner = target.getBoundingClientRect();
+      if (!inner.width && !inner.height) {
+        btnResetAll.classList.remove('is-ducked');
+        return;
+      }
+      var outer = btnResetAll.getBoundingClientRect();
+      var overlaps = !(
+        inner.right < outer.left || inner.left > outer.right ||
+        inner.bottom < outer.top || inner.top > outer.bottom);
+      btnResetAll.classList.toggle('is-ducked', overlaps);
+    });
+    document.addEventListener('focusout', function () {
+      btnResetAll.classList.remove('is-ducked');
+    });
   }
 
   // ---------- Settings backup ----------

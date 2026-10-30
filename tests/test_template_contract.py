@@ -2327,3 +2327,43 @@ class SetupWizardLayoutTests(unittest.TestCase):
         self.assertIsNotNone(base, "the base .settings-body rule is gone")
         assert base is not None
         self.assertIn("grid-column: 2", base.group(1))
+
+class EmergencyResetTests(RenderedPageFixture):
+    """The reset in the corner. A font or a colour that cannot be read is the
+    one setting a reader cannot put right from inside the app, so this has to
+    be reachable whatever the page currently looks like."""
+
+    def test_the_button_sits_outside_every_dialog(self):
+        # A modal makes everything behind it inert, so a reset inside one
+        # would be unusable exactly when it is needed.
+        self.assertGreater(
+            self.html.index('id="btn-reset-all"'),
+            self.html.rindex("</dialog>"),
+            "the emergency reset is inside a dialog, where it goes inert",
+        )
+
+    def test_it_is_wired_by_the_same_function_as_the_settings_reset(self):
+        self.assertIn("wireResetButton(btnResetAll)", self.js)
+        self.assertIn("wireResetButton(btnResetConfig)", self.js)
+
+    def test_it_is_named_and_explained(self):
+        self.assertIn(
+            'aria-describedby="reset-all-help"', self.html,
+            "the emergency reset needs the same plain explanation",
+        )
+
+    def test_it_does_not_use_the_theme_it_may_have_broken(self):
+        rule = re.search(r"body \.reset-all \{([^}]*)\}", self.css)
+        self.assertIsNotNone(rule, "the emergency reset has lost its own rule")
+        assert rule is not None
+        body = rule.group(1)
+        self.assertIn("position: fixed", body)
+        self.assertIn("#ffffff", body)
+        self.assertNotIn("var(--bg)", body)
+        self.assertNotIn("var(--fg)", body)
+
+    def test_it_steps_aside_when_it_would_cover_the_focused_control(self):
+        # WCAG 2.4.11. Focus can land underneath a fixed control; the control
+        # moves rather than leaving the reader with nothing on screen.
+        self.assertIn("is-ducked", self.js)
+        self.assertIn(".reset-all.is-ducked", self.css)

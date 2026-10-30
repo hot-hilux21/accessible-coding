@@ -127,7 +127,7 @@ const KNOWN_IDS = new Set([
   // The same font choice offered on the first-run screen. app.js looks both
   // up on the way in, so an id missing here would be reported as unknown.
   'setup-font-upload', 'setup-font-upload-status',
-  'preview-status', 'btn-reset-config',
+  'preview-status', 'btn-reset-config', 'btn-reset-all',
   'btn-export-config', 'btn-import-config', 'config-file-input', 'backup-status',
   'highlight-color-hex', 'highlight-color-picker', 'highlight-error',
   'highlight-status', 'btn-reset-highlight',
@@ -1906,12 +1906,14 @@ function runLanguageNoopCheck() {
 // the only way every control and every panel agrees with what was reset.
 // The save is a promise, so this runs a tick after the second click.
 function runResetConfigReloadCheck() {
-  if (reloads.length !== resetReloadsBefore + 1) {
+  // Two buttons reset now - the one in Settings and the emergency one in
+  // the corner - and each reloads once.
+  if (reloads.length !== resetReloadsBefore + 2) {
     failed = true;
-    console.log(`FAIL the reset caused ${reloads.length - resetReloadsBefore} ` +
-                'reloads instead of one');
+    console.log(`FAIL the resets caused ${reloads.length - resetReloadsBefore} ` +
+                'reloads instead of two');
   } else {
-    console.log('     the reset reloads the page');
+    console.log('     every reset reloads the page');
   }
 }
 
@@ -1942,6 +1944,25 @@ function runResetConfigChecks() {
                 JSON.stringify(configResets.slice(resetBefore)));
   } else {
     console.log('     the second reset click calls the reset route');
+  }
+
+  // The emergency reset in the corner is wired by the same function, so it
+  // has to behave the same way rather than being a second, drifting copy.
+  const emergency = elements.get('btn-reset-all');
+  const emergencyBefore = configResets.length;
+  fire('btn-reset-all', 'click');
+  if (emergency.textContent !== CATALOGUE['settings.reset_confirm']) {
+    failed = true;
+    console.log('FAIL the first emergency reset click did not arm the button');
+  } else {
+    console.log('     the emergency reset arms on the first click');
+  }
+  fire('btn-reset-all', 'click');
+  if (configResets.length !== emergencyBefore + 1) {
+    failed = true;
+    console.log('FAIL the emergency reset did not call the reset route');
+  } else {
+    console.log('     the emergency reset calls the same reset route');
   }
 }
 

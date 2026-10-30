@@ -1481,6 +1481,18 @@
   </dialog>
   {% endif %}
 
+  <!-- Emergency reset. A font or a colour that cannot be read is the one
+       setting a reader cannot undo from inside the app, so this stays
+       reachable from anywhere on the page. Marked up beside the wizard,
+       outside it, so it is never inert: a modal makes everything behind it
+       unclickable, and the reader who broke the page from inside a dialog is
+       exactly who needs this. -->
+  <button id="btn-reset-all" class="btn btn-small reset-all" type="button"
+          aria-describedby="reset-all-help">
+    {{ t('settings.reset_config') }}
+  </button>
+  <p id="reset-all-help" class="visually-hidden">{{ t('settings.reset_help') }}</p>
+
   <!-- The active catalogue is embedded rather than fetched. The page is
        already in the reader's language before this script runs, and a
        language change reloads the page, so there is nothing to await. -->

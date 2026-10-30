@@ -611,6 +611,47 @@ body[data-icon-only="true"] .btn-label {
   border-color: var(--error-border);
 }
 
+/* ---------- Emergency reset ----------
+   A font or a colour that cannot be read is the one setting a reader cannot
+   undo from inside the app, so this single control stays reachable from
+   anywhere on the page. It uses fixed colours rather than the theme tokens,
+   because the theme is exactly what may be unreadable. It floats over the
+   panes, so it steps aside whenever it would cover the control that just took
+   focus (.is-ducked, set by app.js): WCAG 2.4.11, focus not obscured. It is
+   still reached with Tab, and it comes back as soon as focus moves on. */
+body .reset-all {
+  position: fixed;
+  inset-block-end: var(--space-4);
+  inset-inline-end: var(--space-4);
+  z-index: 40;
+  background: #1a1a1a;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+}
+
+body .reset-all:hover {
+  background: #333333;
+}
+
+body .reset-all.is-armed,
+body .reset-all.is-armed:hover {
+  background: #2b0a0a;
+  color: #ffb3b3;
+  border-color: #ff6b6b;
+}
+
+body .reset-all.is-ducked {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The shared disabled rule dims to the theme tokens, which is exactly the
+   thing that cannot be trusted here. */
+body .reset-all:disabled {
+  color: #b4b4b4;
+  border-color: #8a8a8a;
+}
+
 /* ---------- Workspace ---------- */
 /* A split view: the editor on the left, and a column on the right holding
    the output and, when it is open, the shell. The widths and heights are
