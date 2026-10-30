@@ -1,4 +1,8 @@
 {
+  "about.credits_note": "Поки що написано англійською.",
+  "about.credits_title": "Подяки",
+  "about.summary": "Безкоштовний редактор з відкритим кодом для вивчення Python. Ваш код залишається на цьому комп’ютері.",
+  "about.version": "Версія {0}",
   "app.description": "Цілком доступне середовище розробки для людей з дислексією та нейровідмінностями.",
   "app.skip_to_editor": "Перейти до редактора",
   "app.title": "AccessibleCoding - програмуйте зручно",
@@ -82,6 +86,7 @@
   "glossary.intro": "Що роблять команди Python у цій програмі. Той самий список є у README.",
   "glossary.search_label": "Пошук у словнику",
   "glossary.title": "Словник Python",
+  "group.about": "Про застосунок",
   "group.backup": "Резервна копія",
   "group.colours": "Кольори й контраст",
   "group.controls": "Елементи керування",

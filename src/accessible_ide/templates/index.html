@@ -423,6 +423,7 @@
           <li><a href="#group-speak">{{ t('group.speak') }}</a></li>
           <li><a href="#group-updates">{{ t('group.updates') }}</a></li>
           <li><a href="#group-reset">{{ t('group.reset') }}</a></li>
+          <li><a href="#group-about">{{ t('group.about') }}</a></li>
         </ul>
       </nav>
 
@@ -1115,6 +1116,24 @@
               {{ t('settings.reset_config') }}
             </button>
           </div>
+        </fieldset>
+
+        <fieldset class="settings-group" id="group-about">
+          <legend class="settings-legend">{{ t('group.about') }}</legend>
+          <p class="settings-hint">{{ t('about.summary') }}</p>
+          <p class="field-help">{{ t('about.version', version) }}</p>
+
+          {# Credits. This list is yours to edit: replace a line with your own
+             words, one credit per line, or delete the examples. Nothing reads
+             it, so nothing breaks if the list changes length. #}
+          <h3 class="field-label-static">{{ t('about.credits_title') }}</h3>
+          <ul class="about-credits">
+            <li>OpenDyslexic and Atkinson Hyperlegible, the bundled reading fonts.</li>
+            <li>CodeMirror 5, the code editor.</li>
+            <li>Flask, the web framework.</li>
+            <li>Your name, your project, or a thank-you goes here.</li>
+          </ul>
+          <p class="field-help">{{ t('about.credits_note') }}</p>
         </fieldset>
       </div>
 

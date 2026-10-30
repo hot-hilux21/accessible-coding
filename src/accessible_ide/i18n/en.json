@@ -1,4 +1,8 @@
 {
+  "about.credits_note": "Written in English for now.",
+  "about.credits_title": "Credits",
+  "about.summary": "A free, open-source editor for learning Python. Your code stays on this computer.",
+  "about.version": "Version {0}",
   "app.description": "A fully accessible IDE for dyslexic and neurodivergent learners.",
   "app.skip_to_editor": "Skip to editor",
   "app.title": "AccessibleCoding - Code comfortably",
@@ -82,6 +86,7 @@
   "glossary.intro": "What the Python in this app does. The same list is in the README.",
   "glossary.search_label": "Search the dictionary",
   "glossary.title": "Python dictionary",
+  "group.about": "About",
   "group.backup": "Backup",
   "group.colours": "Colours and contrast",
   "group.controls": "Controls",

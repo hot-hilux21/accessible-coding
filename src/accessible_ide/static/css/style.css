@@ -1543,6 +1543,19 @@ body[data-contrast="high"][data-theme="pastel"] {
   margin-bottom: var(--space-4);
 }
 
+/* The About credits. A plain list, so the words can be replaced or removed
+   without anyone rebuilding a layout around them. */
+.about-credits {
+  margin: 0 0 var(--space-2);
+  padding-inline-start: var(--space-4);
+  font-size: 0.95em;
+  line-height: 1.6;
+}
+
+.about-credits li {
+  margin-bottom: var(--space-1);
+}
+
 .field:last-child {
   margin-bottom: 0;
 }

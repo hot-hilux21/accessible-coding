@@ -48,6 +48,8 @@ Jump to any section:
 - **Reading ruler** — a shaded band follows your pointer over the code, so one line stays easy to follow without moving the caret
 - **Per-pane toolbars** — each of the editor, output and shell has its own text toolbar, and anything you leave alone keeps following the settings you already chose
 - **Text-to-speech** — reads your code and errors aloud, with hover and click reading
+- **Sounds** — a short tone when your code starts, finishes, fails or waits for an answer, and a soft click on buttons, each with a switch in Settings
+- **About** — the version, the licence and a credits list you can edit in `src/accessible_ide/templates/index.html`
 - **Screen readers** — native landmarks, live regions, focus management and spoken step changes; no ARIA invented where the browser already does the job
 - **Errors** — plain-English messages, no jargon
 - **Storage** — offline-first, settings saved to your computer
@@ -71,6 +73,7 @@ AccessibleCoding is built for dyslexic and neurodivergent readers, not adapted f
 - **Screen readers:** the app uses native landmarks, headings, fieldsets, labels, live regions and focus management. Opening a dialog moves focus into it, a setup step announces itself when it changes, and an error is announced rather than only coloured. Hidden setup panels are removed from the tab order.
 - **Keyboard:** every control is reachable without a mouse. Running and stopping have configurable key presses, and the setup screen never traps the reader behind Escape.
 - **Text-to-speech:** reads output and errors aloud, can speak buttons and labels on hover or click, and lets the reader choose the voice and speed. It works alongside a screen reader rather than replacing it.
+- **Sounds:** four short tones say when a run starts, finishes, fails or waits on an answer, so a reader who cannot see the output pane is still told what happened. Reduce motion silences them along with everything else, and **Settings → Sound** has a switch of its own.
 - **Focus and motion:** focus mode hides the gutter or fades other lines, and reduced motion can be set to follow the operating system or be turned on and off explicitly.
 - **Plain English:** Python errors are translated into sentences that say what went wrong and how to fix it, with the original error kept available.
 
@@ -535,8 +538,8 @@ accessible-coding/
 ├── src/accessible_ide/
 │   ├── assets/              # Fonts (OpenDyslexic, Atkinson Hyperlegible, Lexend, Nunito, Almarai, Mukta)
 │   ├── i18n/                # Translation catalogues (en, hi, fr, es, ar, uk)
-│   ├── static/              # CSS + JavaScript (CodeMirror, app logic)
-│   ├── templates/           # HTML page
+│   ├── static/              # CSS + JavaScript (CodeMirror, app logic) + the interface sounds in static/audio
+│   ├── templates/           # HTML page (the About credits list lives here, ready to edit)
 │   ├── routes.py            # Flask routes, themes and settings validation
 │   ├── shell.py             # Python shell sessions
 │   ├── trace_runner.py      # Line-by-line variable trace

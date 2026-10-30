@@ -148,9 +148,17 @@ class NoHardcodedStrings(unittest.TestCase):
     # Everything else between tags must be a t() call.
     ALLOWED_LITERAL = re.compile(r"^(?:v[\w.-]+|&#\d+;|&[a-zA-Z][a-zA-Z0-9]*;)$")
 
+    # The About credits are the maintainer's own words, written in one
+    # language on purpose, so they are exempt from "no English in the
+    # markup" - the same way the glossary's entries are. Everything else
+    # between tags still has to be a t() call.
+    CREDITS_BLOCK = re.compile(r'<ul class="about-credits">.*?</ul>', re.S)
+
     def test_template_has_no_bare_text_in_body(self):
         html = TEMPLATE.read_text(encoding="utf-8")
         body = html.split("<body", 1)[1]
+        body, credits = self.CREDITS_BLOCK.subn("", body)
+        self.assertGreater(credits, 0, "the About credits block disappeared")
         for text in re.findall(r">([^<>{}]+)<", body):
             cleaned = text.strip()
             if not cleaned or self.ALLOWED_LITERAL.match(cleaned):
