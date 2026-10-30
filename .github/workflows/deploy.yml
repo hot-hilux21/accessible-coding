@@ -19,4 +19,14 @@ jobs:
             git pull origin main
             source venv/bin/activate
             pip install -r requirements.txt
-            pm2 restart accessible-coding-py
+            # The PM2 process is named accessible-coding and is started from
+            # run.sh, which loads .env and runs gunicorn. Restarting a name
+            # that does not exist fails, and the site stays on the old code,
+            # so start it if it is missing.
+            pm2 restart accessible-coding --update-env || pm2 start run.sh --name accessible-coding
+            # Make the process list survive a reboot.
+            pm2 save
+            # Fail the run when the app is not actually serving, instead of
+            # reporting a green deploy over a dead site.
+            sleep 3
+            curl -fsS http://127.0.0.1:3000/health
