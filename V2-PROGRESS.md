@@ -1,7 +1,7 @@
 # Progress towards v2
 
 Last updated: 2026-10-30
-Current release: **1.0.0**
+Current release: **1.1.0** (tagged 2026-10-22). v2 is not released yet; the work below is on `main` and on the live site.
 Live site: https://accessible-coding.duckdns.org (Oracle Cloud, deployed from `main` by `.github/workflows/deploy.yml`)
 
 This file is the working checklist between v1 and v2. It records what is shipped, what was done in the latest pass, what is still open, and what still needs a human to confirm. Update it when a feature lands or the plan changes.
@@ -59,7 +59,7 @@ This file is the working checklist between v1 and v2. It records what is shipped
 
 ### How this pass was checked
 
-- `python -m unittest discover -s tests -t .`: 717 tests, all passing.
+- `python -m unittest discover -s tests -t .`: 713 tests, all passing.
 - `node tests/dom_harness.js`: 32 labelled checks passing, plus three new focus-not-obscured checks.
 - New tests: `test_html_lang_attribute_is_dynamic` now asserts the `dir` attribute, `test_arabic_renders_right_to_left` renders the page in Arabic, `test_the_editor_keeps_code_left_to_right` pins the editor direction, `ReflowCssTests` covers the 320px fallback, and `TargetSizeCssTests` measures both colour grids.
 - Ran the app on port 5077 with a throwaway profile. Setup, settings and dictionary dialogs open and close, `aria-expanded` flips correctly, no console errors.
@@ -117,7 +117,7 @@ This file is the working checklist between v1 and v2. It records what is shipped
 - [x] Add a health endpoint and a deploy check that fails loudly when the Oracle service does not come back up. Shipped: `/health` existed but nothing checked it. `deploy.yml` now polls it and fails the run, and `pm2 save` keeps the process across a reboot.
 - [x] Fix the missing `/favicon.ico` (was a 404 on every load). Shipped: the app serves a real icon.
 - [ ] Keep the Windows auto-update path tested against a real signed release, not only in unit tests.
-- [ ] Add a short changelog so readers can see what changed without reading commit history.
+- [x] Add a short changelog so readers can see what changed without reading commit history. Shipped as `CHANGELOG.md`: v1.0.0, v1.1.0, and an Unreleased (v2) section written from the commits since v1.1.0.
 
 ---
 
