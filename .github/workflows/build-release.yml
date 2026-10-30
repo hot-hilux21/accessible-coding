@@ -237,14 +237,20 @@ jobs:
           # build named the old way has aged out.
           $tag = "${{ github.ref_name }}"
           $version = $tag -replace '^v', ''
-          $stable = if ($version.Contains('-')) { '' } else { '--stable' }
+          # An empty string here would reach the script as an argument of
+          # nothing and be refused as unrecognised, so the flag is a list
+          # that is either one item or none. Built in two statements on
+          # purpose: an if-expression unrolls a one-item list into a plain
+          # string, and splatting a string passes it one character at a time.
+          $stable = @()
+          if (-not $version.Contains('-')) { $stable = @('--stable') }
           python tools/stamp_version.py manifest `
             --version "${{ steps.stamp.outputs.version }}" `
             --file installer/AccessibleCoding-Setup.exe `
             --out installer/version.json `
             --url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/AccessibleIDE-Setup.exe" `
             --notes "Release ${{ github.ref_name }}." `
-            $stable
+            @stable
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:

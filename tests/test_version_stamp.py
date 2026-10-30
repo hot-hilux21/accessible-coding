@@ -362,6 +362,33 @@ class WorkflowStampTests(unittest.TestCase):
             with self.subTest(workflow=name):
                 self.assertTrue(self.jobs_that_build(text))
 
+    def test_no_workflow_passes_an_empty_argument_to_the_script(self):
+        # PowerShell passes an empty string through as an argument of
+        # nothing, and argparse refuses it with "unrecognized arguments:"
+        # after the real arguments have already been accepted. A variable
+        # used as a bare trailing line is that mistake waiting for the one
+        # tag that makes it empty, which is how the beta release failed.
+        # Flags go through a splat instead: @stable is one argument or none.
+        for name in self.WORKFLOWS:
+            text = (REPO_ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+            for line in text.splitlines():
+                with self.subTest(workflow=name, line=line):
+                    self.assertNotRegex(
+                        line.strip(), r'^\$\w+$',
+                        f"{name}: a bare PowerShell variable on its own line "
+                        "can arrive as an empty argument")
+
+    def test_the_stable_flag_is_splatted_not_interpolated(self):
+        # The other half of the same mistake: an if-expression unrolls a
+        # one-item list into a plain string, and splatting a string passes
+        # it to the script one character at a time. The list is therefore
+        # built in two statements and handed over with @stable.
+        text = (REPO_ROOT / ".github" / "workflows" /
+                "build-release.yml").read_text(encoding="utf-8")
+        self.assertIn("$stable = @()", text)
+        self.assertIn("$stable = @('--stable')", text)
+        self.assertIn("@stable", text)
+
 
 class ChannelPublishingTests(unittest.TestCase):
     """The app reads a fixed address, so the workflows have to publish it.
