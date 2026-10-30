@@ -43,8 +43,10 @@ Jump to any section:
 - **Fonts** — OpenDyslexic by default, plus Atkinson Hyperlegible, Lexend and Nunito for dyslexia-friendly reading. Calibri, Arial, Comic Sans and Courier New come from your own computer.
 - **Languages** — English, Hindi, French, Spanish, Arabic and Ukrainian, with right-to-left layout for Arabic.
 - **Focus mode** — hide the gutter, or blur every line except the one you are on
-- **Themes** — high contrast, dark, pastel, light, ocean, forest, and a custom theme builder with a hex colour grid
+- **Themes** — 15 presets (high contrast, dark, pastel, light, ocean, forest, white, AMOLED, red, orange, yellow, green, blue, indigo, violet), a custom theme builder with a hex colour grid, and a per-colour reset
 - **Text size and spacing** — separate size, line height and letter spacing for the editor, output and shell
+- **Reading ruler** — a shaded band follows your pointer over the code, so one line stays easy to follow without moving the caret
+- **Per-pane toolbars** — each of the editor, output and shell has its own text toolbar, and anything you leave alone keeps following the settings you already chose
 - **Text-to-speech** — reads your code and errors aloud, with hover and click reading
 - **Screen readers** — native landmarks, live regions, focus management and spoken step changes; no ARIA invented where the browser already does the job
 - **Errors** — plain-English messages, no jargon
@@ -62,8 +64,10 @@ AccessibleIDE is built for dyslexic and neurodivergent readers, not adapted for 
 - **Reading fonts:** OpenDyslexic is the default. Atkinson Hyperlegible, Lexend and Nunito are bundled, and you can add your own `.ttf`, `.otf`, `.woff` or `.woff2` file. The chosen font can be applied to the code, the output, the shell and the rest of the interface separately.
 - **Text size and spacing:** font size, line height, letter spacing and text weight are adjustable, with separate controls for the editor, output and shell.
 - **Contrast:** every bundled theme and every derived custom colour is checked against WCAG 2.1 AA (4.5:1 for text). `tests/test_contrast.py` is the arbiter and must pass before a visual change lands. The custom theme builder nudges a colour that would fail until it is readable again.
-- **Themes:** high contrast, dark, pastel, light, ocean and forest. The custom theme has a hex grid, a native colour picker and a hex field. Code colours for keywords, strings, comments, numbers and functions sit under **Settings → Colours → Advanced**.
-- **Languages:** English, Hindi, French, Spanish, Arabic and Ukrainian. Arabic switches the page to right-to-left. Every visible string is translated; nothing falls back to English silently.
+- **Themes:** 15 presets — high contrast, dark, pastel, light, ocean, forest, white, AMOLED, and red, orange, yellow, green, blue, indigo and violet. The custom theme has a hex grid, a native colour picker and a hex field, and every colour has its own reset. Code colours for keywords, strings, comments, numbers and functions sit under **Settings → Colours → Advanced**.
+- **Languages:** English, Hindi, French, Spanish, Arabic and Ukrainian. Arabic switches the page to right-to-left, and the editor pins its own left-to-right direction so code, gutter, caret and scrollbar never mirror. Every visible string is translated; nothing falls back to English silently.
+- **Reading ruler:** a shaded band follows the pointer over the editor so one line is easy to follow. It is a reading aid only, so it leaves the caret, the keyboard and the text untouched.
+- **Standards:** WCAG 2.1 AA is the floor, with the WCAG 2.2 additions that apply here — focus is never obscured by floating content (2.4.11), every pointer action has a keyboard alternative (2.5.7), targets are at least 24 by 24 pixels (2.5.8), and help stays in the same place at every width (3.2.6).
 - **Screen readers:** the app uses native landmarks, headings, fieldsets, labels, live regions and focus management. Opening a dialog moves focus into it, a setup step announces itself when it changes, and an error is announced rather than only coloured. Hidden setup panels are removed from the tab order.
 - **Keyboard:** every control is reachable without a mouse. Running and stopping have configurable key presses, and the setup screen never traps the reader behind Escape.
 - **Text-to-speech:** reads output and errors aloud, can speak buttons and labels on hover or click, and lets the reader choose the voice and speed. It works alongside a screen reader rather than replacing it.
@@ -555,8 +559,9 @@ What is done so far:
 - [x] Built-in Python runner
 - [x] Save and open code files
 - [x] Local settings save/load (JSON)
-- [x] 6 preset themes (high contrast, dark, pastel, light, ocean, forest)
-- [x] Custom theme builder with hex colour grid
+- [x] 15 preset themes (high contrast, dark, pastel, light, ocean, forest, white, AMOLED, red, orange, yellow, green, blue, indigo, violet)
+- [x] Custom theme builder with hex colour grid and a per-colour reset
+- [x] Reading ruler that follows the pointer without moving the caret
 - [x] Six languages, including right-to-left Arabic
 - [x] Adjustable text size, line height and letter spacing per pane
 - [x] Text-to-speech for output, errors, buttons and labels

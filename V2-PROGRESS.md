@@ -13,7 +13,7 @@ This file is the working checklist between v1 and v2. It records what is shipped
 | Area | State |
 | --- | --- |
 | Editor | CodeMirror 5, Python mode, active line, bracket matching, 10 second run timeout |
-| Themes | High Contrast, Dark, Pastel, Light, Ocean, Forest, plus Custom |
+| Themes | High Contrast, Dark, Pastel, Light, Ocean, Forest, White, AMOLED, Red, Orange, Yellow, Green, Blue, Indigo, Violet, plus Custom |
 | Custom theme | Hex grid, native colour picker and hex text field for page, background, text and selection |
 | Code colours | Keyword, string, comment, number and function live under Settings then Colours then Advanced |
 | Onboarding | Language, font, theme (with an extra custom-colour step), what the app does. Custom code colours are carried through hidden inputs, not asked on the startup screen |
@@ -38,6 +38,9 @@ This file is the working checklist between v1 and v2. It records what is shipped
 - The Settings and Dictionary triggers now carry `aria-expanded` and `aria-controls`, kept in sync on open, close and Escape. A screen reader hears the state of the dialog it can open.
 - `README.md` encoding repaired (the file held real mojibake, not just display noise), accessibility section added, stale feature list corrected, live URL replaced, installer URL updated.
 - `AGENTS.md` corrected: it still described the project as pre-development and listed the stack as undecided.
+- The reading ruler landed under **Settings → Reading**, off by default. It shades the line under the pointer through a CodeMirror line class, so it costs no contrast and never paints over the text.
+- `README.md` brought back in line with the shipped app: 15 presets rather than 6, the per-colour reset, the reading ruler, the per-pane toolbars, and a short standards note for the WCAG 2.2 items. `AGENTS.md` now names those items in the accessibility bar so the next change cannot quietly drop them.
+- Committed as `ca6c6fb`, *Apply RTL at the document, add a reading ruler, close WCAG 2.2 gaps*.
 
 ### Accessibility pass 2
 
@@ -81,7 +84,7 @@ This file is the working checklist between v1 and v2. It records what is shipped
 ### P1: reading comfort
 
 - [ ] Let readers adjust the blur radius and choose which panes blur in focus mode (today the mode is fixed presets).
-- [ ] Add a reading ruler option (a horizontal highlight that follows the pointer) for line tracking.
+- [x] Add a reading ruler option (a horizontal highlight that follows the pointer) for line tracking. It lives in **Settings → Reading**, is off by default, and shades the line under the pointer with `background` only, so it costs no contrast and never draws over the text. The caret and the keyboard are untouched: this is a pointer aid, not a second cursor.
 - [ ] Tune the custom theme contrast nudge: it currently corrects a failing colour, but it does not explain which colour it changed.
 - [ ] Allow exporting and importing a theme as a small JSON file, so a reader can carry settings between machines.
 - [ ] Review the font list against user demand; add any missing open-licence dyslexia font with its licence file.
@@ -104,7 +107,7 @@ This file is the working checklist between v1 and v2. It records what is shipped
 ### P2: operations
 
 - [ ] Add a health endpoint and a deploy check that fails loudly when the Oracle service does not come back up.
-- [ ] Fix the missing `/favicon.ico` (currently a 404 on every load).
+- [x] Fix the missing `/favicon.ico` (was a 404 on every load). Shipped: the app serves a real icon.
 - [ ] Keep the Windows auto-update path tested against a real signed release, not only in unit tests.
 - [ ] Add a short changelog so readers can see what changed without reading commit history.
 
@@ -114,7 +117,7 @@ This file is the working checklist between v1 and v2. It records what is shipped
 
 1. Multi-file projects: tabbed editor in the existing page, or a file tree in a second pane? Decide before writing code.
 2. Cloud sync: build it, or document a manual export and drop the promise? It is currently listed as optional and nothing depends on it.
-3. Reading ruler and blur radius: do they belong in Settings, or in the per-pane mini toolbar? Avoid growing Settings into a wall of controls.
+3. Reading ruler and blur radius: do they belong in Settings, or in the per-pane mini toolbar? Avoid growing Settings into a wall of controls. **Reading ruler is settled**: it is a single switch under Settings → Reading, next to the text size and spacing controls it belongs with. Blur radius is still open.
 4. Whether to publish a public roadmap, given the project is solo-maintained and dates slip.
 
 ---

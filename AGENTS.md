@@ -37,7 +37,7 @@ The code exists and is tested. Read the surrounding code before changing it; do 
 - **Stack:** Flask + Jinja server rendering, vanilla JavaScript, CodeMirror 5. No React, no Node build step, no Tailwind, no bundler. Settings are local JSON, saved through `routes.py`.
 - **UI library:** HeroUI v3 is not used. It requires React 19 and Tailwind CSS v4, which this app does not have. Do not add HeroUI, React or Tailwind to the server-rendered page; a mixed runtime would break the no-JavaScript setup screen, the token-based themes and the accessibility tests. If a React surface is ever approved, it must be a separate, scoped migration with its own build step, not an island inside `index.html`.
 - **Storage:** Local JSON/TOML config; cloud sync (Google Drive/OneDrive) is optional and opt-in only.
-- **Accessibility bar:** WCAG 2.1 AA minimum. Every UI change should be checked against this.
+- **Accessibility bar:** WCAG 2.1 AA minimum, plus the WCAG 2.2 additions this app commits to — 2.4.11 focus not obscured, 2.5.7 dragging alternatives, 2.5.8 target size (24px) and 3.2.6 consistent help. Every UI change should be checked against these.
 - **License/repo:** Open source (MIT/GPL/Apache 2.0), public GitHub from day 1. Solo development; external PRs require permission and review-then-merge.
 - **Priority rule:** Reliable uptime > fancy features.
 
