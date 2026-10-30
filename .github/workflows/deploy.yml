@@ -15,8 +15,16 @@ jobs:
           username: opc
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
+            set -euo pipefail
             cd /home/opc/accessible-coding
-            git pull origin main
+            # A plain pull reports success when there is nothing to merge and
+            # does nothing when the checkout has drifted, so the server was
+            # left running a build from before the rename while every deploy
+            # went green. Fetch, then move the checkout onto the pushed
+            # commit: .env is untracked, so it survives.
+            git fetch --prune origin main
+            git reset --hard origin/main
+            git --no-pager log --oneline -1
             source venv/bin/activate
             pip install -r requirements.txt
             # The PM2 process is named accessible-coding and is started from
@@ -30,3 +38,7 @@ jobs:
             # reporting a green deploy over a dead site.
             sleep 3
             curl -fsS http://127.0.0.1:3000/health
+            # Health alone only proves something is listening, which is how a
+            # deploy of old code passed. Ask for a word that only the current
+            # build prints, so a stale checkout fails the run instead.
+            curl -fsS http://127.0.0.1:3000/ | grep -q 'AccessibleCoding'
