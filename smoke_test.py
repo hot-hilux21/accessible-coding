@@ -171,7 +171,7 @@ for code, run_label, explained_word, blocked_word in (
     explained = c.post('/api/run', json={'code': 'x = 1/0', 'locale': code}).get_json()['error']
     blocked = c.post('/api/run', json={'code': 'import os', 'locale': code}).get_json()['error']
     ok = (saved == code and run_label in page
-          and f'<html lang="{code}">' in page
+          and f'<html lang="{code}"' in page
           and explained_word in explained and blocked_word in blocked)
     print(f'{code} page and server errors follow the reader ->', 'OK' if ok else f'FAILED {explained!r}')
     assert ok, f'{code} did not render throughout'
