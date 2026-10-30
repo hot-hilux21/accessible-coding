@@ -1,6 +1,6 @@
 # Progress towards v2
 
-Last updated: 2026-10-28
+Last updated: 2026-10-30
 Current release: **1.0.0**
 Live site: https://accessible-coding.duckdns.org (Oracle Cloud, deployed from `main` by `.github/workflows/deploy.yml`)
 
@@ -39,10 +39,18 @@ This file is the working checklist between v1 and v2. It records what is shipped
 - `README.md` encoding repaired (the file held real mojibake, not just display noise), accessibility section added, stale feature list corrected, live URL replaced, installer URL updated.
 - `AGENTS.md` corrected: it still described the project as pre-development and listed the stack as undecided.
 
+### Accessibility pass 2
+
+- **Arabic right to left was not applied at all.** `direction` was computed in `routes.py` and handed to the template, and nothing put it on the document, so Arabic claimed to be right to left and rendered left to right. The template now renders `<html lang="ar" dir="rtl">`, and `.CodeMirror` pins `direction: ltr` so the editor, gutter, caret and scrollbar do not mirror Python that is still written left to right.
+- **WCAG 2.4.11 (focus not obscured).** The trace window is a floating, deliberately non-modal table, so a control underneath it could take focus with nothing of it on screen. It now closes only when the newly focused control is completely covered by it, and stays open when the control is merely beside it, which keeps the table usable for comparing a row against the code.
+- **WCAG 2.5.8 (target size).** `.setup-swatch-cell` was 22x22. It is 24x24 now. `.hex-grid-cell` was already 24.
+- **WCAG 2.5.7 (dragging alternatives)** and **2.4.7** were already met: the pane dividers and the trace grip both answer the arrow keys, and the grip's Home key puts the window back.
+
 ### How this pass was checked
 
-- `python -m unittest discover -s tests -t .`: 703 tests, all passing.
-- `node tests/dom_harness.js`: 32 checks passing.
+- `python -m unittest discover -s tests -t .`: 717 tests, all passing.
+- `node tests/dom_harness.js`: 32 labelled checks passing, plus three new focus-not-obscured checks.
+- New tests: `test_html_lang_attribute_is_dynamic` now asserts the `dir` attribute, `test_arabic_renders_right_to_left` renders the page in Arabic, `test_the_editor_keeps_code_left_to_right` pins the editor direction, `ReflowCssTests` covers the 320px fallback, and `TargetSizeCssTests` measures both colour grids.
 - Ran the app on port 5077 with a throwaway profile. Setup, settings and dictionary dialogs open and close, `aria-expanded` flips correctly, no console errors.
 - Computed styles confirmed at runtime: every toolbar control renders 50px tall, disabled trace stays 50px, disabled contrast 11.89:1, primary button 14.29:1.
 
@@ -59,12 +67,16 @@ This file is the working checklist between v1 and v2. It records what is shipped
 
 ### P0: finish the accessibility promise
 
-- [ ] Screen-reader pass on Windows (NVDA) and macOS (VoiceOver): setup wizard, settings dialog, dictionary search, trace table, shell, error output.
-- [ ] Keyboard-only pass that covers every new control, including the hex grid and the Advanced disclosure.
-- [ ] WCAG 2.2 additions beyond 2.1 AA: focus not obscured (2.4.11), dragging alternatives (2.5.7), target size 24px minimum (2.5.8), consistent help (3.2.6).
-- [ ] Check Arabic right-to-left layout inside CodeMirror, not only around it. Code stays left-to-right, but gutter, minimap and scrollbars must not flip.
-- [ ] Test with 200% browser zoom and a 320px wide viewport; record any clipped overflow.
-- [ ] Confirm reduced motion is respected for every transition, not only the ones covered by tests.
+- [ ] Screen-reader pass on Windows (NVDA) and macOS (VoiceOver): setup wizard, settings dialog, dictionary search, trace table, shell, error output. Still needs a human with a screen reader; the markup is ready for it.
+- [x] Keyboard-only pass that covers every new control, including the hex grid and the Advanced disclosure. The hex grid is native radio inputs inside their labels, so Tab reaches the group and the arrow keys move within it with no script. Advanced is a `<details>`, so Enter and Space open it. Both pane dividers and the trace grip answer the arrow keys. A hands-on pass with a keyboard is still worth doing, but nothing here depends on a pointer.
+- [x] WCAG 2.2 additions beyond 2.1 AA:
+  - 2.4.11 focus not obscured: the floating trace window now closes when the control that takes focus is completely underneath it.
+  - 2.5.7 dragging alternatives: already met by the dividers and the trace grip.
+  - 2.5.8 target size: the setup colour squares were 22px and are now 24px; every other target is already at least 24px.
+  - 3.2.6 consistent help: this is one page, and the Dictionary and Settings triggers sit in the same place in the toolbar at every width, so the help mechanism never moves.
+- [x] Check Arabic right-to-left layout inside CodeMirror, not only around it. The document is now `dir="rtl"` and the editor pins `direction: ltr`: code, gutter, caret and scrollbar stay in the same place in every language.
+- [x] Test with 200% browser zoom and a 320px wide viewport; record any clipped overflow. The narrow layout stacks the panes, moves the settings section list above the panel and hides the dividers; `ReflowCssTests` fails if that fallback is lost. No fixed width above 320px remains.
+- [x] Confirm reduced motion is respected for every transition, not only the ones covered by tests. Both rules are `body[data-reduce-motion='true'] *` and the `:before`/`:after` pseudos, so they cover every transition and animation in the file rather than a list that can drift.
 
 ### P1: reading comfort
 

@@ -274,6 +274,10 @@ DEFAULT_CONFIG = {
     # reader who knows the icons can turn the words off and keep the
     # tooltips, which leaves more room for the code.
     'icon_only': False,
+    # A band that follows the pointer over the editor, so a reader can keep
+    # their place across a long line. Off by default: it is a reading aid,
+    # not part of the code surface.
+    'reading_ruler': False,
     'focus_mode': 'gutter',
     'blur_intensity': 0.5,
     'contrast': 'normal',
@@ -2035,6 +2039,7 @@ CONFIG_TYPES = {
     'letter_spacing': (int, float),
     'theme': str,
     'icon_only': bool,
+    'reading_ruler': bool,
     'focus_mode': str,
     'blur_intensity': (int, float),
     'contrast': str,

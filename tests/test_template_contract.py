@@ -1416,6 +1416,70 @@ class StaticAssetsTests(unittest.TestCase):
         self.assertIn('body[data-contrast="high"]', css)
 
 
+class ReflowCssTests(unittest.TestCase):
+    """A 320px wide window must scroll in one direction only.
+
+    The app is a split pane by design, and the split is what overflows a
+    narrow window. The paragraph below is the fallback that stops it: the
+    panes stack, and the settings panel puts its section list back above
+    the panel instead of leaving a column that has nowhere to go. Nothing
+    about that fallback is visible at desktop width, so losing it costs
+    nobody a glance and only shows up on a phone or at 200% zoom.
+    """
+
+    def setUp(self):
+        css = (
+            REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+        ).read_text(encoding="utf-8")
+        self.narrow = css.split("@media (max-width: 768px)", 1)[1]
+        self.narrow = self.narrow[: self.narrow.index("\n}\n")]
+
+    def test_the_workspace_stacks_instead_of_sitting_side_by_side(self):
+        self.assertIn(".workspace", self.narrow)
+        block = self.narrow.split(".workspace {", 1)[1].split("}", 1)[0]
+        self.assertIn("flex-direction: column", block)
+
+    def test_the_settings_sections_move_above_the_panel(self):
+        block = self.narrow.split(".settings-form {", 1)[1].split("}", 1)[0]
+        self.assertIn("grid-template-columns: minmax(0, 1fr)", block)
+
+    def test_the_divider_is_hidden_with_the_split(self):
+        block = self.narrow.split(".divider {", 1)[1].split("}", 1)[0]
+        self.assertIn("display: none", block)
+
+
+class TargetSizeCssTests(unittest.TestCase):
+    """WCAG 2.5.8: an interactive target is at least 24 by 24 CSS pixels.
+
+    Both of these are colour squares a reader can press to start their own
+    theme. They were 22px and passed everything else, so nothing looked wrong:
+    the only way to catch it is to measure them.
+    """
+
+    def setUp(self):
+        css = (
+            REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+        ).read_text(encoding="utf-8")
+
+        def block(selector):
+            body = css.split(selector + " {", 1)[1]
+            return body[: body.index("}")]
+
+        self.setup_cell = block(".setup-swatch-cell")
+        self.hex_cell = block(".hex-grid-cell")
+
+    def test_the_setup_colour_squares_meet_the_floor(self):
+        for prop in ("width", "height"):
+            with self.subTest(prop=prop):
+                size = int(re.search(prop + r":\s*(\d+)px", self.setup_cell).group(1))
+                self.assertGreaterEqual(size, 24)
+
+    def test_the_hex_grid_cells_meet_the_floor(self):
+        # These are square by aspect-ratio, so the one declared side is both.
+        size = int(re.search(r"min-width:\s*(\d+)px", self.hex_cell).group(1))
+        self.assertGreaterEqual(size, 24)
+
+
 class ReducedMotionCssTests(unittest.TestCase):
     """The stylesheet has to answer the switch in Settings.
 

@@ -120,6 +120,10 @@ Jump to any section:
 - **Pastel/Soft Palettes:** For low-light/sensitive users
 - **Dark/Light Mode Toggle:** User preference
 - **Color Customization:** Full theme maker for syntax highlighting
+- **Design Restraint:** The interface avoids generated-design conventions — no
+  animated backgrounds, glows, gradient text, oversized headings, or decorative
+  motion. Every visual choice must make the code easier to read, and everything
+  must clear WCAG 2.1 AA. See the Design Quality Bar in `AGENTS.md`.
 
 ### 4.4 Cognitive Accessibility
 - **Focus Mode:** Blur non-essential UI; keep code center-stage

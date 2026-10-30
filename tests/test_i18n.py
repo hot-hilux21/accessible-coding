@@ -16,6 +16,7 @@ from accessible_ide import i18n
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "src" / "accessible_ide" / "templates" / "index.html"
 APP_JS = ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
+STYLESHEET = ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
 
 LOCALES = ("en", "hi", "fr", "es", "ar", "uk")
 
@@ -183,7 +184,15 @@ class NoHardcodedStrings(unittest.TestCase):
 
     def test_html_lang_attribute_is_dynamic(self):
         html = TEMPLATE.read_text(encoding="utf-8")
-        self.assertIn('<html lang="{{ locale }}">', html)
+        self.assertIn('<html lang="{{ locale }}" dir="{{ direction }}">', html)
+
+    def test_the_editor_keeps_code_left_to_right(self):
+        # The page direction comes from <html dir>. Code is not translated,
+        # so the editor must pin its own direction or Arabic readers get a
+        # mirrored gutter and caret on Python that is still written ltr.
+        css = STYLESHEET.read_text(encoding="utf-8")
+        block = css.split(".CodeMirror {", 1)[1].split("}", 1)[0]
+        self.assertIn("direction: ltr", block)
 
     def test_language_selector_is_built_from_the_registry(self):
         html = TEMPLATE.read_text(encoding="utf-8")

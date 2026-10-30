@@ -2358,6 +2358,35 @@
       // Otherwise the arrow keys scroll the table underneath as well.
       event.preventDefault();
     });
+
+    // WCAG 2.4.11, focus not obscured. The window floats over the page because
+    // it is deliberately not modal: the reader holds the table against the code
+    // behind it. The cost is that a control can take focus while sitting
+    // entirely underneath, which leaves a keyboard user with nothing on screen
+    // to show where they are. When that happens the window gives way. It is
+    // only closed when the new focus target is completely covered, never when
+    // the target is merely beside or behind part of it, so a reader comparing a
+    // row with the code on the other side keeps the table open.
+    document.addEventListener('focusin', function (event) {
+      if (!traceWindow.open) return;
+      var target = event.target;
+      if (!target || typeof target.getBoundingClientRect !== 'function') return;
+      if (traceWindow.contains && traceWindow.contains(target)) return;
+
+      var inner = target.getBoundingClientRect();
+      var outer = traceWindow.getBoundingClientRect();
+      // The stub in the harness, and any browser that predates the feature,
+      // answers with zeroes rather than a rect; treating that as "covered"
+      // would close the window on every focus move.
+      if (!inner.width && !inner.height) return;
+
+      var covered =
+        inner.left >= outer.left &&
+        inner.left + inner.width <= outer.left + outer.width &&
+        inner.top >= outer.top &&
+        inner.top + inner.height <= outer.top + outer.height;
+      if (covered) traceWindow.close();
+    });
   }
 
   // ---------- Save / Open files ----------
@@ -3562,6 +3591,71 @@
       saveConfig({ icon_only: next });
     });
   });
+
+  // ---------- Reading ruler ----------
+  // A band that follows the pointer over the editor, so one line stays easy
+  // to track across a wide screen. Pointer only: the caret line already
+  // covers the keyboard case, and the band costs no contrast because it is
+  // the same surface as that line.
+  var readingRulerButton = document.getElementById('reading-ruler');
+  var rulerLine = null;
+
+  function setRulerLine(line) {
+    if (line === rulerLine) return;
+    if (rulerLine !== null) {
+      editor.removeLineClass(rulerLine, 'background', 'cm-reading-ruler');
+    }
+    rulerLine = line;
+    if (rulerLine !== null) {
+      editor.addLineClass(rulerLine, 'background', 'cm-reading-ruler');
+    }
+  }
+
+  function applyReadingRuler(on) {
+    body.setAttribute('data-reading-ruler', on ? 'true' : 'false');
+    if (readingRulerButton) {
+      readingRulerButton.setAttribute('aria-checked', on ? 'true' : 'false');
+      readingRulerButton.classList.toggle('active', on);
+      var rulerState = document.getElementById('reading-ruler-state');
+      if (rulerState) rulerState.textContent = on ? t('switch.on') : t('switch.off');
+    }
+    if (!on) setRulerLine(null);
+  }
+
+  applyReadingRuler(body.getAttribute('data-reading-ruler') === 'true');
+
+  if (readingRulerButton) {
+    readingRulerButton.addEventListener('click', function () {
+      var next = body.getAttribute('data-reading-ruler') !== 'true';
+      applyReadingRuler(next);
+      saveConfig({ reading_ruler: next });
+    });
+  }
+
+  (function trackReadingRuler() {
+    // The harness stubs CodeMirror without its DOM methods; a real editor
+    // always has them.
+    if (typeof editor.getWrapperElement !== 'function') return;
+    var wrapper = editor.getWrapperElement();
+    var queued = false;
+    var pointer = null;
+    wrapper.addEventListener('mousemove', function (event) {
+      if (body.getAttribute('data-reading-ruler') !== 'true') return;
+      pointer = event;
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(function () {
+        queued = false;
+        if (!pointer) return;
+        var pos = editor.coordsChar(
+          { left: pointer.clientX, top: pointer.clientY }, 'window');
+        setRulerLine(pos.line);
+      });
+    });
+    wrapper.addEventListener('mouseleave', function () {
+      setRulerLine(null);
+    });
+  })();
 
   // ---------- Background gradient ----------
   // A very subtle pull of the background toward the foreground colour, so

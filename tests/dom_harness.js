@@ -60,6 +60,7 @@ const KNOWN_IDS = new Set([
   // as optional, and the harness has to exercise that path.
   'theme-gradient', 'theme-gradient-state', 'theme-builder',
   'icon-only', 'setup-icon-only', 'icon-only-state', 'setup-icon-only-state',
+  'reading-ruler', 'reading-ruler-state',
   // The builder renders its fields from a Jinja loop over these nine keys,
   // and each key emits four ids: the hex input, the colour picker, the
   // error line, and the contrast status line. All four are listed for every
@@ -3471,6 +3472,60 @@ function runLayoutChecks() {
   console.log('layout: 8 checks');
 }
 
+// WCAG 2.4.11, focus not obscured. The trace window floats over the page and
+// is deliberately not modal, so a control underneath it can take focus with
+// nothing of it on screen. The window is expected to close in that one case,
+// and to stay open when the control is merely beside it: closing on every
+// focus move would take the table away from a reader comparing a row with the
+// code next to it, which is the whole reason the window is not modal.
+function runFocusObscuredChecks() {
+  const win = elements.get('trace-window');
+  if (!win) {
+    failed = true;
+    console.log('FAIL the trace window was never looked up');
+    return;
+  }
+
+  const savedClose = win.close;
+  const savedOpen = win.open;
+  let closes = 0;
+
+  win.open = true;
+  win.close = () => { closes += 1; };
+  win.getBoundingClientRect = () => ({ top: 100, left: 100, width: 400, height: 300 });
+
+  function focusOn(rect) {
+    fireDocument('focusin', { target: { getBoundingClientRect: () => rect } });
+  }
+
+  focusOn({ top: 150, left: 150, width: 100, height: 20 });
+  if (closes !== 1) {
+    failed = true;
+    console.log(`FAIL a wholly covered control did not close the window (${closes})`);
+  } else {
+    console.log('     a control hidden under the window closes it');
+  }
+
+  focusOn({ top: 10, left: 10, width: 100, height: 20 });
+  if (closes !== 1) {
+    failed = true;
+    console.log(`FAIL a control beside the window closed it (${closes})`);
+  } else {
+    console.log('     a control beside the window leaves it open');
+  }
+
+  focusOn({ top: 150, left: 150, width: 0, height: 0 });
+  if (closes !== 1) {
+    failed = true;
+    console.log('FAIL a rect with no size was read as covered');
+  } else {
+    console.log('     a rect with no size is not read as covered');
+  }
+
+  win.close = savedClose;
+  win.open = savedOpen;
+}
+
 // The three pane text toolbars. Two things have to hold at once: a pane's own
 // slider moves that pane and no other, and a pane nobody has touched keeps
 // following the reading settings, so the Settings dialog a reader already had
@@ -4558,6 +4613,7 @@ setTimeout(() => {
   // The dividers answer synchronously, so the layout checks need no window
   // of their own.
   runLayoutChecks();
+  runFocusObscuredChecks();
   // Also synchronous, and deliberately after the stepper checks: those move
   // the reading settings, and this proves a following pane kept up with them.
   runPaneToolbarChecks();

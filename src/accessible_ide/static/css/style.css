@@ -1043,6 +1043,12 @@ body[data-icon-only="true"] .btn-label {
 /* CodeMirror overrides */
 .CodeMirror {
   height: 100%;
+  /* Python is written left to right whatever the interface language is.
+     Without this the editor inherits dir="rtl" from <html> in Arabic and
+     the caret, the gutter and the scrollbar move to the wrong side for
+     code that has no business being mirrored. */
+  direction: ltr;
+  text-align: left;
   font-family: var(--font-code) !important;
   font-size: var(--font-size) !important;
   font-weight: var(--font-weight) !important;
@@ -1071,6 +1077,12 @@ body[data-icon-only="true"] .btn-label {
    blue (#e8f2ff), which glares on the dark themes. Tie it to the
    panel color so the caret line reads as a calm surface instead. */
 .CodeMirror-activeline-background {
+  background: var(--panel-bg);
+}
+
+/* The reading ruler. The same calm surface as the caret line, so it costs
+   no contrast, and it is drawn behind the text, never over it. */
+.cm-reading-ruler {
   background: var(--panel-bg);
 }
 
@@ -2433,8 +2445,12 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 }
 
 .setup-swatch-cell {
-  width: 22px;
-  height: 22px;
+  /* 24px rather than 22: WCAG 2.5.8 sets a 24px floor on the target, and a
+     colour square is a target like any other. The two extra pixels are not
+     visible as a change in the strip, but they are the difference between
+     meeting the criterion and missing it. */
+  width: 24px;
+  height: 24px;
   padding: 0;
   background: var(--panel-bg);
   border-radius: 4px;

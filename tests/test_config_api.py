@@ -487,8 +487,20 @@ class LocaleTests(ConfigApiTestCase):
             body = page.data.decode("utf-8")
         finally:
             page.close()
-        self.assertIn('<html lang="es">', body)
+        self.assertIn('<html lang="es" dir="ltr">', body)
         self.assertIn("Ajustes", body)
+
+    def test_arabic_renders_right_to_left(self):
+        # The direction was computed and handed to the template from the
+        # start, but nothing put it on the document, so Arabic claimed to be
+        # right to left and rendered left to right.
+        self.assertEqual(self.post_settings(locale="ar").status_code, 200)
+        page = self.client.get("/")
+        try:
+            body = page.data.decode("utf-8")
+        finally:
+            page.close()
+        self.assertIn('<html lang="ar" dir="rtl">', body)
 
     def test_a_corrupt_locale_in_the_file_falls_back_to_english(self):
         routes.CONFIG_FILE.write_text('{"locale": "klingon"}', encoding="utf-8")
@@ -497,7 +509,7 @@ class LocaleTests(ConfigApiTestCase):
             body = page.data.decode("utf-8")
         finally:
             page.close()
-        self.assertIn('<html lang="en">', body)
+        self.assertIn('<html lang="en" dir="ltr">', body)
 
     def test_every_theme_name_is_translated(self):
         # The theme picker is built from /api/themes, whose names are English.
@@ -614,6 +626,27 @@ class ReduceMotionTests(ConfigApiTestCase):
         # recognise, sending the reader hunting for a control that exists.
         self.assertIn("Reduce motion", message)
         self.assertIn("on or off", message)
+
+
+class ReadingRulerTests(ConfigApiTestCase):
+    """The ruler is a stored preference, off until the reader asks for it."""
+
+    def test_it_starts_off(self):
+        self.assertIs(self.get_settings()["reading_ruler"], False)
+
+    def test_it_stays_where_it_is_put(self):
+        for value in (True, False):
+            with self.subTest(reading_ruler=value):
+                self.assertEqual(
+                    self.post_settings(reading_ruler=value).status_code, 200
+                )
+                self.assertIs(self.get_settings()["reading_ruler"], value)
+
+    def test_the_page_marks_the_body_before_any_script_runs(self):
+        self.post_settings(reading_ruler=True)
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn('data-reading-ruler="true"', body)
+        self.assertIn('id="reading-ruler"', body)
 
 
 class PanelMaterialSettingTests(ConfigApiTestCase):
