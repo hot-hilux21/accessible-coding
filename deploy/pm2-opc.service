@@ -1,0 +1,37 @@
+[Unit]
+Description=PM2 process manager
+Documentation=https://pm2.keymetrics.io/
+After=network.target
+
+# Installed as /etc/systemd/system/pm2-opc.service.
+#
+# pm2 startup generates Type=forking with PIDFile=/home/opc/.pm2/pm2.pid.
+# systemd runs as root and cannot read that file under SELinux, so it never
+# confirms the start, waits 90 seconds, fails, and restarts forever. The app
+# still comes up through pm2 resurrect, which is why the site looked fine
+# while the unit was broken and why a reboot looked like it did nothing.
+#
+# pm2 resurrect is a one-shot command that daemonizes pm2 itself, so oneshot
+# with RemainAfterExit is the type that matches what it actually does.
+#
+# Install and enable with:
+#   sudo cp deploy/pm2-opc.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now pm2-opc
+# and run `pm2 save` after any change to the process list.
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=opc
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+Environment=PATH=/home/opc/accessible-coding/venv/bin:/home/opc/.opencode/bin:/home/opc/.local/bin:/home/opc/bin:/usr/share/Modules/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=PM2_HOME=/home/opc/.pm2
+ExecStart=/usr/local/lib/node_modules/pm2/bin/pm2 resurrect
+ExecReload=/usr/local/lib/node_modules/pm2/bin/pm2 reload all
+ExecStop=/usr/local/lib/node_modules/pm2/bin/pm2 kill
+
+[Install]
+WantedBy=multi-user.target

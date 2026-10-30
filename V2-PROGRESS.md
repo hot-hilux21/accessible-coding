@@ -47,6 +47,7 @@ This file is the working checklist between v1 and v2. It records what is shipped
 - **The live site was down from 29 October until 30 October.** The server rebooted, PM2 had never been told to save its process list, so nothing came back. Deploy run #8 then failed against the name `accessible-coding-py`, which does not exist, and the workflow still had no way to tell that the site was dead.
 - `run.sh` loads `.env` and runs gunicorn, so `SECRET_KEY`, `PORT` and `ALLOWED_HOSTS` actually reach the app and the production server replaces the Flask development server. PM2 starts the process from it.
 - `deploy.yml` restarts the process that exists, starts it if it is missing, runs `pm2 save` so a reboot resurrects it, and fails the run when `/health` does not answer. A green deploy now means a serving site.
+- **The boot unit was broken too.** `pm2 startup` had written `Type=forking` with `PIDFile=/home/opc/.pm2/pm2.pid`, which systemd (root, under SELinux) cannot read, so it timed out after 90 seconds and restarted in a loop while the app came up anyway. It is `Type=oneshot` with `RemainAfterExit=yes` now, kept in `deploy/pm2-opc.service`, and a stop/start of the unit proves it resurrects the process from a dead daemon.
 - Committed as `c7196de`, *Keep the live site up across reboots*.
 
 ### Accessibility pass 2
