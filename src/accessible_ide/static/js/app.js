@@ -1276,6 +1276,7 @@
       option.value = key;
       option.textContent = (font && font.name) || key;
       option.setAttribute('data-family', family);
+      option.style.fontFamily = family;
       setupFontSelect.appendChild(option);
       setupFontSelect.value = key;
       return option;
@@ -3431,6 +3432,7 @@
     option.setAttribute('data-family', (font && font.family) || '');
     option.setAttribute('data-bundled', 'false');
     option.setAttribute('data-uploaded', 'true');
+    option.style.fontFamily = (font && font.family) || '';
     fontSelect.appendChild(option);
     return option;
   }
