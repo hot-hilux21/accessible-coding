@@ -464,7 +464,7 @@
               <option value="{{ key }}"
                       data-family="{{ font.family }}"
                       data-bundled="{{ 'true' if font.bundled else 'false' }}"
-                      {% if config.font == key %}selected{% endif %}>{{ font.name }}</option>
+                      style="font-family: {{ font.family }}"                       {% if config.font == key %}selected{% endif %}>{{ font.name }}</option>
               {% endfor %}
             </select>
             <p class="field-help" id="font-bundled-note" hidden></p>
@@ -1301,7 +1301,7 @@
                 <option value="{{ key }}"
                         data-family="{{ font.family }}"
                         data-bundled="{{ 'true' if font.bundled else 'false' }}"
-                        {% if config.font == key %}selected{% endif %}>{{ font.name }}</option>
+                         style="font-family: {{ font.family }}"                         {% if config.font == key %}selected{% endif %}>{{ font.name }}</option>
                 {% endfor %}
               </select>
               <!-- Written in the font it is demonstrating, server-side, so a
