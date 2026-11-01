@@ -1425,6 +1425,11 @@
                          spellcheck="false" autocomplete="off" inputmode="text" maxlength="7"
                          value="{{ config['theme_custom_' + key] }}"
                          aria-describedby="setup-custom-help setup-theme-custom-{{ key }}-error">
+                  <button type="button" class="btn btn-small setup-theme-confirm" id="setup-theme-confirm-{{ key }}" data-key="{{ key }}"
+                          title="{{ t('theme.custom_confirm') }}: {{ t(label) }}"
+                          aria-label="{{ t('theme.custom_confirm') }}: {{ t(label) }}">
+                    {{ icon('check') }}
+                  </button>
                 </div>
                 <p class="field-error" id="setup-theme-custom-{{ key }}-error" role="alert" hidden></p>
                 <p class="preview-status" id="setup-theme-custom-{{ key }}-status" hidden></p>

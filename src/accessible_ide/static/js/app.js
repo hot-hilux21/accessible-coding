@@ -1465,6 +1465,16 @@
         saveSetupColours();
       });
     });
+    // The tick beside each colour commits it, same as the Settings builder:
+    // nothing is saved by leaving a field, so a reader who clicks off a
+    // half-finished pick does not overwrite the theme with a guess.
+    Array.prototype.forEach.call(
+      setupDialog.querySelectorAll('.setup-theme-confirm'),
+      function (button) {
+        button.addEventListener('click', function () {
+          saveSetupColours();
+        });
+      });
     // A preset's colour square starts the reader's own theme from that
     // preset, so picking a colour never rewrites the shared preset.
     Array.prototype.forEach.call(
