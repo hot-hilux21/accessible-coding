@@ -1111,6 +1111,19 @@
           </div>
         </fieldset>
 
+        <fieldset class="settings-group" id="group-ui">
+          <legend class="settings-legend">{{ t('group.ui') }}</legend>
+          <p class="settings-hint" id="ui-hint">{{ t('settings.ui_backend_help') }}</p>
+          <div class="field">
+            <label for="ui-backend">{{ t('settings.ui_backend') }}</label>
+            <select id="ui-backend" aria-describedby="ui-backend-help">
+              <option value="flask" {% if config.get('ui_backend', 'flask') != 'react' %}selected{% endif %}>{{ t('settings.ui_flask') }}</option>
+              <option value="react" {% if config.get('ui_backend', 'flask') == 'react' %}selected{% endif %}>{{ t('settings.ui_react') }}</option>
+            </select>
+            <p class="field-help" id="ui-backend-help">{{ t('settings.ui_backend_help') }}</p>
+          </div>
+        </fieldset>
+
         <fieldset class="settings-group" id="group-reset">
           <legend class="settings-legend">{{ t('group.reset') }}</legend>
           <p class="settings-hint" id="reset-hint">{{ t('settings.reset_help') }}</p>

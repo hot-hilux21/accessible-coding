@@ -118,6 +118,7 @@
   var btnSaveWarnConfirm = document.getElementById('btn-save-warn-confirm');
   var updateNotice = document.getElementById('update-notice');
   var updateChannelEl = document.getElementById('update-channel');
+  var uiBackendEl = document.getElementById('ui-backend');
   // What runs the program, what stops one, the record button beside each
   // list, and the line under each that says what happened. Read from the
   // lists rather than kept in parallel beside them, so a setting on screen
@@ -4403,6 +4404,18 @@
           // No automatic checking, so no request to make. The status is
           // cleared because whatever it says is about the old channel.
           say('');
+        }
+      });
+    });
+  }
+
+  if (uiBackendEl) {
+    uiBackendEl.addEventListener('change', function () {
+      // The server reads the choice out of the saved config, so the screen
+      // has to wait for the save or it keeps drawing the one just left.
+      saveConfig({ ui_backend: uiBackendEl.value }).then(function (result) {
+        if (result && result.ok) {
+          window.location.reload();
         }
       });
     });

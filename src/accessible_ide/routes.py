@@ -355,6 +355,10 @@ DEFAULT_CONFIG = {
     # the channel that is actually being worked on, and a reader who has
     # never chosen should not be parked on one waiting for a first release.
     'update_channel': 'beta',
+    # Which screen the app draws. The classic Flask/Jinja one or the React
+    # build the new UI is moving onto. The reader can switch back at any time;
+    # the value is validated like every other setting.
+    'ui_backend': 'flask',
 }
 
 # Editor palettes. These are the single source of truth: the settings
@@ -1391,10 +1395,16 @@ def _package_version():
     return __version__
 
 
+REACT_DIST = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
+
+
 @main_bp.route('/')
 def index():
     config = load_config()
     locale = i18n.normalise(config.get('locale')) or i18n.DEFAULT_LOCALE
+    backend = config.get('ui_backend') or 'flask'
+    if backend == 'react' and (REACT_DIST / 'index.html').is_file():
+        return send_from_directory(REACT_DIST, 'index.html')
     # The setup step is clamped here, not in the template. A config file
     # written by a future version (or edited by hand) can hold a step this
     # version has no panel for, and the reader would open on a dialog with
@@ -2130,6 +2140,7 @@ CONFIG_TYPES = {
     'tts_voice_gender': str,
     'auto_update': bool,
     'update_channel': str,
+    'ui_backend': str,
     # The mini toolbar in each of the three panes. A pane the reader has
     # never adjusted has no entry here at all, and that absence is what
     # makes it follow the reading settings above. The entry appears the
@@ -2169,6 +2180,7 @@ CONFIG_VALUES = {
     'tts_hover_scope': {'off', 'controls', 'all'},
     'tts_voice_gender': {'any', 'male', 'female'},
     'update_channel': UPDATE_CHANNELS,
+    'ui_backend': {'flask', 'react'},
 }
 
 # Numeric settings are bounded so a bad value can never produce an
@@ -2783,6 +2795,12 @@ def serve_user_font(filename):
     """Serve a font the reader uploaded, from their own data directory."""
     mimetype = FONT_MIME_TYPES.get(Path(filename).suffix.lower())
     return send_from_directory(USER_FONT_DIR, filename, mimetype=mimetype)
+
+
+@main_bp.route('/assets/<path:filename>')
+def serve_react_asset(filename):
+    """The React build's hashed files, from frontend/dist/assets."""
+    return send_from_directory(REACT_DIST / 'assets', filename)
 
 
 @main_bp.route('/health')
