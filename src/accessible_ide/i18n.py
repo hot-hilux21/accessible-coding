@@ -26,12 +26,17 @@ DEFAULT_LOCALE = "en"
 # reading either. Direction is carried now even though the layout work
 # for RTL is a separate step, so the language data is right from the start.
 LANGUAGES: dict[str, tuple[str, str, str]] = {
-    "en": ("English", "English", "ltr"),
-    "hi": ("हिन्दी", "Hindi", "ltr"),
-    "fr": ("Français", "French", "ltr"),
-    "es": ("Español", "Spanish", "ltr"),
-    "ar": ("العربية", "Arabic", "rtl"),
-    "uk": ("Українська", "Ukrainian", "ltr"),
+    "en": ("English 😊", "English", "ltr"),
+    "hi": ("हिन्दी 😊", "Hindi", "ltr"),
+    "fr": ("Français 😊", "French", "ltr"),
+    "es": ("Español 😊", "Spanish", "ltr"),
+    "ar": ("العربية 😊", "Arabic", "rtl"),
+    "uk": ("Українська 😊", "Ukrainian", "ltr"),
+    # The Hijazi dialect, the street Arabic of the Hejaz coast (Jeddah and
+    # the rest of the western region). Carried as its own code so a reader
+    # can ask for their own dialect instead of getting Modern Standard
+    # Arabic.
+    "hj": ("اللهجة الحجازية 😊", "Hijazi Arabic", "rtl"),
 }
 
 # Sentences that legitimately stay in English regardless of locale, so

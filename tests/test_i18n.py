@@ -18,7 +18,7 @@ TEMPLATE = ROOT / "src" / "accessible_ide" / "templates" / "index.html"
 APP_JS = ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
 STYLESHEET = ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
 
-LOCALES = ("en", "hi", "fr", "es", "ar", "uk")
+LOCALES = ("en", "hi", "fr", "es", "ar", "uk", "hj")
 
 
 class CatalogueCompleteness(unittest.TestCase):
@@ -129,7 +129,7 @@ class LocaleRegistry(unittest.TestCase):
 
     def test_arabic_is_the_only_rtl_language(self):
         rtl = [c for c, (_, _, d) in i18n.LANGUAGES.items() if d == "rtl"]
-        self.assertEqual(rtl, ["ar"])
+        self.assertEqual(rtl, ["ar", "hj"])
 
     def test_normalise_rejects_unknown_and_non_strings(self):
         for value in ("zz", "", None, 5, ["fr"], True):
