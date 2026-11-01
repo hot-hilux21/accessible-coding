@@ -30,6 +30,7 @@
   "config.import_failed": "The settings could not be loaded.",
   "config.import_not_a_file": "That file is not an AccessibleCoding settings file.",
   "config.import_success": "Settings loaded.",
+  "controls.hide_icons": "Hide icons",
   "controls.labels": "Show button labels",
   "controls.labels_help": "Turn this off to show the toolbar as icons with tooltips. Screen readers still read each control's name.",
   "editor.label": "Python code editor",

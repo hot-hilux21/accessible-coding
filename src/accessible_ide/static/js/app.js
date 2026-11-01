@@ -3885,10 +3885,13 @@
   applyHideIcons(body.getAttribute('data-icon-only') !== 'true');
   if (hideIconsButton) {
     hideIconsButton.addEventListener('click', function () {
-      var shown = body.getAttribute('data-icon-only') !== 'true';
-      body.setAttribute('data-icon-only', shown ? 'false' : 'true');
-      applyHideIcons(shown);
-      saveConfig({ icon_only: !shown });
+      // The switch flips the saved state, so the click has to work out the
+      // next value from what the body holds, not from what it already drew.
+      var hide = body.getAttribute('data-icon-only') === 'true';
+      hide = !hide;
+      body.setAttribute('data-icon-only', hide ? 'true' : 'false');
+      applyHideIcons(!hide);
+      saveConfig({ icon_only: hide });
     });
   }
 

@@ -31,6 +31,7 @@
   "config.import_not_a_file": "Ese archivo no es un archivo de configuración de AccessibleCoding.",
   "config.import_success": "Configuración cargada.",
   "controls.labels": "Mostrar las etiquetas de los botones",
+  "controls.hide_icons": "Ocultar iconos",
   "controls.labels_help": "Desactívalo para ver la barra de herramientas como iconos con descripciones. Los lectores de pantalla siguen leyendo el nombre de cada control.",
   "editor.label": "Editor de código Python",
   "error.access_code_prompt": "Este sitio está protegido. Escribe el código de acceso:",

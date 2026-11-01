@@ -31,6 +31,7 @@
   "config.import_not_a_file": "Цей файл не є файлом налаштувань AccessibleCoding.",
   "config.import_success": "Налаштування завантажено.",
   "controls.labels": "Показувати підписи кнопок",
+  "controls.hide_icons": "Приховати іконки",
   "controls.labels_help": "Вимкніть це, щоб показувати панель інструментів як піктограми з підказками. Програми читання з екрана й далі читають назву кожного елемента.",
   "editor.label": "Редактор коду Python",
   "error.access_code_prompt": "Цей сайт захищено. Введіть код доступу:",

@@ -31,6 +31,7 @@
   "config.import_not_a_file": "Ce fichier n'est pas un fichier de réglages AccessibleCoding.",
   "config.import_success": "Réglages chargés.",
   "controls.labels": "Afficher les libellés des boutons",
+  "controls.hide_icons": "Masquer les icônes",
   "controls.labels_help": "Désactivez cette option pour afficher la barre d’outils sous forme d’icônes avec des infobulles. Les lecteurs d’écran lisent toujours le nom de chaque contrôle.",
   "editor.label": "Éditeur de code Python",
   "error.access_code_prompt": "Ce site est protégé. Entrez le code d'accès :",

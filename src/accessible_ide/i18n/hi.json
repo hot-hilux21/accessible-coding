@@ -31,6 +31,7 @@
   "config.import_not_a_file": "यह फ़ाइल AccessibleCoding सेटिंग्स फ़ाइल नहीं है।",
   "config.import_success": "सेटिंग्स लोड हो गईं।",
   "controls.labels": "बटन के लेबल दिखाएँ",
+  "controls.hide_icons": "आइकन छिपाएँ",
   "controls.labels_help": "इसे बंद करने पर टूलबार आइकन और टूलटिप के रूप में दिखेगा। स्क्रीन रीडर हर नियंत्रण का नाम पढ़ते रहते हैं।",
   "editor.label": "Python कोड एडिटर",
   "error.access_code_prompt": "यह साइट सुरक्षित है। एक्सेस कोड डालें:",

@@ -1540,6 +1540,7 @@
        crowd. -->
   <button id="btn-hide-icons" class="btn btn-toggle hide-icons" type="button" role="switch"
           aria-checked="{% if config.icon_only %}true{% else %}false{% endif %}"
+          aria-label="{{ t('controls.hide_icons') }}"
           aria-describedby="hide-icons-help">
     <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
     <span id="hide-icons-state" class="switch-text">{% if config.icon_only %}{{ t('switch.off') }}{% else %}{{ t('switch.on') }}{% endif %}</span>
