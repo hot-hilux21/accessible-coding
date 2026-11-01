@@ -1521,6 +1521,18 @@
   </button>
   <p id="reset-all-help" class="visually-hidden">{{ t('settings.reset_help') }}</p>
 
+  <!-- Hide icons. A page-level switch for the icon-only treatment, so a
+       reader on the coding screen can hide the toolbar without opening
+       Settings. Sits bottom left; the reset sits bottom right, so they never
+       crowd. -->
+  <button id="btn-hide-icons" class="btn btn-toggle hide-icons" type="button" role="switch"
+          aria-checked="{% if config.icon_only %}true{% else %}false{% endif %}"
+          aria-describedby="hide-icons-help">
+    <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    <span id="hide-icons-state" class="switch-text">{% if config.icon_only %}{{ t('switch.off') }}{% else %}{{ t('switch.on') }}{% endif %}</span>
+  </button>
+  <p id="hide-icons-help" class="visually-hidden">{{ t('controls.labels_help') }}</p>
+
   <!-- The active catalogue is embedded rather than fetched. The page is
        already in the reader's language before this script runs, and a
        language change reloads the page, so there is nothing to await. -->

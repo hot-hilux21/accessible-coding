@@ -659,8 +659,19 @@ DEFAULT_CREDITS = (
 
 
 def credits_list():
-    """The lines the About group shows, in the order they should read."""
-    return list(DEFAULT_CREDITS)
+    """The lines the About group shows, in the order they should read.
+
+    The maintainer edits CREDITS.md beside the source and the app parses it
+    on read, so a thank-you is a markdown edit and not a code change. The
+    default stays behind for a checkout that never got the file.
+    """
+    try:
+        text = (Path(__file__).resolve().parents[2] / 'CREDITS.md').read_text(
+            encoding='utf-8')
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        return lines or list(DEFAULT_CREDITS)
+    except OSError:
+        return list(DEFAULT_CREDITS)
 
 
 def ordered_themes():

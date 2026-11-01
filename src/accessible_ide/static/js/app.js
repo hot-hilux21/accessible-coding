@@ -3871,6 +3871,26 @@
 
   applyIconOnly(body.getAttribute('data-icon-only') === 'true');
 
+  var hideIconsButton = document.getElementById('btn-hide-icons');
+  var hideIconsState = document.getElementById('hide-icons-state');
+
+  function applyHideIcons(shown) {
+    if (hideIconsButton) {
+      hideIconsButton.setAttribute('aria-checked', shown ? 'false' : 'true');
+      hideIconsButton.classList.toggle('active', shown);
+      if (hideIconsState) hideIconsState.textContent = shown ? t('switch.on') : t('switch.off');
+    }
+  }
+  applyHideIcons(body.getAttribute('data-icon-only') !== 'true');
+  if (hideIconsButton) {
+    hideIconsButton.addEventListener('click', function () {
+      var shown = body.getAttribute('data-icon-only') !== 'true';
+      body.setAttribute('data-icon-only', shown ? 'false' : 'true');
+      applyHideIcons(shown);
+      saveConfig({ icon_only: !shown });
+    });
+  }
+
   [iconOnlyButton, setupIconOnlyButton].forEach(function (button) {
     if (!button) return;
     button.addEventListener('click', function () {

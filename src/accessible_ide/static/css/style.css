@@ -658,6 +658,15 @@ body .reset-all:disabled {
   border-color: #8a8a8a;
 }
 
+/* The hide-icons switch floats bottom left, opposite the reset which sits
+   bottom right, so the two never crowd. */
+body .hide-icons {
+  position: fixed;
+  inset-block-end: var(--space-4);
+  inset-inline-start: var(--space-4);
+  z-index: 40;
+}
+
 /* ---------- Workspace ---------- */
 /* A split view: the editor on the left, and a column on the right holding
    the output and, when it is open, the shell. The widths and heights are
