@@ -669,6 +669,10 @@ body .reset-all:disabled {
   display: flex;
   flex-direction: row;
   min-height: 0;
+  /* A little air around the panes, so the editor and output read as two
+     things rather than one edge-to-edge block. */
+  padding: var(--space-3);
+  gap: var(--space-3);
 }
 
 .editor-pane {
@@ -682,6 +686,10 @@ body .reset-all:disabled {
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
 }
 
 /* ---------- Trace table ---------- */
@@ -1172,6 +1180,10 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   display: flex;
   flex-direction: column;
   background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
 }
 
 .output-header {
