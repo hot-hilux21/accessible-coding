@@ -63,7 +63,7 @@ assert r4.get_json().get('error_line') is not None, 'error_line missing for synt
 # Sandbox: dangerous import blocked
 r5 = c.post('/api/run', json={'code': 'import os\nos.system("echo hi")'})
 print('POST /api/run (blocked import) ->', r5.get_json())
-assert 'not allowed' in r5.get_json()['error'], 'dangerous import not blocked'
+assert 'blocks importing' in r5.get_json()['error'], 'dangerous import not blocked'
 
 # Sandbox: dangerous builtin blocked
 r6 = c.post('/api/run', json={'code': 'print(open("secret.txt").read())'})
