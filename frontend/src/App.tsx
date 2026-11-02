@@ -145,8 +145,9 @@ export default function App() {
     if (config) {
       document.body.style.setProperty("--font-size", `${config.font_size}px`);
       document.body.style.setProperty("--font-weight", String(config.font_weight || 400));
-      document.body.style.setProperty("--line-height", String(config.line_height || 1.6));
+      document.body.style.setProperty("--line-height", String(config.line_height || 1.5));
       document.body.style.setProperty("--letter-spacing", `${config.letter_spacing || 0.5}px`);
+      document.body.style.setProperty("--word-spacing", `${config.word_spacing ?? 0.5}px`);
     }
   }, [loaded, theme, font, fonts, config]);
 
@@ -1179,6 +1180,7 @@ export default function App() {
                         <SelectItem value="off">Off</SelectItem>
                         <SelectItem value="gutter">Gutter</SelectItem>
                         <SelectItem value="lines">Lines</SelectItem>
+                        <SelectItem value="fade">Fade everything else</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1247,6 +1249,7 @@ export default function App() {
                         <SelectItem value="frosted">Frosted</SelectItem>
                         <SelectItem value="acrylic">Acrylic</SelectItem>
                         <SelectItem value="mica">Mica</SelectItem>
+                        <SelectItem value="glossy">Glossy</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

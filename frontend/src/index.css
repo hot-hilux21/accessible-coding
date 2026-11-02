@@ -98,5 +98,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    line-height: var(--line-height, 1.5);
+    letter-spacing: var(--letter-spacing, 0.5px);
+    word-spacing: var(--word-spacing, 0.5px);
   }
 }
