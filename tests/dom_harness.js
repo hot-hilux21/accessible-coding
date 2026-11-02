@@ -51,6 +51,9 @@ const KNOWN_IDS = new Set([
   'line-height', 'line-height-label', 'letter-spacing',
   'letter-spacing-label', 'line-height-less', 'line-height-more',
   'letter-spacing-less', 'letter-spacing-more',
+  'word-spacing', 'word-spacing-label',
+  'word-spacing-less', 'word-spacing-more',
+  'ui-backend', 'ui-backend-help',
   'blur-intensity', 'blur-intensity-label',
   'blur-field', 'theme-select', 'contrast-select', 'focus-mode',
   'reduce-motion', 'reduce-motion-state',
@@ -203,10 +206,14 @@ const KNOWN_IDS = new Set([
   // below still passed.
   'btn-trace', 'trace-window', 'trace-rows', 'trace-note', 'trace-scroll',
   'trace-grip', 'trace-close',
+  // The labels switch pinned to the page, and its spoken state. app.js reads
+  // both on the way in, so a missing id here would leave the control silently
+  // absent while every check below still passed.
+  'btn-hide-icons', 'hide-icons-state',
 ]);
 
 const numericIds = new Set([
-  'font-size', 'font-weight', 'line-height', 'letter-spacing', 'blur-intensity', 'tts-rate',
+  'font-size', 'font-weight', 'line-height', 'letter-spacing', 'word-spacing', 'blur-intensity', 'tts-rate',
   'fade-slider',
 ]);
 
@@ -219,6 +226,7 @@ const numericIds = new Set([
 const RANGE_INPUTS = {
   'line-height': { min: '1', max: '2.4', step: '0.1', value: '1.6' },
   'letter-spacing': { min: '-0.5', max: '4', step: '0.1', value: '0.5' },
+  'word-spacing': { min: '0', max: '2', step: '0.1', value: '0.5' },
   // The nine pane sliders. The limits are the ones CONFIG_RANGES enforces
   // server-side, so a pane cannot be dragged somewhere the config would then
   // refuse to store. The starting values are the reading defaults, which is
@@ -245,6 +253,8 @@ const STEPPER_BUTTONS = {
   'line-height-more': { 'data-target': 'line-height', 'data-step': '0.1' },
   'letter-spacing-less': { 'data-target': 'letter-spacing', 'data-step': '-0.1' },
   'letter-spacing-more': { 'data-target': 'letter-spacing', 'data-step': '0.1' },
+  'word-spacing-less': { 'data-target': 'word-spacing', 'data-step': '-0.1' },
+  'word-spacing-more': { 'data-target': 'word-spacing', 'data-step': '0.1' },
 };
 
 // The pane dividers are separators, and the template gives each one its

@@ -258,8 +258,9 @@ DEFAULT_CONFIG = {
     # hex colour overrides the theme's highlight for the line the reader
     # is working on.
     'highlight_color': '',
-    'line_height': 1.6,
+    'line_height': 1.5,
     'letter_spacing': 0.5,
+    'word_spacing': 0.5,
     # What starts the program, and what stops one that is running. Written as
     # a reader would say them out loud, which is also how the Settings list
     # shows them and how the recorded press is written back.
@@ -2107,6 +2108,7 @@ CONFIG_TYPES = {
     'setup_step': int,
     'line_height': (int, float),
     'letter_spacing': (int, float),
+    'word_spacing': (int, float),
     'theme': str,
     'icon_only': bool,
     'reading_ruler': bool,
@@ -2169,9 +2171,9 @@ CONFIG_VALUES = {
     # time (see custom_palette), so it is offered here as a choice but
     # never listed as a preset.
     'theme': set(THEMES.keys()) | {'custom'},
-    'focus_mode': {'off', 'gutter', 'lines'},
+    'focus_mode': {'off', 'gutter', 'lines', 'fade'},
     'contrast': {'normal', 'high'},
-    'glass_material': {'off', 'frosted', 'acrylic', 'mica'},
+    'glass_material': {'off', 'frosted', 'acrylic', 'mica', 'glossy'},
     'locale': set(i18n.LANGUAGES),
     # The wizard has three steps. The bound is not decoration: a corrupt or
     # hand-edited value would otherwise render a screen with no step shown
@@ -2194,6 +2196,7 @@ CONFIG_RANGES = {
     'font_weight': (300, 800),
     'line_height': (1.0, 2.4),
     'letter_spacing': (-0.5, 4.0),
+    'word_spacing': (0.0, 2.0),
     'blur_intensity': (0.0, 1.0),
     'tts_rate': (0.5, 2.0),
     # Milliseconds. Zero is allowed: someone who moves the pointer

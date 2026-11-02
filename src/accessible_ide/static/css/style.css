@@ -56,8 +56,11 @@
   /* How heavy the reading text is. 400 is the normal weight every font
      has; the reader can move it up or down from Settings. */
   --font-weight: 400;
-  --line-height: 1.6;
+  --line-height: 1.5;
   --letter-spacing: 0.5px;
+  /* Extra space between words helps a dyslexic reader separate one word
+     from the next without losing the line. */
+  --word-spacing: 0.5px;
   --radius: 14px;
   --radius-sm: 9px;
 
@@ -311,6 +314,7 @@ body {
   font-weight: var(--font-weight);
   line-height: var(--line-height);
   letter-spacing: var(--letter-spacing);
+  word-spacing: var(--word-spacing);
   display: flex;
   flex-direction: column;
   transition: background 0.2s ease, color 0.2s ease;
@@ -375,12 +379,8 @@ body[data-gradient='off'] {
   gap: var(--space-2);
 }
 
-/* The mark is the OpenDyslexic "a" - the letterform this app exists for -
-   in the accent, on a neutral square. The accent is a mark here, not a
-   fill: the square is the same surface as the top bar, so the logo reads
-   as part of the chrome rather than a sticker on it. The "a" is large
-   text (bold, ~21px), so the accent clears 3:1 even in the pastel theme,
-   where the accent is darkest. */
+/* The mark is drawn inline in the template as an SVG: it is decoration with no
+   information the words do not carry, so it is aria-hidden. */
 .brand-logo {
   display: grid;
   place-items: center;
@@ -397,11 +397,14 @@ body[data-gradient='off'] {
   flex-shrink: 0;
 }
 
-/* The mark is drawn here, not in the template: it is decoration with no
-   information the words do not carry, so it is aria-hidden and lives in
-   CSS where the i18n test cannot mistake it for untranslated text. */
+.brand-logo svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
 .brand-logo::before {
-  content: "a";
+  content: none;
 }
 
 .brand-name {
@@ -1182,6 +1185,20 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   opacity: 1;
 }
 
+/* Focus mode: fade everything except the code editor so the reader can
+   read one thing at a time. The editor, its gutter, the output and shell
+   panes stay fully legible; the chrome around them drops back. Open
+   dialogs stay bright too, because the reader is inside them. */
+body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not([role="dialog"]):not(dialog[open]) {
+  opacity: 0.4;
+  transition: opacity var(--motion-med) var(--ease);
+}
+body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not([role="dialog"]):not(dialog[open]):hover,
+body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not([role="dialog"]):not(dialog[open]):focus,
+body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not([role="dialog"]):not(dialog[open]):focus-within {
+  opacity: 1;
+}
+
 /* ---------- Output pane ---------- */
 .output-pane {
   flex: 1 1 auto;
@@ -1617,7 +1634,7 @@ body[data-contrast="high"][data-theme="pastel"] {
   margin: 0 0 var(--space-2);
   padding-inline-start: var(--space-4);
   font-size: 0.95em;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .about-credits li {
@@ -2310,6 +2327,38 @@ body[data-glass-material='acrylic'] :is(.topbar, .settings, .setup-panel)::befor
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.055'/%3E%3C/svg%3E");
 }
 
+body[data-glass-material='glossy'] :is(.topbar, .output-pane, .shell-pane,
+                                        .error-panel, .settings,
+                                        .setup-panel) {
+  /* Shiny and crisp. High contrast, nearly solid panel with a sharp edge
+     so it reads as a solid surface, not a see-through one. The sheen
+     below is what makes it glossy rather than plain. */
+  --glass-alpha: 97%;
+  --glass-blur: 2px;
+  --glass-sat: 220%;
+}
+
+/* A single fixed highlight, top left to bottom right, so the surface
+   catches an edge like polished glass. It does not move and carries no
+   information, so it is decoration only. */
+body[data-glass-material='glossy'] :is(.topbar, .settings, .setup-panel) {
+  position: relative;
+}
+
+body[data-glass-material='glossy'] :is(.topbar, .settings, .setup-panel)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: linear-gradient(
+    155deg,
+    rgb(255 255 255 / 0.16) 0%,
+    rgb(255 255 255 / 0.05) 28%,
+    rgb(255 255 255 / 0) 55%
+  );
+}
+
 /* Dialogs sit over the page rather than inside the layout, so a thin
    fill needs its edge restated or the boundary disappears. */
 body:not([data-glass-material='off']) :is(.settings, .setup-panel) {
@@ -2669,7 +2718,7 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 
 .setup-tour-text {
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 /* ---------- The Python dictionary ---------- */

@@ -69,6 +69,8 @@
   var lineHeightLabel = document.getElementById('line-height-label');
   var letterSpacing = document.getElementById('letter-spacing');
   var letterSpacingLabel = document.getElementById('letter-spacing-label');
+  var wordSpacing = document.getElementById('word-spacing');
+  var wordSpacingLabel = document.getElementById('word-spacing-label');
   var blurIntensity = document.getElementById('blur-intensity');
   var blurIntensityLabel = document.getElementById('blur-intensity-label');
   var blurField = document.getElementById('blur-field');
@@ -198,12 +200,13 @@
   var ttsClickToSpeak = true;
   var ttsVoiceGenderValue = 'male';
 
-  // The blur slider only means something while the "fade the other
-  // lines" focus mode is on, so it is disabled rather than hidden -
-  // hidden would make the panel jump around as you switch modes.
+  // The blur slider means something while "fade the other lines" or
+  // "fade everything except the code" is on, so it is disabled rather than
+  // hidden - hidden would make the panel jump around as you switch modes.
   function syncBlurField() {
-    blurField.classList.toggle('is-disabled', focusMode.value !== 'lines');
-    blurIntensity.disabled = focusMode.value !== 'lines';
+    var fading = focusMode.value === 'lines' || focusMode.value === 'fade';
+    blurField.classList.toggle('is-disabled', !fading);
+    blurIntensity.disabled = !fading;
   }
 
   function promptForAccessCode() {
@@ -790,6 +793,14 @@
     syncFollowingPanes();
   }
 
+  function applyWordSpacing(value) {
+    body.style.setProperty('--word-spacing', value + 'px');
+    body.setAttribute('data-word-spacing', value);
+    wordSpacingLabel.textContent = value + 'px';
+    editor.refresh();
+    syncFollowingPanes();
+  }
+
   // The notching buttons either side of the two spacing sliders.
   //
   // Dragging a slider thumb is a poor target for a shaky hand and a worse
@@ -803,6 +814,7 @@
   var stepperButtons = [
     'line-height-less', 'line-height-more',
     'letter-spacing-less', 'letter-spacing-more',
+    'word-spacing-less', 'word-spacing-more',
   ].map(function (id) {
     return document.getElementById(id);
   }).filter(function (button) {
@@ -862,6 +874,9 @@
       } else if (target === letterSpacing) {
         applyLetterSpacing(target.value);
         saveConfig({ letter_spacing: next });
+      } else if (target === wordSpacing) {
+        applyWordSpacing(next);
+        saveConfig({ word_spacing: next });
       }
       paintStepperLimits();
     });
@@ -913,10 +928,10 @@
     // both are brought back in step whoever changed it.
     if (lineNumbersToggle) lineNumbersToggle.checked = mode !== 'gutter';
     // The fade tick and its slider are the same setting seen a third way.
-    // The slider only appears while fade is the mode, so the strip stays
+    // The slider appears while either fade mode is on, so the strip stays
     // quiet for a reader who never asked for it.
     if (fadeToggle) fadeToggle.checked = mode === 'lines';
-    if (fadeAmount) fadeAmount.hidden = mode !== 'lines';
+    if (fadeAmount) fadeAmount.hidden = mode !== 'lines' && mode !== 'fade';
     if (focusMode && focusMode.value !== mode) {
       focusMode.value = mode;
       syncBlurField();
@@ -3650,6 +3665,15 @@
     saveConfig({ letter_spacing: parseFloat(letterSpacing.value) });
   });
 
+  wordSpacing.addEventListener('input', function () {
+    applyWordSpacing(wordSpacing.value);
+    paintStepperLimits();
+  });
+
+  wordSpacing.addEventListener('change', function () {
+    saveConfig({ word_spacing: parseFloat(wordSpacing.value) });
+  });
+
   blurIntensity.addEventListener('input', function () {
     applyBlurIntensity(parseFloat(blurIntensity.value));
   });
@@ -3854,55 +3878,53 @@
   }
 
   // ---------- Interface labels ----------
-  // Words on by default. Turning them off leaves the icon and its tooltip,
-  // and the control's aria-label still gives it a name.
+  // Words on by default. One switch drives all three controls, so the
+  // Settings one, the setup one and the page-level one can never disagree.
+  // ON means the icons are on, which here means the labels are showing.
   var iconOnlyButton = document.getElementById('icon-only');
   var setupIconOnlyButton = document.getElementById('setup-icon-only');
-
-  function applyIconOnly(iconOnly) {
-    body.setAttribute('data-icon-only', iconOnly ? 'true' : 'false');
-    [iconOnlyButton, setupIconOnlyButton].forEach(function (button) {
-      if (!button) return;
-      button.setAttribute('aria-checked', iconOnly ? 'false' : 'true');
-      button.classList.toggle('active', !iconOnly);
-      var state = document.getElementById(button.id + '-state');
-      if (state) state.textContent = iconOnly ? t('switch.off') : t('switch.on');
-    });
-  }
-
-  applyIconOnly(body.getAttribute('data-icon-only') === 'true');
-
   var hideIconsButton = document.getElementById('btn-hide-icons');
   var hideIconsState = document.getElementById('hide-icons-state');
 
-  function applyHideIcons(shown) {
+  function paintIconOnly(hiding) {
+    var shown = !hiding;
+    function set(button, stateKey, labelKey) {
+      if (!button) return;
+      button.setAttribute('aria-checked', shown ? 'true' : 'false');
+      button.classList.toggle('active', shown);
+      var state = document.getElementById(button.id + '-state');
+      if (state) state.textContent = shown ? t(stateKey) : t('switch.off');
+      if (labelKey) button.setAttribute('aria-label', shown ? t(labelKey) : t('switch.off'));
+    }
+    set(iconOnlyButton, 'switch.on');
+    set(setupIconOnlyButton, 'switch.on');
     if (hideIconsButton) {
-      hideIconsButton.setAttribute('aria-checked', shown ? 'false' : 'true');
+      hideIconsButton.setAttribute('aria-checked', shown ? 'true' : 'false');
       hideIconsButton.classList.toggle('active', shown);
-      if (hideIconsState) hideIconsState.textContent = shown ? t('switch.on') : t('switch.off');
+      if (hideIconsState) hideIconsState.textContent = shown ? t('controls.icons_on') : t('controls.icons_off');
+      hideIconsButton.setAttribute('aria-label', 'icons on and off');
     }
   }
-  applyHideIcons(body.getAttribute('data-icon-only') !== 'true');
-  if (hideIconsButton) {
-    hideIconsButton.addEventListener('click', function () {
-      // The switch flips the saved state, so the click has to work out the
-      // next value from what the body holds, not from what it already drew.
-      var hide = body.getAttribute('data-icon-only') === 'true';
-      hide = !hide;
-      body.setAttribute('data-icon-only', hide ? 'true' : 'false');
-      applyHideIcons(!hide);
-      saveConfig({ icon_only: hide });
-    });
+
+  function toggleIconOnly() {
+    var hiding = body.getAttribute('data-icon-only') === 'true';
+    hiding = !hiding;
+    body.setAttribute('data-icon-only', hiding ? 'true' : 'false');
+    paintIconOnly(hiding);
+    saveConfig({ icon_only: hiding });
   }
 
-  [iconOnlyButton, setupIconOnlyButton].forEach(function (button) {
-    if (!button) return;
-    button.addEventListener('click', function () {
-      var next = body.getAttribute('data-icon-only') !== 'true';
-      applyIconOnly(next);
-      saveConfig({ icon_only: next });
-    });
-  });
+  paintIconOnly(body.getAttribute('data-icon-only') === 'true');
+
+  if (iconOnlyButton) {
+    iconOnlyButton.addEventListener('click', toggleIconOnly);
+  }
+  if (setupIconOnlyButton) {
+    setupIconOnlyButton.addEventListener('click', toggleIconOnly);
+  }
+  if (hideIconsButton) {
+    hideIconsButton.addEventListener('click', toggleIconOnly);
+  }
 
   // ---------- Reading ruler ----------
   // A band that follows the pointer over the editor, so one line stays easy
@@ -4948,6 +4970,8 @@
   // Where the reading settings themselves live, so a pane that is still
   // following can show the number a Settings change would actually give it
   // rather than the one it had when the page was drawn.
+  // ponytail: word spacing stays global; a per-pane copy would need three new
+  // config keys and sliders, and the requirement is one spacing for the page.
   var READING_CONTROLS = {
     font_size: function () { return fontSize; },
     line_height: function () { return lineHeight; },
@@ -5083,8 +5107,9 @@
   updateFontRemoveButton();
   applyFontSize(parseInt(body.getAttribute('data-font-size') || '16', 10));
   applyFontWeight(parseInt(body.getAttribute('data-font-weight') || '400', 10));
-  applyLineHeight(body.getAttribute('data-line-height') || '1.6');
+  applyLineHeight(body.getAttribute('data-line-height') || '1.5');
   applyLetterSpacing(body.getAttribute('data-letter-spacing') || '0.5');
+  applyWordSpacing(body.getAttribute('data-word-spacing') || '0.5');
   paintStepperLimits();
   applyBlurIntensity(body.getAttribute('data-blur-intensity') || '0.5');
   applyFocusMode(body.getAttribute('data-focus-mode') || 'off');
