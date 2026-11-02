@@ -143,7 +143,7 @@ assert r20.status_code == 200, 'runner should be open when no access code is set
 # Sandbox still blocks dangerous code without an access code
 r21 = run('import os')
 print('POST /api/run (blocked, no code) ->', r21.get_json())
-assert 'not allowed' in r21.get_json()['error'], 'sandbox not active without access code'
+assert 'blocks importing' in r21.get_json()['error'], 'sandbox not active without access code'
 
 routes.ACCESS_CODE = 'test-code-123'
 del os.environ['WEB']
