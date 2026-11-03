@@ -250,7 +250,7 @@
      but writing the same values, so the two views cannot disagree. #}
   <div class="pane-fade" id="pane-fade" role="group" aria-labelledby="pane-fade-mode-label">
     <label for="pane-fade-mode" class="pane-fade-label" id="pane-fade-mode-label">{{ t('focus.mode') }}</label>
-    <select id="pane-fade-mode">
+    <select id="pane-fade-mode" class="tool-select pane-fade-mode">
       <option value="off" {% if config.focus_mode not in ('lines', 'fade') %}selected{% endif %}>{{ t('focus.off') }}</option>
       <option value="lines" {% if config.focus_mode == 'lines' %}selected{% endif %}>{{ t('focus.lines') }}</option>
       <option value="fade" {% if config.focus_mode == 'fade' %}selected{% endif %}>{{ t('focus.fade_all') }}</option>

@@ -1050,8 +1050,7 @@ body .hide-icons {
   cursor: pointer;
 }
 
-.pane-fade select {
-  min-height: 44px;
+.pane-fade .pane-fade-mode {
   font-size: 0.85em;
 }
 
