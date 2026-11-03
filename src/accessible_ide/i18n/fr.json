@@ -153,8 +153,6 @@
   "output.stopped": "Arrêté. Le programme ne s'exécute plus.",
   "output.title": "Sortie",
   "pane.controls": "Taille et espacement du texte",
-  "pane.fade_amount": "Intensité de l'estompage",
-  "pane.fade_lines": "Estomper les autres lignes au survol",
   "pane.line_numbers": "Numéros de ligne",
   "python.AttributeError": "Vous utilisez un attribut ou une méthode qui n'existe pas sur cet objet.",
   "python.EOFError": "Fin de texte inattendue.",

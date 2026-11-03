@@ -190,9 +190,6 @@ const KNOWN_IDS = new Set([
   // The editor's line-number tick. app.js looks it up on the way in, so a
   // missing id here would leave the control silently absent.
   'line-numbers-toggle',
-  // The fade tick and its slider, beside the line-number tick in the editor
-  // strip. app.js looks all four up on the way in.
-  'fade-toggle', 'fade-amount', 'fade-slider', 'fade-slider-value',
   'editor-font-size', 'editor-line-height', 'editor-letter-spacing',
   'editor-font-size-value', 'editor-line-height-value', 'editor-letter-spacing-value',
   'mini-output-toggle', 'mini-output-panel',
@@ -214,7 +211,6 @@ const KNOWN_IDS = new Set([
 
 const numericIds = new Set([
   'font-size', 'font-weight', 'line-height', 'letter-spacing', 'word-spacing', 'blur-intensity', 'tts-rate',
-  'fade-slider',
 ]);
 
 // The two spacing sliders, with the limits, the step and the starting value
@@ -240,9 +236,6 @@ const RANGE_INPUTS = {
   'shell-font-size': { min: '12', max: '28', step: '1', value: '16' },
   'shell-line-height': { min: '1', max: '2.4', step: '0.1', value: '1.6' },
   'shell-letter-spacing': { min: '-0.5', max: '4', step: '0.1', value: '0.5' },
-  // The fade slider in the editor strip. Same setting as the Settings one,
-  // and the same 0..1 range, so the two views cannot drift apart.
-  'fade-slider': { min: '0', max: '1', step: '0.05', value: '0.5' },
 };
 
 // The notching buttons, with the slider each one drives and the direction it
@@ -1631,7 +1624,6 @@ const interactions = [
   ['line-height-less', 'click'], ['line-height-more', 'click'],
   ['letter-spacing-less', 'click'], ['letter-spacing-more', 'click'],
   ['blur-intensity', 'input'], ['blur-intensity', 'change'],
-  ['fade-slider', 'input'], ['fade-slider', 'change'],
   ['theme-select', 'change'], ['contrast-select', 'change'],
   ['focus-mode', 'change'],
   ['reduce-motion', 'click'],
@@ -2124,7 +2116,9 @@ function runSoundChecks() {
     console.log('     the sound label is a translated word');
   }
 
-  // Reduce-motion silence. Asking for calm must stop the tone everywhere.
+  // Sound and motion are separate requests. Reduce-motion stops movement
+  // on the screen; a tone carries the same news with no motion at all, so
+  // the reader who asked for calm still hears it.
   fireElement(motion, 'click');
   if (body['data-reduce-motion'] !== 'true') {
     failed = true;
@@ -2133,13 +2127,13 @@ function runSoundChecks() {
   }
   fireElement(button, 'click'); // off
   const beforeMuted = soundPlays.length;
-  fireElement(button, 'click'); // on, but motion is reduced
-  if (soundPlays.length !== beforeMuted) {
+  fireElement(button, 'click'); // on, and the click still plays
+  if (soundPlays.length !== beforeMuted + 1) {
     failed = true;
-    console.log('FAIL reduced motion did not silence the click: ' +
+    console.log('FAIL reduced motion wrongly silenced the click: ' +
                 JSON.stringify(soundPlays.slice(beforeMuted)));
   } else {
-    console.log('     reduced motion silences the sound without turning the setting off');
+    console.log('     reduced motion keeps the click: sound and motion are separate');
   }
   // Back to a calm-neutral state for whatever runs next.
   fireElement(motion, 'click');
@@ -3979,58 +3973,28 @@ function runPaneToolbarChecks() {
     console.log('     the dropdown and the pane agree through all of it');
   }
 
-  // ---- The fade tick and its slider ----
-  // The same setting seen a third way, and the slider is only in the strip
-  // while fade is on.
-  const fadeTick = elements.get('fade-toggle');
-  const fadeBox = elements.get('fade-amount');
-  const fadeSlider = elements.get('fade-slider');
-  const fadeReadout = elements.get('fade-slider-value');
+  // ---- Fade lives in Settings alone ----
+  // The editor strip carries no fade control any more, so the only place to
+  // turn it on is the Focus dropdown above. The bottom of the Settings slider
+  // is off: a control that says fade is on must not leave a line faded a
+  // little, so 0 has to mean 0 and not "the faintest the slider goes".
   const panelReadout = elements.get('blur-intensity-label');
-
-  if (fadeTick.checked || fadeBox.hidden !== true) {
+  const settingsSlider = elements.get('blur-intensity');
+  const keptValue = settingsSlider.value;
+  settingsSlider.value = '0';
+  fire('blur-intensity', 'input');
+  if (panelReadout.textContent !== '0%') {
     failed = true;
-    console.log('FAIL fade starts on while the focus mode is not fade');
-  } else {
-    console.log('     the fade tick starts in step, with its slider put away');
-  }
-
-  fadeTick.checked = true;
-  fire('fade-toggle', 'change');
-  if (bodyAttrs['data-focus-mode'] !== 'lines' || fadeBox.hidden !== false) {
-    failed = true;
-    console.log('FAIL ticking fade did not turn it on and bring out the slider');
-  } else {
-    console.log('     ticking fade turns it on and brings out the slider');
-  }
-
-  // The bottom of the slider is off. A control that says fade is on must not
-  // leave a line faded a little, so 0 has to mean 0 and not "the faintest
-  // the slider goes".
-  fadeSlider.value = '0';
-  fire('fade-slider', 'input');
-  if (fadeReadout.textContent !== '0%' || panelReadout.textContent !== '0%') {
-    failed = true;
-    console.log('FAIL the bottom of the fade slider is not off in both views: ' +
-                fadeReadout.textContent + ' / ' + panelReadout.textContent);
+    console.log('FAIL the bottom of the fade slider is not off: ' + panelReadout.textContent);
   } else if (documentStub.body.style['--blur-amount'] !== '1.00') {
     failed = true;
     console.log('FAIL the bottom of the fade slider still fades the lines: ' +
                 documentStub.body.style['--blur-amount']);
   } else {
-    console.log('     the bottom of the fade slider is off, and both views say so');
+    console.log('     the bottom of the fade slider is off, and the view says so');
   }
-
-  // Unticking takes the slider away and leaves the numbers showing: the reader
-  // asked to stop fading, not to hide the numbers.
-  fadeTick.checked = false;
-  fire('fade-toggle', 'change');
-  if (bodyAttrs['data-focus-mode'] !== 'off' || fadeBox.hidden !== true) {
-    failed = true;
-    console.log('FAIL unticking fade did not turn it off and put the slider away');
-  } else {
-    console.log('     unticking fade turns it off and puts the slider away');
-  }
+  settingsSlider.value = keptValue;
+  fire('blur-intensity', 'input');
 
   // ---- Nothing has been touched, so nothing is owned ----
   // The pane is left with no styles of its own, and that is what leaves the

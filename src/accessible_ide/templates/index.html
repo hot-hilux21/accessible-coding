@@ -193,7 +193,7 @@
      panes are independent. A pane starts from its own saved value and falls
      back to the reading setting it otherwise follows, so the absence of a
      saved value is what keeps an untouched pane in step with Settings. #}
-  {% macro pane_controls(pane, label, line_numbers=false, fade=false) %}
+  {% macro pane_controls(pane, label, line_numbers=false) %}
   {%- set font_key = pane ~ '_font_size' -%}
   {%- set height_key = pane ~ '_line_height' -%}
   {%- set spacing_key = pane ~ '_letter_spacing' -%}
@@ -211,26 +211,6 @@
       <input type="checkbox" class="pane-gutter-check" id="line-numbers-toggle"
              {% if config.focus_mode != 'gutter' %}checked{% endif %}>
       <label class="pane-gutter-label" for="line-numbers-toggle">{{ t('pane.line_numbers') }}</label>
-    </span>
-    {% endif %}
-    {% if fade %}
-    {# Fade other lines on hover, for the code alone, because the code is the
-       only pane whose lines are separate things. The tick turns it on; the
-       slider sets how far the other lines go down. The slider only appears
-       once the tick is on, so the strip stays quiet for the reader who never
-       asked for it. Bottom of the slider is off, so a reader who leaves it
-       there is not left with lines that are faded a little while the control
-       above them says fade is on. #}
-    <span class="pane-fade">
-      <input type="checkbox" class="pane-fade-check" id="fade-toggle"
-             {% if config.focus_mode == 'lines' %}checked{% endif %}>
-      <label class="pane-fade-label" for="fade-toggle">{{ t('pane.fade_lines') }}</label>
-      <span class="pane-fade-amount" id="fade-amount"{% if config.focus_mode != 'lines' %} hidden{% endif %}>
-        <label for="fade-slider" class="visually-hidden">{{ t('pane.fade_amount') }}</label>
-        <input type="range" class="pane-fade-slider" id="fade-slider" min="0" max="1" step="0.05"
-               value="{{ config.blur_intensity }}">
-        <output class="pane-fade-value" id="fade-slider-value" for="fade-slider">{{ (config.blur_intensity * 100) | round | int }}%</output>
-      </span>
     </span>
     {% endif %}
     <div class="pane-mini-panel" id="mini-{{ pane }}-panel" role="group"
@@ -268,7 +248,7 @@
 
   <main id="workspace" class="workspace" role="main">
     <section class="editor-pane" aria-label="{{ t('editor.label') }}">
-      {{ pane_controls('editor', t('editor.label'), line_numbers=true, fade=true) }}
+      {{ pane_controls('editor', t('editor.label'), line_numbers=true) }}
       <div id="editor" class="editor" role="textbox" aria-label="{{ t('editor.label') }}" aria-multiline="true"></div>
     </section>
 
@@ -747,6 +727,29 @@
             <p class="field-help" id="glass-tint-help">{{ t('glass.tint_help') }}</p>
             <p class="field-error" id="glass-tint-error" role="alert" hidden></p>
           </div>
+
+          <!-- Every colour changer lives in this group, stacked under
+               each other: the theme, the theme builder, the glass tint
+               and the highlight behind the code. -->
+          <div class="field">
+            <label for="highlight-color-hex">{{ t('try.highlight_label') }}</label>
+            <div class="field-row">
+              <input type="color" id="highlight-color-picker" value="{{ config.highlight_color or '#ffffff' }}"
+                     aria-label="{{ t('try.picker_label') }}">
+              <input type="text" id="highlight-color-hex" class="hex-input" spellcheck="false" autocomplete="off"
+                     inputmode="text" maxlength="7" placeholder="#1e1e1e"
+                     value="{{ config.highlight_color }}"
+                     aria-describedby="highlight-help highlight-error">
+            </div>
+            <p class="field-help" id="highlight-help">{{ t('try.highlight_help') }}</p>
+            <p class="field-error" id="highlight-error" role="alert" hidden></p>
+            <p class="preview-status" id="highlight-status" hidden></p>
+          </div>
+
+          <div class="field">
+            <button id="btn-reset-highlight" class="btn btn-small" type="button">{{ t('try.reset') }}</button>
+            <p class="field-help">{{ t('try.nudge_help') }}</p>
+          </div>
         </fieldset>
 
         <fieldset class="settings-group" id="group-try">
@@ -766,26 +769,6 @@
               <span id="font-preview-text">{{ t('try.sample_default') }}</span>
             </p>
             <p class="preview-status" id="preview-status">{{ t('try.status_theme', config.font) }}</p>
-          </div>
-
-          <div class="field">
-            <label for="highlight-color-hex">{{ t('try.highlight_label') }}</label>
-            <div class="field-row">
-              <input type="color" id="highlight-color-picker" value="{{ config.highlight_color or '#ffffff' }}"
-                     aria-label="{{ t('try.picker_label') }}">
-              <input type="text" id="highlight-color-hex" class="hex-input" spellcheck="false" autocomplete="off"
-                     inputmode="text" maxlength="7" placeholder="#1e1e1e"
-                     value="{{ config.highlight_color }}"
-                     aria-describedby="highlight-help highlight-error">
-            </div>
-            <p class="field-help" id="highlight-help">{{ t('try.highlight_help') }}</p>
-            <p class="field-error" id="highlight-error" role="alert" hidden></p>
-            <p class="preview-status" id="highlight-status" hidden></p>
-          </div>
-
-          <div class="field">
-            <button id="btn-reset-highlight" class="btn btn-small" type="button">{{ t('try.reset') }}</button>
-            <p class="field-help">{{ t('try.nudge_help') }}</p>
           </div>
         </fieldset>
 

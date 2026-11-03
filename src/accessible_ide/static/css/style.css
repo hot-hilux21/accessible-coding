@@ -985,63 +985,6 @@ body .hide-icons {
   cursor: pointer;
 }
 
-/* The fade tick and its slider, in the same strip as the line-number tick and
-   drawn the same size, because they are the same kind of decision about the
-   same code. The slider is only in the strip while the tick is on, so a reader
-   who does not use it is not handed a control they have to read past. */
-.pane-fade {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 44px;
-}
-
-.pane-fade-check {
-  flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.pane-fade-label {
-  color: var(--fg);
-  font-size: 0.75rem;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.pane-fade-amount {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-/* display:flex above would otherwise beat the hidden attribute's own
-   display:none, and the slider would show while fade is off. */
-.pane-fade-amount[hidden] {
-  display: none;
-}
-
-.pane-fade-slider {
-  width: 88px;
-  margin: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-/* The readout sits to the right of the thumb and keeps a fixed width, so
-   moving the slider does not push the rest of the strip sideways. */
-.pane-fade-value {
-  min-width: 4ch;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
 .pane-mini-panel {
   display: flex;
   flex-wrap: wrap;

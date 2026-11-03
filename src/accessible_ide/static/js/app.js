@@ -84,10 +84,6 @@
   // The fade tick and its slider, in the same strip as the line-number tick.
   // They read and write the same two settings as the Settings panel, so the
   // two views are brought back in step whoever changed them.
-  var fadeToggle = document.getElementById('fade-toggle');
-  var fadeSlider = document.getElementById('fade-slider');
-  var fadeAmount = document.getElementById('fade-amount');
-  var fadeSliderValue = document.getElementById('fade-slider-value');
   var ttsVoice = document.getElementById('tts-voice');
   var ttsRate = document.getElementById('tts-rate');
   var ttsRateLabel = document.getElementById('tts-rate-label');
@@ -891,13 +887,8 @@
     body.style.setProperty('--blur-amount', amount.toFixed(2));
     var percent = Math.round(value * 100) + '%';
     if (blurIntensityLabel) blurIntensityLabel.textContent = percent;
-    if (fadeSliderValue) fadeSliderValue.textContent = percent;
-    // Both views of the setting follow whichever one moved.
     if (blurIntensity && blurIntensity.value !== String(value)) {
       blurIntensity.value = String(value);
-    }
-    if (fadeSlider && fadeSlider.value !== String(value)) {
-      fadeSlider.value = String(value);
     }
   }
 
@@ -928,10 +919,6 @@
     // both are brought back in step whoever changed it.
     if (lineNumbersToggle) lineNumbersToggle.checked = mode !== 'gutter';
     // The fade tick and its slider are the same setting seen a third way.
-    // The slider appears while either fade mode is on, so the strip stays
-    // quiet for a reader who never asked for it.
-    if (fadeToggle) fadeToggle.checked = mode === 'lines';
-    if (fadeAmount) fadeAmount.hidden = mode !== 'lines' && mode !== 'fade';
     if (focusMode && focusMode.value !== mode) {
       focusMode.value = mode;
       syncBlurField();
@@ -2973,13 +2960,10 @@
   });
 
   // ---------- Sound ----------
-  // Four short tones, generated offline by scripts/make_sounds.py and
-  // shipped with the app, so they play with no network: a run starting,
-  // finishing, failing or waiting on an answer, and a click on a button.
-  //
-  // Two things can silence them. The reader's own Sound setting, and
-  // reduce-motion - a reader who asked for calm asked for it everywhere,
-  // and a sudden tone is the loudest thing this app can do.
+  // No sound ships with the app. playSound(name) is the one hook: drop the
+  // reader's own clips into an audio folder and the hook plays them when a
+  // named event fires. A missing clip stays silent, and the reader's Sound
+  // setting is the only silencer overall.
   var soundClips = {};
   var soundEnabled = body.getAttribute('data-sound') === 'true';
 
@@ -3000,7 +2984,7 @@
   }
 
   function playSound(name) {
-    if (!soundEnabled || reduceMotion) return;
+    if (!soundEnabled) return;
     var clip = loadSound(name);
     if (!clip) return;
     try {
@@ -4034,27 +4018,6 @@
       var next = lineNumbersToggle.checked ? lastVisibleFocusMode : 'gutter';
       applyFocusMode(next);
       saveConfig({ focus_mode: next });
-    });
-  }
-
-  // Ticking fade turns the mode on and brings its slider out; unticking turns
-  // it off and takes the slider away. Unticking leaves the numbers showing,
-  // which is "off" rather than "gutter": the reader asked to stop fading, not
-  // to hide the numbers.
-  if (fadeToggle) {
-    fadeToggle.addEventListener('change', function () {
-      var next = fadeToggle.checked ? 'lines' : 'off';
-      applyFocusMode(next);
-      saveConfig({ focus_mode: next });
-    });
-  }
-
-  if (fadeSlider) {
-    fadeSlider.addEventListener('input', function () {
-      applyBlurIntensity(parseFloat(fadeSlider.value));
-    });
-    fadeSlider.addEventListener('change', function () {
-      saveConfig({ blur_intensity: parseFloat(fadeSlider.value) });
     });
   }
 
