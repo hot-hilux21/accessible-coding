@@ -277,6 +277,9 @@ DEFAULT_CONFIG = {
     'reading_ruler': False,
     'focus_mode': 'gutter',
     'blur_intensity': 0.5,
+    'fade_output': 0.5,
+    'fade_shell': 0.5,
+    'fade_settings': 0.5,
     'contrast': 'normal',
     # None means "the reader has not chosen yet", so the app follows the
     # operating system's motion preference until they say otherwise. True
@@ -2114,6 +2117,9 @@ CONFIG_TYPES = {
     'reading_ruler': bool,
     'focus_mode': str,
     'blur_intensity': (int, float),
+    'fade_output': (int, float),
+    'fade_shell': (int, float),
+    'fade_settings': (int, float),
     'contrast': str,
     'reduce_motion': bool,
     'sound_enabled': bool,
@@ -2198,6 +2204,9 @@ CONFIG_RANGES = {
     'letter_spacing': (-0.5, 4.0),
     'word_spacing': (0.0, 2.0),
     'blur_intensity': (0.0, 1.0),
+    'fade_output': (0.0, 1.0),
+    'fade_shell': (0.0, 1.0),
+    'fade_settings': (0.0, 1.0),
     'tts_rate': (0.5, 2.0),
     # Milliseconds. Zero is allowed: someone who moves the pointer
     # deliberately and slowly should not have to wait at all. The top is

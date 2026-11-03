@@ -1022,6 +1022,105 @@ body .hide-icons {
   min-width: 0;
 }
 
+/* The fade control the editor strip carries, right-aligned below the
+   arrow row. It is a sibling of the strip, not a flex item in it, so the
+   right edge is set here, not with a margin. On a narrow pane it wraps
+   onto tidy rows instead of pushing a control off the edge. */
+.pane-fade {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-3);
+  row-gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--muted);
+  font-size: 0.85em;
+  letter-spacing: normal;
+}
+
+.pane-fade-label {
+  color: var(--fg);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pane-fade select {
+  min-height: 44px;
+  font-size: 0.85em;
+}
+
+.pane-fade-sliders {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* Sliders appear only for the mode that uses them: the code amount while
+   anything fades, the three surface amounts while everything fades. */
+.pane-fade-slider {
+  display: none;
+  min-height: 44px;
+}
+
+body[data-focus-mode="lines"] .pane-fade-slider.pane-fade-code,
+body[data-focus-mode="fade"] .pane-fade-slider.pane-fade-code {
+  display: inline-flex;
+}
+
+body[data-focus-mode="fade"] .pane-fade-slider.pane-fade-pane {
+  display: inline-flex;
+}
+
+/* Focus mode: fade everything except the code editor so the reader can
+   read one thing at a time. The editor, its gutter, the output and shell
+   panes stay fully legible; the chrome around them drops back. Open
+   dialogs stay bright too, because the reader is inside them. The fade
+   control itself stays bright as well: its sliders are what bring the
+   other surfaces back up, and it would not do for them to go murky
+   along with everything they adjust. */
+body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not(.pane-fade):not([role="dialog"]):not(dialog[open]) {
+  opacity: 0.4;
+  transition: opacity var(--motion-med) var(--ease);
+}
+body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not(.pane-fade):not([role="dialog"]):not(dialog[open]):hover,
+body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not(.pane-fade):not([role="dialog"]):not(dialog[open]):focus,
+body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not(.pane-fade):not([role="dialog"]):not(dialog[open]):focus-within {
+  opacity: 1;
+}
+/* The dim rule matches the cluster's parts one by one, since :not names the
+   cluster and not everything inside it; the !important is what beats its
+   long :not() specificity. */
+body[data-focus-mode="fade"] .pane-fade,
+body[data-focus-mode="fade"] .pane-fade * {
+  opacity: 1 !important;
+}
+
+/* With fade-all the three surfaces are dimmed to their own level, each set
+   by its own slider. The value runs the same way around as the code
+   slider: the reader's number dimmed against the stylesheet floor. The
+   Settings dialog is dimmed with the rest - it holds its own slider, so
+   the reader can always bring it back up. */
+body[data-focus-mode="fade"] .output-pane {
+  opacity: clamp(0.15, var(--fade-output, 0.57), 1);
+  transition: opacity var(--motion-med) var(--ease);
+}
+body[data-focus-mode="fade"] .shell-pane {
+  opacity: clamp(0.15, var(--fade-shell, 0.57), 1);
+  transition: opacity var(--motion-med) var(--ease);
+}
+body[data-focus-mode="fade"] .settings[open] {
+  opacity: clamp(0.15, var(--fade-settings, 0.57), 1);
+  transition: opacity var(--motion-med) var(--ease);
+}
+
 /* The value reads as a number, so the digits are held to one width and the
    slider does not shuffle sideways as the number changes length. */
 .mini-value {
@@ -1125,20 +1224,6 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-gutter-wrapper
 body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-line:hover,
 body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hover .CodeMirror-linebackground,
 body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hover .CodeMirror-gutter-wrapper {
-  opacity: 1;
-}
-
-/* Focus mode: fade everything except the code editor so the reader can
-   read one thing at a time. The editor, its gutter, the output and shell
-   panes stay fully legible; the chrome around them drops back. Open
-   dialogs stay bright too, because the reader is inside them. */
-body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not([role="dialog"]):not(dialog[open]) {
-  opacity: 0.4;
-  transition: opacity var(--motion-med) var(--ease);
-}
-body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not([role="dialog"]):not(dialog[open]):hover,
-body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not([role="dialog"]):not(dialog[open]):focus,
-body[data-focus-mode="fade"] :not(.CodeMirror):not(.CodeMirror-gutter):not(.output-pane):not(.shell-pane):not([role="dialog"]):not(dialog[open]):focus-within {
   opacity: 1;
 }
 

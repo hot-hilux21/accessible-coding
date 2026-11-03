@@ -77,6 +77,14 @@
   var themeSelect = document.getElementById('theme-select');
   var contrastSelect = document.getElementById('contrast-select');
   var focusMode = document.getElementById('focus-mode');
+  // The fade dropdown in the editor strip's top right, plus the sliders that
+  // dropdown shows. The dropdown writes the same focus_mode as the Settings
+  // dropdown; the code slider writes the same blur_intensity, and the three
+  // pane sliders each write their own surface's fade, so the parts of a
+  // faded screen never have to move together.
+  var paneFadeMode = document.getElementById('pane-fade-mode');
+  var paneEditorBlur = document.getElementById('pane-editor-blur');
+  var paneEditorBlurLabel = document.getElementById('pane-editor-blur-label');
   // The line-number tick in the editor's strip, and the chevron that replaces
   // it while the numbers are hidden. They are the same setting as the focus
   // mode dropdown, so the mode is what both of them read and write.
@@ -203,6 +211,18 @@
     var fading = focusMode.value === 'lines' || focusMode.value === 'fade';
     blurField.classList.toggle('is-disabled', !fading);
     blurIntensity.disabled = !fading;
+    if (paneEditorBlur) {
+      paneEditorBlur.disabled = !fading;
+      paneEditorBlur.setAttribute('aria-disabled', String(!fading));
+    }
+    // The pane sliders only mean something while everything fades, so they
+    // are disabled (and hidden by the stylesheet) in the other two modes.
+    ['output', 'shell', 'settings'].forEach(function (key) {
+      var element = document.getElementById('pane-fade-' + key);
+      if (!element) return;
+      element.disabled = focusMode.value !== 'fade';
+      element.setAttribute('aria-disabled', String(focusMode.value !== 'fade'));
+    });
   }
 
   function promptForAccessCode() {
@@ -882,7 +902,7 @@
   // off: at the bottom of the slider every line stays fully legible, so the
   // control that says fade is on cannot leave a line faded a little. 1 takes
   // the other lines down to the floor the stylesheet clamps to.
-  function applyBlurIntensity(value) {
+  function applyBlurIntensity(value, source) {
     var amount = 1 - (value * 0.85);
     body.style.setProperty('--blur-amount', amount.toFixed(2));
     var percent = Math.round(value * 100) + '%';
@@ -890,6 +910,25 @@
     if (blurIntensity && blurIntensity.value !== String(value)) {
       blurIntensity.value = String(value);
     }
+    // The editor strip slider sees the value whoever moved it, the same
+    // mirror rule the Settings dropdown and the mode dropdown already use.
+    if (paneEditorBlur && source !== paneEditorBlur) {
+      paneEditorBlur.value = String(value);
+    }
+    if (paneEditorBlurLabel && source !== paneEditorBlur) {
+      paneEditorBlurLabel.textContent = percent;
+    }
+  }
+
+  // The other surfaces of fade-all. Each keeps its own value: dimming the
+  // output never drags the shell or the Settings dialog down with it.
+  function applyPaneFade(key, value, source) {
+    var element = document.getElementById('pane-fade-' + key);
+    var label = document.getElementById('pane-fade-' + key + '-label');
+    body.setAttribute('data-fade-' + key, value);
+    body.style.setProperty('--fade-' + key, (1 - value * 0.85).toFixed(2));
+    if (element && source !== element) element.value = String(value);
+    if (label) label.textContent = Math.round(value * 100) + '%';
   }
 
   function applyContrast(value) {
@@ -922,6 +961,13 @@
     if (focusMode && focusMode.value !== mode) {
       focusMode.value = mode;
       syncBlurField();
+    }
+    // The editor strip dropdown is a fourth view of the same mode. It only
+    // offers the fade states, so the gutter state (the line-number tick's
+    // own setting) reads as "off" there; the tick keeps telling the truth.
+    if (paneFadeMode) {
+      var fadeView = mode === 'lines' || mode === 'fade' ? mode : 'off';
+      if (paneFadeMode.value !== fadeView) paneFadeMode.value = fadeView;
     }
     editor.refresh();
     setTimeout(editor.refresh.bind(editor), 40);
@@ -4009,6 +4055,39 @@
     saveConfig({ focus_mode: focusMode.value });
   });
 
+  // The editor strip's own copy of the same controls. Same handlers, same
+  // saved values, so either way of turning the fades on or off lands.
+  if (paneFadeMode) {
+    paneFadeMode.addEventListener('change', function () {
+      applyFocusMode(paneFadeMode.value);
+      syncBlurField();
+      saveConfig({ focus_mode: paneFadeMode.value });
+    });
+  }
+  if (paneEditorBlur) {
+    paneEditorBlur.addEventListener('input', function () {
+      applyBlurIntensity(parseFloat(paneEditorBlur.value), paneEditorBlur);
+    });
+    paneEditorBlur.addEventListener('change', function () {
+      applyBlurIntensity(parseFloat(paneEditorBlur.value), paneEditorBlur);
+      saveConfig({ blur_intensity: parseFloat(paneEditorBlur.value) });
+    });
+  }
+  [['output'], ['shell'], ['settings']].forEach(function (pair) {
+    var key = pair[0];
+    var element = document.getElementById('pane-fade-' + key);
+    if (!element) return;
+    element.addEventListener('input', function () {
+      applyPaneFade(key, parseFloat(element.value), element);
+    });
+    element.addEventListener('change', function () {
+      applyPaneFade(key, parseFloat(element.value), element);
+      var patch = {};
+      patch['fade_' + key] = parseFloat(element.value);
+      saveConfig(patch);
+    });
+  });
+
   // Unticking hides the numbers, and ticking them again puts them back at
   // whichever mode hid them. Both go through applyFocusMode, so the Settings
   // dropdown and the strip above the code are never describing two different
@@ -5074,9 +5153,13 @@
   applyLetterSpacing(body.getAttribute('data-letter-spacing') || '0.5');
   applyWordSpacing(body.getAttribute('data-word-spacing') || '0.5');
   paintStepperLimits();
-  applyBlurIntensity(body.getAttribute('data-blur-intensity') || '0.5');
+  applyBlurIntensity(parseFloat(body.getAttribute('data-blur-intensity') || '0.5'));
   applyFocusMode(body.getAttribute('data-focus-mode') || 'off');
   syncBlurField();
+  // Each surface of fade-all starts from its own saved value.
+  ['output', 'shell', 'settings'].forEach(function (key) {
+    applyPaneFade(key, parseFloat(body.getAttribute('data-fade-' + key) || '0.5'));
+  });
   updateFontNote();
   updatePreview();
   // After the reading settings, so a pane that is still following starts from
