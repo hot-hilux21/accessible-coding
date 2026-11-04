@@ -277,9 +277,13 @@ DEFAULT_CONFIG = {
     'reading_ruler': False,
     'focus_mode': 'gutter',
     'blur_intensity': 0.5,
-    'fade_output': 0.5,
-    'fade_shell': 0.5,
-    'fade_settings': 0.5,
+    # Every surface starts unfaded; only the code amount has a fade
+    # default, matching the old code-only behaviour. Fade-all starts as
+    # if only the code is being faded, and the reader slides each
+    # surface's amount up from 0 when they want it faded too.
+    'fade_output': 0.0,
+    'fade_shell': 0.0,
+    'fade_settings': 0.0,
     'contrast': 'normal',
     # None means "the reader has not chosen yet", so the app follows the
     # operating system's motion preference until they say otherwise. True
@@ -1085,6 +1089,15 @@ def load_config():
                 config['glass_material'] = (
                     'frosted' if config.pop('glass') else DEFAULT_CONFIG['glass_material']
                 )
+            # The per-surface fade amounts first shipped defaulting to
+            # 0.5. The new default is 0 (the surface is not faded until
+            # the reader fades it), so the old default value in a stored
+            # file is the legacy value, not a choice the reader made.
+            # They are indistinguishable, and the reader's slider starts
+            # at 0 as asked.
+            for key in ('fade_output', 'fade_shell', 'fade_settings'):
+                if config.get(key) == 0.5:
+                    config[key] = 0.0
             # Merge with defaults for any missing keys
             for key, value in DEFAULT_CONFIG.items():
                 if key not in config:
