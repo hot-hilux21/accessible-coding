@@ -54,6 +54,7 @@ Jump to any section:
 - **Screen readers** — native landmarks, live regions, focus management and spoken step changes; no ARIA invented where the browser already does the job
 - **Errors** — plain-English messages, no jargon
 - **Storage** — offline-first, settings saved to your computer
+- **Privacy** — see [PRIVACY.md](PRIVACY.md): no accounts, no analytics; code runs on your machine unless you use the browser copy
 - **Platforms** — browser web app and Windows `.exe`
 
 [↑ Back to contents](#contents)
