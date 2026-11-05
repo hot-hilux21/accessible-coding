@@ -5222,19 +5222,19 @@
 // shows a louder message while the tab is in the background.
 (function () {
   var titles = [
-    "AccessibleCoding: code that reads well",
-    "AccessibleCoding - \u0906\u0930\u093E\u092E \u0938\u0947 \u0915\u094B\u0921 \u0915\u0930\u0947\u0902",
-    "AccessibleCoding - Coder confortablement",
-    "AccessibleCoding - Programa con comodidad",
-    "AccessibleCoding: c\u00F3digo que se l\u00EA bem",
-    "AccessibleCoding: \u043A\u043E\u0434, \u043A\u043E\u0442\u043E\u0440\u044B\u0439 \u0445\u043E\u0440\u043E\u0448\u043E \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F",
-    "AccessibleCoding: \uC77D\uAE30 \uC26C\uC6B4 \uCF54\uB4DC",
-    "AccessibleCoding: \u8AAD\u307F\u3084\u3059\u3044\u30B3\u30FC\u30C9",
-    "AccessibleCoding\uFF1A\u8BFB\u5F97\u987A\u7684\u4EE3\u7801",
-    "AccessibleCoding: \u03BA\u03CE\u03B4\u03B9\u03BA\u03B1\u03C2 \u03C0\u03BF\u03C5 \u03B4\u03B9\u03B1\u03B2\u03AC\u03B6\u03B5\u03C4\u03B1\u03B9 \u03B5\u03CD\u03BA\u03BF\u03BB\u03B1",
-    "AccessibleCoding - \u0627\u0643\u062A\u0628 \u0628\u0631\u0627\u062D\u0629",
-    "AccessibleCoding: \u0643\u0648\u062F \u064A\u064F\u0642\u0631\u0623 \u0628\u0633\u0647\u0648\u0644\u0629",
-    "AccessibleCoding - \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u0443\u0439\u0442\u0435 \u0437\u0440\u0443\u0447\u043D\u043E"
+    "AccessibleCoding reads well",
+    "AccessibleCoding: \u0906\u0930\u093E\u092E \u0938\u0947",
+    "AccessibleCoding: confort",
+    "AccessibleCoding: comodidad",
+    "AccessibleCoding: l\u00EA bem",
+    "AccessibleCoding: \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F",
+    "AccessibleCoding: \uC77D\uAE30\uC26C\uC6B4",
+    "AccessibleCoding: \u8AAD\u307F\u3084\u3059\u3044",
+    "AccessibleCoding: \u8BFB\u5F97\u987A",
+    "AccessibleCoding: \u03B5\u03CD\u03BA\u03BF\u03BB\u03B1",
+    "AccessibleCoding: \u0628\u0631\u0627\u062D\u0629",
+    "AccessibleCoding: \u0628\u0633\u0647\u0648\u0644\u0629",
+    "AccessibleCoding: \u0437\u0440\u0443\u0447\u043D\u043E"
   ];
   var eggs = [];
   fetch("/static/status.md").then(function (r) { return r.text(); }).then(function (text) {
