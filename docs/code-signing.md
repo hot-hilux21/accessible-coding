@@ -123,14 +123,13 @@ the original, and then checks the result with `Get-AuthenticodeSignature`. A run
 that gets as far as signing and comes back with something Windows will not accept
 fails there rather than shipping it.
 
-The main-branch build in `.github/workflows/build-exe.yml` is left unsigned.
-When signing goes live, that workflow is the one to revisit: it now publishes
-to `beta`, the channel the README links to and the default a reader is given,
-so an unsigned build landing there is a file in front of readers that Windows
-will not vouch for. The same steps belong there, and the manifest has to be
-generated after signing rather than before it, because a signature changes
-both the `sha256` and the size it records. Until then the build is skipped the
-same way the others are, by leaving the variable unset.
+The main-branch build in `.github/workflows/build-exe.yml` is wired the same
+way as the tagged release: it signs the portable exe and the installer when
+`SIGNPATH_ORGANIZATION_ID` is set, and generates the manifest after signing.
+It publishes to `beta`, the channel the README links to and the default a
+reader is given, so this is the workflow that matters most once signing goes
+live. Until the variable is set, every signing step is skipped and the build
+is unsigned, the same as before.
 
 ## Checking a download
 
