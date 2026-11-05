@@ -686,47 +686,41 @@ export default function App() {
                 <CardContent className="flex flex-col gap-4">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="settings-theme">Theme</Label>
-                    <Select
+                    <select
+                      id="settings-theme"
+                      className="w-48 rounded-md border bg-background px-2 py-1 text-sm"
                       value={theme}
-                      onValueChange={(v) => {
-                        if (!v) return;
+                      onChange={(e) => {
+                        const v = e.target.value;
                         setTheme(v);
                         saveConfig({ theme: v });
                       }}
                     >
-                      <SelectTrigger id="settings-theme" className="w-48">
-                        <SelectValue placeholder="Theme" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(themes).map(([key, t]) => (
-                          <SelectItem key={key} value={key}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {Object.entries(themes).map(([key, t]) => (
+                        <option key={key} value={key}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="settings-font">Reading font</Label>
-                    <Select
+                    <select
+                      id="settings-font"
+                      className="w-48 rounded-md border bg-background px-2 py-1 text-sm"
                       value={font}
-                      onValueChange={(v) => {
-                        if (!v) return;
+                      onChange={(e) => {
+                        const v = e.target.value;
                         setFont(v);
                         saveConfig({ font: v });
                       }}
                     >
-                      <SelectTrigger id="settings-font" className="w-48">
-                        <SelectValue placeholder="Font" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(fonts).map(([key, f]) => (
-                          <SelectItem key={key} value={key} style={{ fontFamily: f.family }}>
-                            {f.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {Object.entries(fonts).map(([key, f]) => (
+                        <option key={key} value={key}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <Button variant="outline" onClick={resetConfig}>
                     Reset all settings
