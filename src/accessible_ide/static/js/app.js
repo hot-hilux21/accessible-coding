@@ -5221,7 +5221,6 @@
 // supported language, mixes in easter eggs from /static/status.md, and
 // shows a louder message while the tab is in the background.
 (function () {
-  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   var titles = [
     "AccessibleCoding: code that reads well",
     "AccessibleCoding - \u0906\u0930\u093E\u092E \u0938\u0947 \u0915\u094B\u0921 \u0915\u0930\u0947\u0902",
