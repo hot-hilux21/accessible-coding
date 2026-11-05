@@ -442,6 +442,19 @@ body[data-gradient='off'] {
   margin-left: auto;
 }
 
+/* Shown on the hosted copy of the app, where the reader is asked to trust
+   that their code goes to the server to run. A notice, not a warning: the
+   reader is not being refused, they are being told what happens to their
+   words. Drawn beside the Run button, so the trust is in front of the one
+   action that would spend it. */
+.run-notice {
+  margin: 0;
+  font-size: 0.85em;
+  line-height: 1.5;
+  letter-spacing: normal;
+  color: var(--muted);
+}
+
 .tool-group {
   display: flex;
   align-items: center;

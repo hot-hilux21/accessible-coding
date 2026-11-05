@@ -25,6 +25,73 @@ from .utils import colour
 
 main_bp = Blueprint('main', __name__)
 
+# A run is allowed to print this much before it is cut off. Enough for any
+# real program a learner writes, small enough that a runaway print cannot
+# fill the disk or the reply.
+RUN_OUTPUT_CAP = 200 * 1024
+
+try:
+    import psutil as _psutil
+except Exception:  # pragma: no cover - optional helper
+    _psutil = None
+
+try:
+    import resource as _resource
+except Exception:  # pragma: no cover - POSIX only
+    _resource = None
+
+# Operating-system-enforced ceilings for one reader's run: address space and
+# CPU. Applied to the child before it execs, so a runaway program is stopped by
+# the kernel rather than by the app waiting on it. No-op on platforms without
+# the resource module; there the process tree kill and the output cap are the
+# backstop.
+RUN_CPU_SECONDS = 10
+RUN_AS_LIMIT_BYTES = 512 * 1024 * 1024
+
+
+def _limit_child():
+    """Apply the run resource ceilings in the child before exec."""
+    if _resource is None:
+        return
+    try:
+        _resource.setrlimit(_resource.RLIMIT_AS, (RUN_AS_LIMIT_BYTES, RUN_AS_LIMIT_BYTES))
+        _resource.setrlimit(_resource.RLIMIT_CPU, (RUN_CPU_SECONDS, RUN_CPU_SECONDS))
+    except Exception:
+        pass
+
+
+def _kill_process_tree(pid):
+    """Kill a process and everything it started."""
+    if _psutil is not None:
+        try:
+            parent = _psutil.Process(pid)
+            for child in parent.children(recursive=True):
+                try:
+                    child.kill()
+                except Exception:
+                    pass
+            parent.kill()
+            return
+        except Exception:
+            pass
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except Exception:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except Exception:
+            pass
+
+
+def _read_capped(file_obj):
+    """Read a captured stream, capped to RUN_OUTPUT_CAP bytes."""
+    file_obj.seek(0)
+    data = file_obj.read(RUN_OUTPUT_CAP + 1)
+    text = data.decode('utf-8', errors='replace').replace('\r\n', '\n')
+    if len(data) > RUN_OUTPUT_CAP:
+        text = text[:RUN_OUTPUT_CAP] + '\n... output truncated ...\n'
+    return text
+
 
 def on_public_web():
     """True when this process is serving the public web, not one reader.
@@ -1389,10 +1456,17 @@ def rate_limited(ip, limit=None):
 
 
 def client_ip():
-    """Best-effort client IP (handles Render's proxy)."""
-    forwarded = request.headers.get('X-Forwarded-For', '')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
+    """Best-effort client IP.
+
+    The forwarded header is only trusted when the deployment says it sits
+    behind a proxy it controls. Otherwise a client can put any address in
+    it and skip the per-address limits.
+    """
+    trusted = os.environ.get('TRUST_PROXY', '').lower() in ('1', 'true', 'yes')
+    if trusted:
+        forwarded = request.headers.get('X-Forwarded-For', '')
+        if forwarded:
+            return forwarded.split(',')[0].strip()
     return request.remote_addr or 'unknown'
 
 
@@ -1561,10 +1635,14 @@ def index():
                          # The maintainer's own credits, one line each, so the
                          # list the reader sees is the list somebody can edit
                          # in the source rather than a block of HTML.
-                         credits=credits_list(),
-                         run_keys=RUN_KEYS,
-                         stop_keys=STOP_KEYS,
-                         t=i18n.make_translator(locale))
+                          # The maintainer's own credits, one line each, so the
+                          # list the reader sees is the list somebody can edit
+                          # in the source rather than a block of HTML.
+                          credits=credits_list(),
+                          run_keys=RUN_KEYS,
+                          stop_keys=STOP_KEYS,
+                          t=i18n.make_translator(locale),
+                          hosted=on_public_web())
 
 
 def _runner_env():
@@ -1839,18 +1917,48 @@ def run_code():
         # reports as a question. Left alone it would inherit the server's own
         # stdin, which on a hosted copy is not something a reader's program
         # should be able to read and is not the same thing twice.
-        result = subprocess.run(
+        # Run with the output going to files rather than into memory, so a
+        # program that prints without stopping cannot take the server's
+        # memory with it. The files are read back capped, the process tree is
+        # killed on timeout or on an output cap, and the kernel caps the child's
+        # address space and CPU before it starts.
+        stdout_file = tempfile.TemporaryFile(mode='w+b')
+        stderr_file = tempfile.TemporaryFile(mode='w+b')
+        timed_out = False
+        proc = subprocess.Popen(
             cmd,
-            capture_output=True,
-            text=True,
-            input=''.join(answer + '\n' for answer in answers),
-            timeout=10,
+            stdin=subprocess.PIPE,
+            stdout=stdout_file,
+            stderr=stderr_file,
             cwd=tempfile.gettempdir(),
             env=env,
+            creationflags=getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0),
+            preexec_fn=_limit_child if _resource is not None else None,
         )
+        try:
+            proc.communicate(
+                input=''.join(answer + '\n' for answer in answers).encode('utf-8'),
+                timeout=10,
+            )
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            _kill_process_tree(proc.pid)
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                _kill_process_tree(proc.pid)
+                proc.kill()
+                proc.wait()
+        output = _read_capped(stdout_file)
+        error = _read_capped(stderr_file)
+        for stream in (stdout_file, stderr_file):
+            try:
+                stream.close()
+            except Exception:
+                pass
+        if timed_out:
+            raise subprocess.TimeoutExpired(cmd, 10)
 
-        output = result.stdout
-        error = result.stderr
         error_line = None
         # Read before the finally block deletes the sidecar, and read it even
         # when the program failed: a failing run is the one a reader most wants

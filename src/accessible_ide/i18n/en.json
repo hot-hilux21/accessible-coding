@@ -416,5 +416,6 @@
   "update.version_line": "Version {0}",
   "update.warn_body": "Downloading saves the new version only; nothing changes yet. Installing closes the app, puts the new version in place, and opens the app again. Save your work first.",
   "update.warn_cancel": "Not now",
-  "update.warn_title": "Save your work first"
+  "update.warn_title": "Save your work first",
+  "nav.hosted_run": "On this website, your code is sent to the server to run."
 }

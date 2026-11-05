@@ -416,5 +416,6 @@
   "update.version_line": "Version {0}",
   "update.warn_body": "Le téléchargement enregistre seulement la nouvelle version ; rien n'est modifié pour l'instant. L'installation ferme l'application, met la nouvelle version en place et la rouvre, alors enregistrez ce que vous n'avez pas encore enregistré.",
   "update.warn_cancel": "Pas maintenant",
-  "update.warn_title": "Enregistrez d'abord votre travail"
+  "update.warn_title": "Enregistrez d'abord votre travail",
+  "nav.hosted_run": "Sur ce site web, votre code est envoyé au serveur pour y être exécuté."
 }

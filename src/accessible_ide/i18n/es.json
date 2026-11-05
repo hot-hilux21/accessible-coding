@@ -416,5 +416,6 @@
   "update.version_line": "Versión {0}",
   "update.warn_body": "Descargar solo guarda la nueva versión; todavía no cambia nada. Instalar cierra la aplicación, coloca la nueva versión y vuelve a abrirla, así que guarda lo que no hayas guardado.",
   "update.warn_cancel": "Ahora no",
-  "update.warn_title": "Guarda tu trabajo primero"
+  "update.warn_title": "Guarda tu trabajo primero",
+  "nav.hosted_run": "En este sitio web, tu código se envía al servidor para ejecutarse."
 }

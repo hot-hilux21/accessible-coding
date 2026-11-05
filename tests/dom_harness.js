@@ -56,6 +56,9 @@ const KNOWN_IDS = new Set([
   'ui-backend', 'ui-backend-help',
   'blur-intensity', 'blur-intensity-label',
   'blur-field', 'theme-select', 'contrast-select', 'focus-mode',
+  'pane-fade-mode', 'pane-editor-blur', 'pane-editor-blur-label',
+  'fade-output', 'fade-output-label', 'fade-shell', 'fade-shell-label',
+  'fade-settings', 'fade-settings-label',
   'reduce-motion', 'reduce-motion-state',
   'sound-enabled', 'sound-enabled-state',
   // The background gradient switch and the theme builder. The builder is

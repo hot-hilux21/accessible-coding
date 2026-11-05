@@ -271,5 +271,20 @@ class ShutdownCsrfTests(unittest.TestCase):
         self.assertIn("blocked", body.lower())
 
 
+# -- the run resource ceilings (OS-enforced limits) -----------------------
+
+
+class RunResourceLimitTests(SecurityTestCase):
+    def test_the_run_ceiling_constants_are_set(self):
+        self.assertGreater(routes.RUN_CPU_SECONDS, 0)
+        self.assertGreater(routes.RUN_AS_LIMIT_BYTES, 0)
+
+    def test_limit_child_is_noop_when_resource_module_is_absent(self):
+        # Windows has no resource module; the runner must still work there,
+        # with the process tree kill and the output cap as the backstop.
+        with mock.patch.object(routes, "_resource", None):
+            routes._limit_child()
+
+
 if __name__ == "__main__":
     unittest.main()

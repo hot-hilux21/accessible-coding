@@ -218,7 +218,7 @@
     // The pane sliders only mean something while everything fades, so they
     // are disabled (and hidden by the stylesheet) in the other two modes.
     ['output', 'shell', 'settings'].forEach(function (key) {
-      var element = document.getElementById('pane-fade-' + key);
+      var element = document.getElementById('fade-' + key);
       if (!element) return;
       element.disabled = focusMode.value !== 'fade';
       element.setAttribute('aria-disabled', String(focusMode.value !== 'fade'));
@@ -923,8 +923,8 @@
   // The other surfaces of fade-all. Each keeps its own value: dimming the
   // output never drags the shell or the Settings dialog down with it.
   function applyPaneFade(key, value, source) {
-    var element = document.getElementById('pane-fade-' + key);
-    var label = document.getElementById('pane-fade-' + key + '-label');
+    var element = document.getElementById('fade-' + key);
+    var label = document.getElementById('fade-' + key + '-label');
     body.setAttribute('data-fade-' + key, value);
     body.style.setProperty('--fade-' + key, (1 - value * 0.85).toFixed(2));
     if (element && source !== element) element.value = String(value);
@@ -4075,7 +4075,7 @@
   }
   [['output'], ['shell'], ['settings']].forEach(function (pair) {
     var key = pair[0];
-    var element = document.getElementById('pane-fade-' + key);
+    var element = document.getElementById('fade-' + key);
     if (!element) return;
     element.addEventListener('input', function () {
       applyPaneFade(key, parseFloat(element.value), element);
