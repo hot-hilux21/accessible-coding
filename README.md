@@ -40,8 +40,8 @@ Jump to any section:
 
 - **Editor** — CodeMirror Python editor with syntax highlighting
 - **Execution** — built-in Python runner (10-second safety timeout)
-- **Fonts** — OpenDyslexic by default, plus Atkinson Hyperlegible, Lexend and Nunito for dyslexia-friendly reading. Calibri, Arial, Comic Sans and Courier New come from your own computer.
-- **Languages** — English, Hindi, French, Spanish, Portuguese, Russian, Korean, Japanese, Chinese, Greek, Arabic and Ukrainian, with right-to-left layout for Arabic.
+- **Fonts** — OpenDyslexic by default, plus Atkinson Hyperlegible, Lexend, Nunito and Andika for dyslexia-friendly reading. Calibri, Arial, Comic Sans and Courier New come from your own computer.
+- **Languages** — English, Hindi, French, Spanish, Portuguese, Russian, Korean, Japanese, Chinese, Greek, Arabic, Hijazi Arabic and Ukrainian, with right-to-left layout for Arabic.
 - **Focus mode** — hide the gutter, or blur every line except the one you are on
 - **Themes** — 15 presets (high contrast, dark, pastel, light, ocean, forest, white, AMOLED, red, orange, yellow, green, blue, indigo, violet), a custom theme builder with a hex colour grid, and a per-colour reset
 - **Text size and spacing** — separate size, line height and letter spacing for the editor, output and shell
@@ -49,7 +49,7 @@ Jump to any section:
 - **Per-pane toolbars** — each of the editor, output and shell has its own text toolbar, and anything you leave alone keeps following the settings you already chose
 - **Text-to-speech** — reads your code and errors aloud, with hover and click reading
 - **Sounds** — a short tone when your code starts, finishes, fails or waits for an answer, and a soft click on buttons, each with a switch in Settings
-- **About** — the version, the licence and a credits list you can edit in `src/accessible_ide/routes.py` (`DEFAULT_CREDITS`)
+- **About** - the version, the licence and a credits list (see `CREDITS.md`)
 - **First run** — a short wizard asks for language, font and theme with the same dropdowns as Settings, shows a line of text in the font you are choosing, and keeps Next, Back and Skip in a footer you can always see. A **Reset all settings** button sits in the corner of every screen for the case where the font or colour you picked cannot be read.
 - **Screen readers** — native landmarks, live regions, focus management and spoken step changes; no ARIA invented where the browser already does the job
 - **Errors** — plain-English messages, no jargon
@@ -109,7 +109,7 @@ AccessibleCoding is built for dyslexic and neurodivergent readers, not adapted f
 
 > Needs the Microsoft Edge **WebView2 runtime** (built into Windows 10/11 or installed by the setup above). Click **Quit** in the sidebar footer to close the app.
 
-> If Windows shows "Windows protected your PC", click **More info** then **Run anyway** — the app is not code-signed yet.
+> Windows builds are code-signed through the [SignPath Foundation](https://signpath.org/) open-source programme. Until a signed build is published, Windows may still show a SmartScreen prompt: click **More info** then **Run anyway**.
 
 ### Browser (web)
 
@@ -537,10 +537,10 @@ accessible-coding/
 ├── .github/workflows/       # CI: tests + exe build on release tags
 ├── docs/                    # Documentation
 ├── src/accessible_ide/
-│   ├── assets/              # Fonts (OpenDyslexic, Atkinson Hyperlegible, Lexend, Nunito, Almarai, Mukta)
-│   ├── i18n/                # Translation catalogues (en, hi, fr, es, ar, uk)
+│   ├── assets/              # Fonts (OpenDyslexic, Atkinson Hyperlegible, Lexend, Nunito, Andika, Almarai, Mukta)
+│   ├── i18n/                # Translation catalogues (13 languages)
 │   ├── static/              # CSS + JavaScript (CodeMirror, app logic) + the interface sounds in static/audio
-│   ├── templates/           # HTML page (the About credits list is passed in from `routes.py`, ready to edit)
+│   ├── templates/           # HTML page
 │   ├── routes.py            # Flask routes, themes and settings validation
 │   ├── shell.py             # Python shell sessions
 │   ├── trace_runner.py      # Line-by-line variable trace
@@ -569,7 +569,7 @@ What is done so far:
 - [x] 13 languages, including right-to-left Arabic and Hijazi Arabic
 - [x] Adjustable text size, line height and letter spacing per pane
 - [x] Text-to-speech for output, errors, buttons and labels
-- [x] Reading font choice (OpenDyslexic by default, Atkinson Hyperlegible / Lexend / Nunito also bundled)
+- [x] Reading font choice (OpenDyslexic by default, Atkinson Hyperlegible / Lexend / Nunito / Andika also bundled)
 - [x] Focus mode (hide gutter / blur other lines)
 - [x] Error messages in plain English
 - [x] Visual error highlighting in the editor
