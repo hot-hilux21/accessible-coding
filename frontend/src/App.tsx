@@ -554,7 +554,7 @@ export default function App() {
           <Card>
             <CardHeader>
               <CardTitle>Editor</CardTitle>
-              <CardDescription>Your code, in a shadcn editor.</CardDescription>
+              <CardDescription>Your code, ready to run.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="flex gap-2">
@@ -678,6 +678,61 @@ export default function App() {
                   style={{ height: "100%" }}
                 />
               </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Settings</CardTitle>
+                  <CardDescription>Theme, font and reading preferences.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="settings-theme">Theme</Label>
+                    <Select
+                      value={theme}
+                      onValueChange={(v) => {
+                        if (!v) return;
+                        setTheme(v);
+                        saveConfig({ theme: v });
+                      }}
+                    >
+                      <SelectTrigger id="settings-theme" className="w-48">
+                        <SelectValue placeholder="Theme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(themes).map(([key, t]) => (
+                          <SelectItem key={key} value={key}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="settings-font">Reading font</Label>
+                    <Select
+                      value={font}
+                      onValueChange={(v) => {
+                        if (!v) return;
+                        setFont(v);
+                        saveConfig({ font: v });
+                      }}
+                    >
+                      <SelectTrigger id="settings-font" className="w-48">
+                        <SelectValue placeholder="Font" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(fonts).map(([key, f]) => (
+                          <SelectItem key={key} value={key} style={{ fontFamily: f.family }}>
+                            {f.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button variant="outline" onClick={resetConfig}>
+                    Reset all settings
+                  </Button>
+                </CardContent>
+              </Card>
               {shellOpen ? (
                 <Card>
                   <CardHeader>
