@@ -41,7 +41,7 @@ Jump to any section:
 - **Editor** — CodeMirror Python editor with syntax highlighting
 - **Execution** — built-in Python runner (10-second safety timeout)
 - **Fonts** — OpenDyslexic by default, plus Atkinson Hyperlegible, Lexend and Nunito for dyslexia-friendly reading. Calibri, Arial, Comic Sans and Courier New come from your own computer.
-- **Languages** — English, Hindi, French, Spanish, Arabic and Ukrainian, with right-to-left layout for Arabic.
+- **Languages** — English, Hindi, French, Spanish, Portuguese, Russian, Korean, Japanese, Chinese, Greek, Arabic and Ukrainian, with right-to-left layout for Arabic.
 - **Focus mode** — hide the gutter, or blur every line except the one you are on
 - **Themes** — 15 presets (high contrast, dark, pastel, light, ocean, forest, white, AMOLED, red, orange, yellow, green, blue, indigo, violet), a custom theme builder with a hex colour grid, and a per-colour reset
 - **Text size and spacing** — separate size, line height and letter spacing for the editor, output and shell
@@ -68,7 +68,7 @@ AccessibleCoding is built for dyslexic and neurodivergent readers, not adapted f
 - **Text size and spacing:** font size, line height, letter spacing and text weight are adjustable, with separate controls for the editor, output and shell.
 - **Contrast:** every bundled theme and every derived custom colour is checked against WCAG 2.1 AA (4.5:1 for text). `tests/test_contrast.py` is the arbiter and must pass before a visual change lands. The custom theme builder nudges a colour that would fail until it is readable again.
 - **Themes:** 15 presets — high contrast, dark, pastel, light, ocean, forest, white, AMOLED, and red, orange, yellow, green, blue, indigo and violet. The custom theme has a hex grid, a native colour picker and a hex field, and every colour has its own reset. Code colours for keywords, strings, comments, numbers and functions sit under **Settings → Colours → Advanced**.
-- **Languages:** English, Hindi, French, Spanish, Arabic and Ukrainian. Arabic switches the page to right-to-left, and the editor pins its own left-to-right direction so code, gutter, caret and scrollbar never mirror. Every visible string is translated; nothing falls back to English silently.
+- **Languages:** English, Hindi, French, Spanish, Portuguese, Russian, Korean, Japanese, Chinese, Greek, Arabic and Ukrainian. Arabic switches the page to right-to-left, and the editor pins its own left-to-right direction so code, gutter, caret and scrollbar never mirror. Every visible string is translated; nothing falls back to English silently.
 - **Reading ruler:** a shaded band follows the pointer over the editor so one line is easy to follow. It is a reading aid only, so it leaves the caret, the keyboard and the text untouched.
 - **Standards:** WCAG 2.1 AA is the floor, with the WCAG 2.2 additions that apply here — focus is never obscured by floating content (2.4.11), every pointer action has a keyboard alternative (2.5.7), targets are at least 24 by 24 pixels (2.5.8), and help stays in the same place at every width (3.2.6).
 - **Screen readers:** the app uses native landmarks, headings, fieldsets, labels, live regions and focus management. Opening a dialog moves focus into it, a setup step announces itself when it changes, and an error is announced rather than only coloured. Hidden setup panels are removed from the tab order.
@@ -566,7 +566,7 @@ What is done so far:
 - [x] 15 preset themes (high contrast, dark, pastel, light, ocean, forest, white, AMOLED, red, orange, yellow, green, blue, indigo, violet)
 - [x] Custom theme builder with hex colour grid and a per-colour reset
 - [x] Reading ruler that follows the pointer without moving the caret
-- [x] Six languages, including right-to-left Arabic
+- [x] 13 languages, including right-to-left Arabic and Hijazi Arabic
 - [x] Adjustable text size, line height and letter spacing per pane
 - [x] Text-to-speech for output, errors, buttons and labels
 - [x] Reading font choice (OpenDyslexic by default, Atkinson Hyperlegible / Lexend / Nunito also bundled)

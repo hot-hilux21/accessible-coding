@@ -18,7 +18,7 @@ TEMPLATE = ROOT / "src" / "accessible_ide" / "templates" / "index.html"
 APP_JS = ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
 STYLESHEET = ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
 
-LOCALES = ("en", "hi", "fr", "es", "ar", "uk", "hj")
+LOCALES = ("en", "hi", "fr", "es", "ar", "uk", "hj", "pt", "ru", "ko", "ja", "zh", "el")
 
 
 class CatalogueCompleteness(unittest.TestCase):

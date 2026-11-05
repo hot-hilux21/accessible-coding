@@ -267,22 +267,22 @@
       {# Fade-all mode: each surface gets its own slider, so dimming one
          never drags the others down with it. #}
       <span class="mini-field pane-fade-slider pane-fade-pane">
-        <label class="pane-fade-label" for="pane-fade-output">{{ t('output.title') }}</label>
-        <input type="range" id="pane-fade-output" min="0" max="1" step="0.05" value="{{ config.fade_output }}"
+        <label class="pane-fade-label" for="fade-output">{{ t('output.title') }}</label>
+        <input type="range" id="fade-output" min="0" max="1" step="0.05" value="{{ config.fade_output }}"
                aria-label="{{ t('output.title') }}: {{ t('focus.fade') }}">
-        <output id="pane-fade-output-label" class="mini-value" for="pane-fade-output" aria-hidden="true">{{ (config.fade_output * 100) | round | int }}%</output>
+        <output id="fade-output-label" class="mini-value" for="fade-output" aria-hidden="true">{{ (config.fade_output * 100) | round | int }}%</output>
       </span>
       <span class="mini-field pane-fade-slider pane-fade-pane">
-        <label class="pane-fade-label" for="pane-fade-shell">{{ t('shell.title') }}</label>
-        <input type="range" id="pane-fade-shell" min="0" max="1" step="0.05" value="{{ config.fade_shell }}"
+        <label class="pane-fade-label" for="fade-shell">{{ t('shell.title') }}</label>
+        <input type="range" id="fade-shell" min="0" max="1" step="0.05" value="{{ config.fade_shell }}"
                aria-label="{{ t('shell.title') }}: {{ t('focus.fade') }}">
-        <output id="pane-fade-shell-label" class="mini-value" for="pane-fade-shell" aria-hidden="true">{{ (config.fade_shell * 100) | round | int }}%</output>
+        <output id="fade-shell-label" class="mini-value" for="fade-shell" aria-hidden="true">{{ (config.fade_shell * 100) | round | int }}%</output>
       </span>
       <span class="mini-field pane-fade-slider pane-fade-pane">
-        <label class="pane-fade-label" for="pane-fade-settings">{{ t('settings.title') }}</label>
-        <input type="range" id="pane-fade-settings" min="0" max="1" step="0.05" value="{{ config.fade_settings }}"
+        <label class="pane-fade-label" for="fade-settings">{{ t('settings.title') }}</label>
+        <input type="range" id="fade-settings" min="0" max="1" step="0.05" value="{{ config.fade_settings }}"
                aria-label="{{ t('settings.title') }}: {{ t('focus.fade') }}">
-        <output id="pane-fade-settings-label" class="mini-value" for="pane-fade-settings" aria-hidden="true">{{ (config.fade_settings * 100) | round | int }}%</output>
+        <output id="fade-settings-label" class="mini-value" for="fade-settings" aria-hidden="true">{{ (config.fade_settings * 100) | round | int }}%</output>
       </span>
     </span>
   </div>

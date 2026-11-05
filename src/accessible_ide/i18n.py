@@ -38,6 +38,12 @@ LANGUAGES: dict[str, tuple[str, str, str]] = {
     # Arabic. The smiley marks the dialect: the one language name that
     # carries it, per your request.
     "hj": ("اللهجة الحجازية 😊", "Hijazi Arabic", "rtl"),
+    "pt": ("Português", "Portuguese", "ltr"),
+    "ru": ("Русский", "Russian", "ltr"),
+    "ko": ("한국어", "Korean", "ltr"),
+    "ja": ("日本語", "Japanese", "ltr"),
+    "zh": ("中文", "Chinese", "ltr"),
+    "el": ("Ελληνικά", "Greek", "ltr"),
 }
 
 # Sentences that legitimately stay in English regardless of locale, so
