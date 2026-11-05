@@ -21,6 +21,11 @@
       font-weight: normal;
       font-style: normal;
       font-display: swap;
+      /* OpenDyslexic only has full coverage for Latin. Restricting it here
+         stops a partial Cyrillic glyph set from mixing with the fallback
+         font inside one word, which is what left holes in Russian and
+         Ukrainian text. Cyrillic falls through to Nunito in the stack. */
+      unicode-range: U+0000-024F, U+1E00-1EFF, U+2000-206F;
     }
     @font-face {
       font-family: 'OpenDyslexic3';
@@ -28,6 +33,7 @@
       font-weight: bold;
       font-style: normal;
       font-display: swap;
+      unicode-range: U+0000-024F, U+1E00-1EFF, U+2000-206F;
     }
     @font-face {
       font-family: 'Atkinson Hyperlegible';
