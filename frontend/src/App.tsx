@@ -31,7 +31,14 @@ const LANGUAGES = [
   { value: "hi", label: "हिन्दी" },
   { value: "fr", label: "Français" },
   { value: "es", label: "Español" },
+  { value: "pt", label: "Português" },
+  { value: "ru", label: "Русский" },
+  { value: "ko", label: "한국어" },
+  { value: "ja", label: "日本語" },
+  { value: "zh", label: "中文" },
+  { value: "el", label: "Ελληνικά" },
   { value: "ar", label: "العربية" },
+  { value: "hj", label: "حجازي" },
   { value: "uk", label: "Українська" },
 ];
 
