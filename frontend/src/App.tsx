@@ -441,25 +441,22 @@ export default function App() {
               {setupStep === 1 ? (
                 <div className="flex items-center justify-between">
                   <Label htmlFor="setup-locale">Language</Label>
-                  <Select
+                  <select
+                    id="setup-locale"
+                    className="w-48 rounded-md border bg-background px-2 py-1 text-sm"
                     value={setupLocale}
-                    onValueChange={(v) => {
-                      if (!v) return;
+                    onChange={(e) => {
+                      const v = e.target.value;
                       setSetupLocale(v);
                       saveConfig({ locale: v });
                     }}
                   >
-                    <SelectTrigger id="setup-locale" className="w-48">
-                      <SelectValue placeholder="Language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LANGUAGES.map((l) => (
-                        <SelectItem key={l.value} value={l.value}>
-                          {l.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    {LANGUAGES.map((l) => (
+                      <option key={l.value} value={l.value}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               ) : null}
 
@@ -467,29 +464,22 @@ export default function App() {
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="setup-font">Reading font</Label>
-                    <Select
+                    <select
+                      id="setup-font"
+                      className="w-48 rounded-md border bg-background px-2 py-1 text-sm"
                       value={setupFont}
-                      onValueChange={(v) => {
-                        if (!v) return;
+                      onChange={(e) => {
+                        const v = e.target.value;
                         setSetupFont(v);
                         saveConfig({ font: v });
                       }}
                     >
-                      <SelectTrigger id="setup-font" className="w-48">
-                        <SelectValue placeholder="Font" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(fonts).map(([key, f]) => (
-                          <SelectItem
-                            key={key}
-                            value={key}
-                            style={{ fontFamily: f.family }}
-                          >
-                            {f.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {Object.entries(fonts).map(([key, f]) => (
+                        <option key={key} value={key} style={{ fontFamily: f.family }}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <code
                     className="setup-sample block text-2xl"
@@ -511,25 +501,22 @@ export default function App() {
               {setupStep === 3 ? (
                 <div className="flex items-center justify-between">
                   <Label htmlFor="setup-theme">Theme</Label>
-                  <Select
+                  <select
+                    id="setup-theme"
+                    className="w-48 rounded-md border bg-background px-2 py-1 text-sm"
                     value={setupTheme}
-                    onValueChange={(v) => {
-                      if (!v) return;
+                    onChange={(e) => {
+                      const v = e.target.value;
                       setSetupTheme(v);
                       saveConfig({ theme: v });
                     }}
                   >
-                    <SelectTrigger id="setup-theme" className="w-48">
-                      <SelectValue placeholder="Theme" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(themes).map(([key, t]) => (
-                        <SelectItem key={key} value={key}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    {Object.entries(themes).map(([key, t]) => (
+                      <option key={key} value={key}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               ) : null}
 
@@ -678,7 +665,7 @@ export default function App() {
                   style={{ height: "100%" }}
                 />
               </div>
-              <Card>
+              <Card className="mt-6">
                 <CardHeader>
                   <CardTitle>Settings</CardTitle>
                   <CardDescription>Theme, font and reading preferences.</CardDescription>
