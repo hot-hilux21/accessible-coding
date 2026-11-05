@@ -929,7 +929,21 @@ def panel_tint_for(theme, tint_hex):
 # Arabic; Almarai comes first in Arabic only because nothing else in the
 # stack has any. Nunito is the only bundled face with Cyrillic, so it carries
 # Ukrainian; OpenDyslexic, Atkinson and Lexend are all Latin-only.
-SCRIPT_FALLBACKS = ('"Mukta"', '"Almarai"', '"Nunito"')
+#
+# OpenDyslexic and the other reading fonts are Latin (plus Cyrillic for
+# Nunito) only, so Greek and CJK would be boxes too. Those scripts are not
+# bundled (a CJK face is tens of megabytes), so the stack names the fonts
+# each operating system already ships: the browser uses whichever one is
+# installed and skips the rest. The generic family at the end is the last
+# resort, so a reader on an OS without any of these still gets something
+# readable rather than boxes.
+SCRIPT_FALLBACKS = (
+    '"Mukta"', '"Almarai"', '"Nunito"',
+    '"Segoe UI"', '"Helvetica Neue"', '"Noto Sans"',
+    '"Microsoft YaHei"', '"PingFang SC"', '"Noto Sans CJK SC"',
+    '"Yu Gothic"', '"Hiragino Sans"', '"Noto Sans CJK JP"',
+    '"Malgun Gothic"', '"Apple SD Gothic Neo"', '"Noto Sans CJK KR"',
+)
 
 
 def _stack(*families, generic='sans-serif'):

@@ -608,7 +608,7 @@
   // as data-family, so there is only ever one copy of them. An earlier
   // version kept a second list in this file, which is how OpenDyslexic
   // could be listed but not actually load.
-  var DEFAULT_FONT_FAMILY = '"OpenDyslexic3", "OpenDyslexic", "Atkinson Hyperlegible", "Nunito", "Mukta", "Almarai", sans-serif';
+  var DEFAULT_FONT_FAMILY = '"OpenDyslexic3", "OpenDyslexic", "Atkinson Hyperlegible", "Nunito", "Mukta", "Almarai", "Segoe UI", "Helvetica Neue", "Noto Sans", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Yu Gothic", "Hiragino Sans", "Noto Sans CJK JP", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif';
 
   function fontFamilyFor(fontKey) {
     var option = fontSelect && fontSelect.querySelector(
