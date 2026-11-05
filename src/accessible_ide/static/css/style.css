@@ -33,7 +33,7 @@
      or above the requested weight, so a declared bold is used, not faked.
      Atkinson and Nunito stay in the stack so a reader who picked either
      still gets it back before the script fallbacks are reached. */
-  --font-family: "OpenDyslexic3", "OpenDyslexic", "Atkinson Hyperlegible", "Nunito", "Mukta", "Almarai", "Segoe UI", "Helvetica Neue", "Noto Sans", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Yu Gothic", "Hiragino Sans", "Noto Sans CJK JP", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+  --font-family: "OpenDyslexic3", "OpenDyslexic", "Atkinson Hyperlegible", "Nunito", "Mukta", "Almarai", "Andika", "Segoe UI", "Helvetica Neue", "Noto Sans", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Yu Gothic", "Hiragino Sans", "Noto Sans CJK JP", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
   /* Code areas that are not the editor. This was "Courier New" hardcoded in
      seven places, which is a 1980s screen face: thin strokes, wide gaps, and
      the first thing on the page that reads as unfinished. Consolas ships with

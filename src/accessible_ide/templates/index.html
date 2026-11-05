@@ -61,6 +61,21 @@
       font-weight: 100 900;
       font-display: swap;
     }
+    <!-- Andika is a literacy font with full Cyrillic coverage, so it
+         carries Russian and Ukrainian for a reader who picked a Latin-only
+         font. It sits in every stack as a fallback, never as an override. -->
+    @font-face {
+      font-family: 'Andika';
+      src: url('{{ url_for('main.serve_font', filename='Andika-Regular.ttf') }}') format('truetype');
+      font-weight: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Andika';
+      src: url('{{ url_for('main.serve_font', filename='Andika-Bold.ttf') }}') format('truetype');
+      font-weight: bold;
+      font-display: swap;
+    }
     @font-face {
       font-family: 'Almarai';
       src: url('{{ url_for('main.serve_font', filename='Almarai-Regular.ttf') }}') format('truetype');

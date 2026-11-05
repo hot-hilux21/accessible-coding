@@ -938,7 +938,7 @@ def panel_tint_for(theme, tint_hex):
 # resort, so a reader on an OS without any of these still gets something
 # readable rather than boxes.
 SCRIPT_FALLBACKS = (
-    '"Mukta"', '"Almarai"', '"Nunito"',
+    '"Mukta"', '"Almarai"', '"Andika"', '"Nunito"',
     '"Segoe UI"', '"Helvetica Neue"', '"Noto Sans"',
     '"Microsoft YaHei"', '"PingFang SC"', '"Noto Sans CJK SC"',
     '"Yu Gothic"', '"Hiragino Sans"', '"Noto Sans CJK JP"',
@@ -982,6 +982,13 @@ FONTS = {
         'files': ['Nunito-Variable.ttf'],
         'bundled': True,
         'note': 'Rounded and open, which many readers find easier to track.'
+    },
+    'Andika': {
+        'name': 'Andika',
+        'family': _stack('"Andika"'),
+        'files': ['Andika-Regular.ttf', 'Andika-Bold.ttf'],
+        'bundled': True,
+        'note': 'A literacy font with full Cyrillic coverage, used for Russian and Ukrainian.'
     },
     'Calibri': {
         'name': 'Calibri',
