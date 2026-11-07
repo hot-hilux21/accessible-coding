@@ -420,6 +420,5 @@
   "update.version_line": "版本 {0}",
   "update.warn_body": "下载只是把新版本存下来，还不会改动什么。安装会关掉应用，把新版本放到位置上，再重新打开应用。请先保存你的工作。",
   "update.warn_cancel": "现在不",
-  "update.warn_title": "请先保存你的工作",
-  "nav.hosted_run": "在这个网站上，您的代码会被发送到服务器运行。"
+  "update.warn_title": "请先保存你的工作"
 }

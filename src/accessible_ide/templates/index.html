@@ -145,9 +145,6 @@
               aria-label="{{ t('nav.run') }}">
         <span class="btn-icon" aria-hidden="true">{{ icon('play') }}</span><span class="btn-label">{{ t('nav.run') }}</span>
       </button>
-      {% if hosted %}
-      <p class="run-notice" role="status">{{ t('nav.hosted_run') }}</p>
-      {% endif %}
 
       {# Shown only while a program is running. The keyboard path to the same
          thing is Escape twice, so this is what a reader who is pointing rather
