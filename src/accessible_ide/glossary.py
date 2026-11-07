@@ -65,8 +65,6 @@ SECTIONS = (
         'rows': (
             ('`x = 5`', 'Save the number 5 as x.'),
             ('`name = "Ana"`', 'Save text as name.'),
-            ('`x, y = 5, 6`', 'Assign two values at the same time.'),
-            ('`x = y = 7`', 'Assign the same value to two names.'),
             ('`type(5)`', 'Find out the type of a value.'),
             ('`int`', 'Whole numbers like 1, 2, 3.'),
             ('`float`', 'Numbers with a decimal point like 3.5.'),

@@ -1272,6 +1272,13 @@
           data-total="{{ glossary_entries }}">
     <header class="glossary-header">
       <h2 id="glossary-title" class="settings-title">{{ t('glossary.title') }}</h2>
+      <label for="glossary-focus" class="visually-hidden">{{ t('focus.mode') }}</label>
+      <select id="glossary-focus" aria-label="{{ t('focus.mode') }}">
+        <option value="off">{{ t('focus.off') }}</option>
+        <option value="gutter">{{ t('focus.gutter') }}</option>
+        <option value="lines">{{ t('focus.lines') }}</option>
+        <option value="fade">{{ t('focus.fade_all') }}</option>
+      </select>
       <button id="btn-glossary-close" class="btn btn-small" type="button"
               aria-label="{{ t('settings.close_label') }}">{{ t('settings.close') }}</button>
     </header>
@@ -1292,10 +1299,18 @@
          typing do anything" for everyone else. -->
     <p id="glossary-status" class="visually-hidden" role="status" aria-live="polite"></p>
 
+    <nav class="glossary-nav" aria-label="{{ t('settings.sections') }}">
+      <ul class="glossary-nav-list">
+        {% for section in glossary %}
+        <li><a href="#glossary-section-{{ loop.index0 }}">{{ section.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+
     <div class="glossary-scroll" id="glossary-scroll">
       {% for section in glossary %}
-      <section class="glossary-section" data-glossary-section>
-        <h3 class="glossary-heading">{{ section.title }}</h3>
+      <details class="glossary-section" data-glossary-section id="glossary-section-{{ loop.index0 }}">
+        <summary class="glossary-heading">{{ section.title }}</summary>
         {% if section.note %}
         <p class="glossary-aside">{{ inline_code(section.note) }}</p>
         {% endif %}
@@ -1309,15 +1324,17 @@
         </dl>
         {% if section.example %}
         <div class="glossary-example">
-          <textarea class="glossary-example-code" readonly>{{ section.example }}</textarea>
+          <textarea id="glossary-example-{{ loop.index0 }}" class="glossary-example-code" readonly>{{ section.example }}</textarea>
           <button type="button" class="btn btn-small glossary-copy"
-                  data-copy="{{ section.example }}">{{ t('glossary.copy') }}</button>
+                  data-target="glossary-example-{{ loop.index0 }}">
+            {% if config.icon_only %}{{ icon('copy') }}{% else %}{{ t('glossary.copy') }}{% endif %}
+          </button>
         </div>
         {% endif %}
         {% if section.after %}
         <p class="glossary-aside">{{ inline_code(section.after) }}</p>
         {% endif %}
-      </section>
+      </details>
       {% endfor %}
       <p class="glossary-empty" id="glossary-empty" hidden>{{ t('glossary.empty') }}</p>
     </div>

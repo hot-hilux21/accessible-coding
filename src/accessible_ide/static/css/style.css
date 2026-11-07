@@ -2888,6 +2888,39 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   margin-top: var(--space-2);
 }
 
+/* Code examples stay on a dark surface even in a light theme, so the
+   syntax colours are the only thing that changes with the theme. */
+.glossary-example .CodeMirror,
+.glossary-example textarea {
+  background: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.glossary-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-3);
+}
+
+.glossary-nav-list a {
+  text-decoration: underline;
+}
+
+/* Big separation between sections, like the README. */
+.glossary-section {
+  border-top: 4px solid var(--panel-border);
+  padding-top: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.glossary-section:first-of-type {
+  border-top: 0;
+  margin-top: 0;
+}
+
 /* The term is code, so it takes the reader's code font rather than the mono
    fallback the transcripts use. Somebody who put OpenDyslexic on the code
    area did it because they read code in it, and this panel is entirely code

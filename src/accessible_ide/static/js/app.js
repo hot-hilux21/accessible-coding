@@ -1199,7 +1199,8 @@
     glossaryDialog.addEventListener('click', function (event) {
       var btn = event.target && event.target.closest ? event.target.closest('.glossary-copy') : null;
       if (!btn) return;
-      var code = btn.getAttribute('data-copy') || '';
+      var target = document.getElementById(btn.getAttribute('data-target'));
+      var code = target ? (target.value || target.textContent || '') : '';
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(code);
       } else {
@@ -1227,6 +1228,26 @@
     if (glossaryOpener && typeof glossaryOpener.focus === 'function') {
       glossaryOpener.focus();
     }
+  }
+
+  if (settingsDialog) {
+    settingsDialog.addEventListener('click', function (event) {
+      if (event.target === settingsDialog) closeSettings();
+    });
+  }
+  if (glossaryDialog) {
+    glossaryDialog.addEventListener('click', function (event) {
+      if (event.target === glossaryDialog) closeGlossary();
+    });
+  }
+
+  var glossaryFocus = document.getElementById('glossary-focus');
+  if (glossaryFocus) {
+    glossaryFocus.value = body.getAttribute('data-focus-mode') || 'off';
+    glossaryFocus.addEventListener('change', function () {
+      body.setAttribute('data-focus-mode', glossaryFocus.value);
+      saveConfig({ focus_mode: glossaryFocus.value });
+    });
   }
 
   // ---------- First-run setup ----------
