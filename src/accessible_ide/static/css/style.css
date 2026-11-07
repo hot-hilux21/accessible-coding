@@ -2780,7 +2780,7 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
    larger size, or more room between lines cannot have any of them there. */
 
 .glossary {
-  width: min(680px, calc(100vw - 2 * var(--space-4)));
+  width: min(960px, calc(100vw - 2 * var(--space-4)));
   max-height: calc(100vh - 2 * var(--space-4));
   padding: 0;
   border: 1px solid var(--panel-border);
@@ -2797,8 +2797,35 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
    the page permanently. The [hidden] guard at the top of this file covers the
    attribute; a closed dialog has no attribute to cover. */
 .glossary[open] {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0;
+}
+
+.glossary-header {
+  grid-column: 1 / -1;
+}
+
+.glossary-intro,
+.glossary-english,
+.glossary-searchbar {
+  grid-column: 1 / -1;
+}
+
+.glossary-nav {
+  grid-column: 1;
+  grid-row: 3;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+  border-right: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+}
+
+.glossary-scroll {
+  grid-column: 2;
+  grid-row: 3;
 }
 
 .glossary::backdrop {
@@ -2888,21 +2915,28 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   margin-top: var(--space-2);
 }
 
-/* Code examples stay on a dark surface even in a light theme, so the
-   syntax colours are the only thing that changes with the theme. */
-.glossary-example .CodeMirror,
-.glossary-example textarea {
-  background: #1e1e1e;
-  color: #d4d4d4;
+.glossary-example-code {
+  width: 100%;
+  min-height: 4em;
+  padding: var(--space-3);
+  font-family: var(--font-code);
+  font-size: 0.95em;
+  line-height: 1.4;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  resize: vertical;
 }
 
 .glossary-nav-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--space-2);
   list-style: none;
   padding: 0;
-  margin: 0 0 var(--space-3);
+  margin: 0;
+  white-space: nowrap;
 }
 
 .glossary-nav-list a {

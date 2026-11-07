@@ -1164,22 +1164,6 @@
     }
   }
 
-  function enhanceGlossaryExamples() {
-    if (!glossaryDialog) return;
-    var tas = glossaryDialog.querySelectorAll('.glossary-example-code');
-    Array.prototype.forEach.call(tas, function (ta) {
-      if (ta.dataset.enhanced) return;
-      ta.dataset.enhanced = '1';
-      CodeMirror.fromTextArea(ta, {
-        mode: 'python',
-        readOnly: true,
-        lineNumbers: false,
-        lineWrapping: true,
-        viewportMargin: Infinity
-      });
-    });
-  }
-
   function openGlossary() {
     if (!glossaryDialog) return;
     glossaryOpener = document.activeElement;
@@ -1189,7 +1173,6 @@
       glossaryDialog.setAttribute('open', '');
     }
     if (btnGlossary) btnGlossary.setAttribute('aria-expanded', 'true');
-    enhanceGlossaryExamples();
     // Land on the search box. Somebody who opens a dictionary is looking
     // something up, and typing at it is the shortest way there.
     if (glossarySearch) glossarySearch.focus();

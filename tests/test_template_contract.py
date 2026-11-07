@@ -1362,7 +1362,7 @@ class GlossaryPanelTests(RenderedPageFixture):
         # editor permanently. The [hidden] guard at the top of the file does
         # not cover it, because a closed dialog carries no hidden attribute.
         self.assertNotRegex(self.css, r"\.glossary\s*\{[^}]*display:")
-        self.assertRegex(self.css, r"\.glossary\[open\]\s*\{[^}]*display:\s*flex")
+        self.assertRegex(self.css, r"\.glossary\[open\]\s*\{[^}]*display:\s*grid")
 
     def test_the_search_box_is_painted_by_the_theme(self):
         # The same defect the text fields had: the browser's own field
