@@ -374,7 +374,7 @@ DEFAULT_CONFIG = {
     # The tint for those panels. Empty means "whatever the chosen theme
     # uses", which is the safe answer and what the reset button sends.
     'glass_tint': '',
-    # The reader's own theme, built in Settings. Nine colours are picked;
+    # The reader's own theme, built in Settings. Ten colours are picked;
     # the rest of the palette is derived from them (see custom_palette) so
     # the derived colours can never cost contrast. The defaults are the
     # high-contrast theme's colours, so a reader who opens the builder and
@@ -388,6 +388,7 @@ DEFAULT_CONFIG = {
     'theme_custom_comment': '#b4b4b4',
     'theme_custom_number': '#ffd93d',
     'theme_custom_function': '#93d4ff',
+    'theme_custom_error': '#ff6b6b',
     # A soft wash of colour behind the editor, painted from the theme's own
     # colours. Subtle by design and theme-derived, so it cannot cost
     # contrast; a reader who finds it distracting can turn it off in
@@ -766,7 +767,7 @@ def ordered_themes():
 # custom_palette), so the builder only has to check the colours the reader
 # actually chose.
 CUSTOM_THEME_COLOURS = ('page', 'bg', 'fg', 'selection', 'keyword',
-                        'string', 'comment', 'number', 'function')
+                        'string', 'comment', 'number', 'function', 'error')
 
 
 def custom_palette(config):
@@ -792,6 +793,7 @@ def custom_palette(config):
     comment = colour.readable_text_on(bg, pick('comment'))
     number = colour.readable_text_on(bg, pick('number'))
     function = colour.readable_text_on(bg, pick('function'))
+    error = pick('error')
     # The page around the editor, picked on its own so a reader can set the
     # shell apart from the code. Read raw; text placed on it is clamped
     # against it in custom_chrome.
@@ -829,6 +831,7 @@ def custom_palette(config):
         'comment': comment,
         'number': number,
         'function': function,
+        'error': colour.to_hex(error),
         'variable': fg,
         'operator': keyword,
         'punctuation': fg,
@@ -875,10 +878,10 @@ def custom_chrome(palette):
     # they actually sit on. The base red is chosen by the background's
     # side - a light red on a dark theme, a dark red on a light one - so
     # the clamp below always has a direction that increases contrast.
-    if colour.luminance(page) < 0.5:
-        error_fg_base, error_border_base = '#ffb3b3', '#ff6b6b'
-    else:
-        error_fg_base, error_border_base = '#8f2f1a', '#c0523f'
+    error_fg_base = palette.get('error') or (
+        '#ffb3b3' if colour.luminance(page) < 0.5 else '#8f2f1a')
+    error_border_base = palette.get('error') or (
+        '#ff6b6b' if colour.luminance(page) < 0.5 else '#c0523f')
     error_bg = colour.mix_hex(page_hex, '#ff6b6b', 0.12)
     error_fg = colour.readable_text_on(error_bg, error_fg_base)
     error_border = colour.readable_text_on(error_bg, error_border_base)
@@ -1325,7 +1328,7 @@ def specific_mistake(last_line, say):
 def translate_error(error_output, t=None):
     """Turn a Python traceback into a sentence a learner can act on.
 
-    Returns a tuple: (friendly_message, line_number_or_None).
+    Returns a tuple: (friendly_message, line_number_or_None, error_type_or_None).
 
     ``t`` is the reader's translator. It is optional so existing callers and
     tests still get the English wording.
@@ -1336,7 +1339,7 @@ def translate_error(error_output, t=None):
     # check. Without it the reader saw a bare "Error: " and nothing else.
     lines = [line for line in error_output.strip().split('\n') if line.strip()]
     if not lines:
-        return say('python.unknown'), None
+        return say('python.unknown'), None, None
     
     # Get the last line (actual error)
     last_line = lines[-1].strip()
@@ -1376,10 +1379,10 @@ def translate_error(error_output, t=None):
                         friendly += say('python.line_hint', part.strip())
                         break
                 break
-        return friendly, line_number
+        return friendly, line_number, error_type
     
     # Fallback: return last line simplified
-    return say('python.fallback', last_line), None
+    return say('python.fallback', last_line), None, None
 
 
 def access_code_ok(data):
@@ -1994,10 +1997,16 @@ def run_code():
                     'trace': trace,
                     'awaiting_answer': True,
                 })
-            error, error_line = translate_error(error, t)
+            raw_error = error
+            error, error_line, error_type = translate_error(error, t)
+            # Both halves go back: the friendly sentence for the reader, and
+            # the raw error underneath it for whoever wants the real diagnostic.
+            # The dropdown in the error panel reads them as Custom / System.
             return jsonify({
                 'output': output,
                 'error': error,
+                'error_type': error_type,
+                'original_error': raw_error,
                 'error_line': error_line,
                 'trace': trace,
                 'awaiting_answer': False,
@@ -2188,7 +2197,7 @@ def shell_exec():
     error = result.get('error', '')
     error_line = None
     if error:
-        error, error_line = translate_error(error, t)
+        error, error_line, _ = translate_error(error, t)
 
     return jsonify({
         'success': True,
@@ -2281,6 +2290,7 @@ CONFIG_TYPES = {
     'theme_custom_comment': str,
     'theme_custom_number': str,
     'theme_custom_function': str,
+    'theme_custom_error': str,
     'theme_gradient': bool,
     'tts_enabled': bool,
     'tts_engine': str,
@@ -2393,7 +2403,7 @@ CONFIG_HEX_COLORS = {
     'theme_custom_page', 'theme_custom_bg', 'theme_custom_fg',
     'theme_custom_selection', 'theme_custom_keyword',
     'theme_custom_string', 'theme_custom_comment', 'theme_custom_number',
-    'theme_custom_function',
+    'theme_custom_function', 'theme_custom_error',
 }
 
 # Only the 3- and 6-digit forms. The 4- and 8-digit forms (with alpha)

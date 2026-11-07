@@ -1324,6 +1324,18 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   letter-spacing: normal;
 }
 
+.error-type-label {
+  display: block;
+  font-size: 0.9em;
+  margin: 0 0 var(--space-1);
+}
+
+.error-type {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+
 /* Error line highlight in the editor. The tint is themed rather than a
    fixed salmon so it stays quiet on light themes and visible on dark. */
 .cm-error-line {

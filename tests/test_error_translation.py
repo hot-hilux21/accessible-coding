@@ -58,7 +58,7 @@ class EnglishWordingTests(unittest.TestCase):
         for name, expected in EXPECTED_ENGLISH.items():
             with self.subTest(exception=name):
                 traceback = f'Traceback (most recent call last):\n{name}: whatever\n'
-                message, _ = routes.translate_error(traceback)
+                message, _, _ = routes.translate_error(traceback)
                 self.assertEqual(message, expected)
 
     def test_the_list_of_explained_exceptions_has_not_shrunk(self):
@@ -69,13 +69,13 @@ class EnglishWordingTests(unittest.TestCase):
         )
 
     def test_the_line_number_is_offered_with_the_explanation(self):
-        message, line = routes.translate_error(TRACEBACK)
+        message, line, _ = routes.translate_error(TRACEBACK)
         self.assertEqual(line, 7)
         self.assertIn("around line 7", message)
         self.assertTrue(message.startswith(EXPECTED_ENGLISH["ZeroDivisionError"]))
 
     def test_an_unrecognised_error_still_reaches_the_reader(self):
-        message, line = routes.translate_error("SomeNewError: no idea")
+        message, line, _ = routes.translate_error("SomeNewError: no idea")
         self.assertEqual(line, None)
         self.assertEqual(message, "Error: SomeNewError: no idea")
 
@@ -84,7 +84,7 @@ class EnglishWordingTests(unittest.TestCase):
         # without saying why. "Error: " on its own tells them nothing.
         for blank in ("", "   ", "\n\n"):
             with self.subTest(traceback=repr(blank)):
-                message, line = routes.translate_error(blank)
+                message, line, _ = routes.translate_error(blank)
                 self.assertEqual(line, None)
                 self.assertEqual(message, "An unknown error occurred.")
 
@@ -101,7 +101,7 @@ class TranslationTests(unittest.TestCase):
         for code, sentence in expected.items():
             with self.subTest(locale=code):
                 say = i18n.make_translator(code)
-                message, line = routes.translate_error(TRACEBACK, say)
+                message, line, _ = routes.translate_error(TRACEBACK, say)
                 self.assertTrue(
                     message.startswith(sentence),
                     f"{code} gave {message!r}",
@@ -112,7 +112,7 @@ class TranslationTests(unittest.TestCase):
         # "around line 7" is part of the sentence, so it has to change with
         # the rest of it rather than leaving English in the middle.
         say = i18n.make_translator("fr")
-        message, _ = routes.translate_error(TRACEBACK, say)
+        message, _, _ = routes.translate_error(TRACEBACK, say)
         self.assertIn("environ line 7", message)
         self.assertNotIn("around", message)
 
@@ -123,7 +123,7 @@ class TranslationTests(unittest.TestCase):
                 with self.subTest(key=key, locale=code):
                     say = i18n.make_translator(code)
                     traceback = f'Traceback (most recent call last):\n{name}: x\n'
-                    message, _ = routes.translate_error(traceback, say)
+                    message, _, _ = routes.translate_error(traceback, say)
                     self.assertEqual(message, i18n.load_catalogue(code)[key])
                     if code != "en":
                         self.assertNotEqual(
@@ -152,7 +152,7 @@ class SpecificMistakeTests(unittest.TestCase):
             '  File "C:\\Temp\\abc.py", line 3, in <module>\n'
             f'{last_line}\n'
         )
-        message, _ = routes.translate_error(traceback, i18n.make_translator(locale))
+        message, _, _ = routes.translate_error(traceback, i18n.make_translator(locale))
         return message
 
     def test_an_unclosed_bracket_is_named(self):
@@ -248,7 +248,7 @@ class SpecificMistakeTests(unittest.TestCase):
                 self.assertTrue(message.startswith(expected), message)
 
     def test_the_line_number_still_arrives_with_a_specific_mistake(self):
-        message, line = routes.translate_error(
+        message, line, _ = routes.translate_error(
             'Traceback (most recent call last):\n'
             '  File "C:\\Temp\\abc.py", line 12, in <module>\n'
             "SyntaxError: '(' was never closed\n"

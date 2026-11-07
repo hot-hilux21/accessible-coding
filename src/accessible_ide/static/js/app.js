@@ -52,6 +52,8 @@
   var outputEl = document.getElementById('output');
   var errorPanel = document.getElementById('error-panel');
   var errorMessage = document.getElementById('error-message');
+  var errorTypeSelect = document.getElementById('error-type');
+  var errorState = { friendly: '', original: '', line: null };
   var btnRun = document.getElementById('btn-run');
   var btnStop = document.getElementById('btn-stop');
   var btnClear = document.getElementById('btn-clear');
@@ -472,7 +474,7 @@
   }
 
   // ---------- The custom theme ----------
-  // The reader's own theme. Seven colours are picked in Settings; the rest
+  // The reader's own theme. Ten colours are picked in Settings; the rest
   // of the palette is derived from them so the derived colours can never
   // cost contrast. The server is the authority (custom_palette and
   // custom_chrome in routes.py); these two functions are the browser's
@@ -485,16 +487,17 @@
     '--error-fg', '--error-line', '--focus-ring'
   ];
 
-  // Only these picks are text drawn on the editor background, so only these
-  // have a contrast question to answer. Asking the others the same question
-  // is asking about nothing: the background measured against itself is 1:1,
-  // so "Editor background" was flagged "Too low" the moment any other field
-  // was touched, and the page and selection colours were judged against a
-  // background they are not drawn on. Those three are instrument panels, not
-  // text; the text placed on them is clamped in customChrome, so no pick of
-  // theirs can fail.
+  // Only these picks are text drawn on a background, so only these have a
+  // contrast question to answer. Asking the others the same question is
+  // asking about nothing: the background measured against itself is 1:1, so
+  // "Editor background" was flagged "Too low" the moment any other field was
+  // touched, and the page and selection colours were judged against a
+  // background they are not drawn on. Those are instrument panels, not text;
+  // the text placed on them is clamped in customChrome, so no pick of theirs
+  // can fail. The error message colour is text for the error wash and gets
+  // the same question.
   var TEXT_ON_BACKGROUND = ['fg', 'keyword', 'string', 'comment',
-    'number', 'function'];
+    'number', 'function', 'error'];
 
   function customPalette(picks) {
     var T = AccessibleTint;
@@ -505,6 +508,7 @@
     var comment = T.readableTextOn(bg, picks.comment);
     var number = T.readableTextOn(bg, picks.number);
     var fn = T.readableTextOn(bg, picks.function);
+    var error = T.parseHex(picks.error || '#ff6b6b');
     // The page around the editor, picked on its own so a reader can set the
     // shell apart from the code. Read raw; text placed on it is clamped
     // against it in customChrome.
@@ -532,6 +536,7 @@
       comment: comment,
       number: number,
       function: fn,
+      error: T.toHex(error),
       variable: fg,
       operator: keyword,
       punctuation: fg
@@ -566,7 +571,9 @@
     }
     var errorBg = T.mixHex(page, '#ff6b6b', 0.12);
     var errorFgBase, errorBorderBase;
-    if (T.luminance(page) < 0.5) {
+    if (palette.error) {
+      errorFgBase = palette.error; errorBorderBase = palette.error;
+    } else if (T.luminance(page) < 0.5) {
       errorFgBase = '#ffb3b3'; errorBorderBase = '#ff6b6b';
     } else {
       errorFgBase = '#8f2f1a'; errorBorderBase = '#c0523f';
@@ -1397,10 +1404,10 @@
     }
 
     // ---------- The custom colours step ----------
-    // The same nine roles and the same live preview as the builder in
+    // The same ten roles and the same live preview as the builder in
     // Settings, with its own ids because both live in one document.
     var setupColourFields = ['page', 'bg', 'fg', 'selection', 'keyword',
-      'string', 'comment', 'number', 'function'];
+      'string', 'comment', 'number', 'function', 'error'];
 
     function setupColourHex(key) {
       return document.getElementById('setup-theme-custom-' + key);
@@ -1425,10 +1432,10 @@
       var field = setupColourHex(key);
       var bgField = setupColourHex('bg');
       if (!status || !field || !bgField) return;
-      // The wizard asks for four colours and the code colours are carried
-      // through hidden. Of the four, only the text colour is drawn on the
-      // background, so only it has a contrast question; the other three are
-      // panels and are shown no status line at all.
+      // The wizard asks for the five readability colours - page, bg, fg,
+      // selection and the error message - and carries the code colours
+      // through hidden. Only the text picks have a contrast question; the
+      // rest are panels and are shown no status line at all.
       if (TEXT_ON_BACKGROUND.indexOf(key) === -1) {
         status.hidden = true;
         return;
@@ -1546,7 +1553,8 @@
       page: base.page || base.bg, bg: base.bg, fg: base.fg,
       selection: base.selection, keyword: base.keyword,
       string: base.string, comment: base.comment,
-      number: base.number, function: base.function
+      number: base.number, function: base.function,
+      error: base.error || '#ff6b6b'
     };
     picks[role] = value;
     var payload = { theme: 'custom' };
@@ -2379,6 +2387,10 @@
         answerForm.hidden = true;
         answerStatus.textContent = '';
         if (data.error) {
+          errorState.friendly = data.error;
+          errorState.original = data.original_error || '';
+          errorState.line = data.error_line;
+          errorTypeSelect.value = 'custom';
           errorMessage.textContent = data.error;
           errorPanel.hidden = false;
           highlightErrorLine(data.error_line);
@@ -2972,6 +2984,19 @@
     outputEl.textContent = '';
     errorPanel.hidden = true;
   });
+
+  if (errorTypeSelect) {
+    errorTypeSelect.addEventListener('change', function () {
+      if (!errorState.friendly && !errorState.original) return;
+      var showSystem = errorTypeSelect.value === 'system';
+      errorMessage.textContent = showSystem
+        ? (errorState.original || errorState.friendly)
+        : errorState.friendly;
+      highlightErrorLine(showSystem ? null : errorState.line);
+      playSound('error');
+      if (ttsEnabled) speak(errorMessage.textContent);
+    });
+  }
 
   btnSave.addEventListener('click', saveFile);
 
@@ -3720,12 +3745,12 @@
   });
 
   // ---------- Theme builder ----------
-  // The reader's own theme. Nine colours are picked; the rest of the
+  // The reader's own theme. Ten colours are picked; the rest of the
   // palette is derived from them (customPalette above, mirrored from
   // custom_palette in routes.py). The server is the authority on what gets
   // saved; the browser copy exists so a pick previews live.
   var themeBuilder = document.getElementById('theme-builder');
-  var themeBuilderFields = ['page', 'bg', 'fg', 'selection', 'keyword', 'string', 'comment', 'number', 'function'];
+  var themeBuilderFields = ['page', 'bg', 'fg', 'selection', 'keyword', 'string', 'comment', 'number', 'function', 'error'];
   var themeCustomReset = document.getElementById('theme-custom-reset');
   var themeCustomSaved = document.getElementById('theme-custom-saved');
 
@@ -3837,7 +3862,7 @@
     page: '#0b0b0b', bg: '#0b0b0b', fg: '#ffffff',
     selection: '#4d4300', keyword: '#ff9a9a',
     string: '#93e6a8', comment: '#b4b4b4', number: '#ffd93d',
-    function: '#93d4ff'
+    function: '#93d4ff', error: '#ff6b6b'
   };
 
   if (themeBuilder) {

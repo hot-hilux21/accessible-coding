@@ -38,7 +38,7 @@ const TINT_VECTORS = JSON.parse(
 // this harness exists to catch.
 const KNOWN_IDS = new Set([
   'btn-run', 'btn-stop', 'btn-save', 'btn-open', 'btn-read-line', 'btn-clear', 'btn-quit',
-  'editor', 'output', 'error-panel', 'error-message', 'file-input',
+  'editor', 'output', 'error-panel', 'error-message', 'error-type', 'file-input',
   'settings-dialog', 'settings-title', 'settings-status', 'btn-settings',
   'btn-settings-close', 'btn-credits', 'font-select',
   // The four areas the chosen font is used in. app.js looks all four up on
@@ -68,46 +68,50 @@ const KNOWN_IDS = new Set([
   'theme-gradient', 'theme-gradient-state', 'theme-builder',
   'icon-only', 'setup-icon-only', 'icon-only-state', 'setup-icon-only-state',
   'reading-ruler', 'reading-ruler-state',
-  // The builder renders its fields from a Jinja loop over these nine keys,
+  // The builder renders its fields from a Jinja loop over these ten keys,
   // and each key emits four ids: the hex input, the colour picker, the
   // error line, and the contrast status line. All four are listed for every
   // key: a key whose ids are only partly declared is reported as unknown.
   'theme-custom-page', 'theme-custom-bg', 'theme-custom-fg',
   'theme-custom-selection', 'theme-custom-keyword', 'theme-custom-string',
   'theme-custom-comment', 'theme-custom-number', 'theme-custom-function',
+  'theme-custom-error',
   'theme-custom-page-picker', 'theme-custom-bg-picker',
   'theme-custom-fg-picker', 'theme-custom-selection-picker',
   'theme-custom-keyword-picker', 'theme-custom-string-picker',
   'theme-custom-comment-picker', 'theme-custom-number-picker',
-  'theme-custom-function-picker',
+  'theme-custom-function-picker', 'theme-custom-error-picker',
   'theme-custom-page-error', 'theme-custom-bg-error',
   'theme-custom-fg-error', 'theme-custom-selection-error',
   'theme-custom-keyword-error', 'theme-custom-string-error',
   'theme-custom-comment-error', 'theme-custom-number-error',
-  'theme-custom-function-error',
+  'theme-custom-function-error', 'theme-custom-error-error',
   'theme-custom-page-status', 'theme-custom-bg-status',
   'theme-custom-fg-status', 'theme-custom-selection-status',
   'theme-custom-keyword-status', 'theme-custom-string-status',
   'theme-custom-comment-status', 'theme-custom-number-status',
-  'theme-custom-function-status',
+  'theme-custom-function-status', 'theme-custom-error-status',
   'theme-custom-reset', 'theme-custom-saved',
   'theme-confirm-page', 'theme-confirm-bg', 'theme-confirm-fg',
   'theme-confirm-selection', 'theme-confirm-keyword', 'theme-confirm-string',
   'theme-confirm-comment', 'theme-confirm-number', 'theme-confirm-function',
+  'theme-confirm-error',
   'setup-theme-confirm-page', 'setup-theme-confirm-bg',
   'setup-theme-confirm-fg', 'setup-theme-confirm-selection',
   'setup-theme-confirm-keyword', 'setup-theme-confirm-string',
   'setup-theme-confirm-comment', 'setup-theme-confirm-number',
-  'setup-theme-confirm-function',
+  'setup-theme-confirm-function', 'setup-theme-confirm-error',
   'setup-theme-custom-page', 'setup-theme-custom-bg', 'setup-theme-custom-fg',
   'setup-theme-custom-selection', 'setup-theme-custom-keyword',
   'setup-theme-custom-string', 'setup-theme-custom-comment',
   'setup-theme-custom-number', 'setup-theme-custom-function',
+  'setup-theme-custom-error',
   'setup-theme-custom-page-picker', 'setup-theme-custom-bg-picker',
   'setup-theme-custom-fg-picker', 'setup-theme-custom-selection-picker',
   'setup-theme-custom-keyword-picker', 'setup-theme-custom-string-picker',
   'setup-theme-custom-comment-picker', 'setup-theme-custom-number-picker',
-  'setup-theme-custom-function-picker',
+  'setup-theme-custom-function-picker', 'setup-theme-custom-error-picker',
+  'setup-theme-custom-error-error', 'setup-theme-custom-error-status',
   'glass-tint-picker', 'glass-tint-hex', 'glass-tint-error', 'glass-tint-reset',
   'tts-toggle', 'tts-state', 'tts-voice', 'tts-rate', 'tts-rate-label',
   'tts-voice-gender', 'tts-hover-scope', 'tts-hover-delay',
@@ -317,10 +321,10 @@ const optionsFor = (values) => values.map((v) => makeElement(v, {}, { value: v, 
 // font list carries a data-family per option, which optionsFor cannot give.
 const SETUP_SELECT_IDS = new Set(['setup-locale', 'setup-font', 'setup-theme-more']);
 
-// The nine picks the theme builder starts with, mirroring the defaults in
+// The ten picks the theme builder starts with, mirroring the defaults in
 // routes.py. The builder's fields are hex boxes, so a stub that left them
 // at the generic "OpenDyslexic" value would make every live preview throw
-// and the checks would pass for the wrong reason. All nine are needed: the
+// and the checks would pass for the wrong reason. All ten are needed: the
 // live preview reads the page and selection colours as well, and a missing
 // one leaves a bad value behind.
 const THEME_CUSTOM_DEFAULTS = {
@@ -333,6 +337,7 @@ const THEME_CUSTOM_DEFAULTS = {
   'theme-custom-comment': '#b4b4b4',
   'theme-custom-number': '#ffd93d',
   'theme-custom-function': '#93d4ff',
+  'theme-custom-error': '#ff6b6b',
 };
 
 // The attributes an element carries in the template, beyond the ones every
@@ -692,7 +697,7 @@ const SANDBOX_THEMES = {
   forest: { name: 'Forest', bg: '#0e1510', fg: '#e6efe6', gutter_bg: '#121a14',
     selection: '#1f3d2a', highlight: '#141d16' },
   // The reader's own theme. The server derives the full palette from the
-  // seven picks; this is the default derivation, which is what a fresh
+  // ten picks; this is the default derivation, which is what a fresh
   // config produces.
   custom: { name: 'Custom', bg: '#0b0b0b', fg: '#ffffff', gutter_bg: '#151515',
     selection: '#484848', highlight: '#151515' },
@@ -1021,7 +1026,7 @@ function makePage(locale, shared, bodyAttrs) {
         // touched is the one a check fires at.
         if (!found.has(id)) {
           const keys = ['page', 'bg', 'fg', 'selection', 'keyword', 'string',
-            'comment', 'number', 'function'];
+            'comment', 'number', 'function', 'error'];
           const buttonFor = (prefix, key) => {
             const buttonId = prefix + '-' + key;
             if (!found.has(buttonId)) {
@@ -3029,7 +3034,7 @@ function runUpdateChannelChecks() {
 // ---------------------------------------------------------------------------
 // The theme builder and the background gradient. The builder is hidden until
 // the custom theme is chosen, edits preview live, and a change saves the
-// seven picks. The gradient is a switch that the page and the config both
+// ten picks. The gradient is a switch that the page and the config both
 // have to hear about.
 // ---------------------------------------------------------------------------
 function runThemeBuilderChecks() {

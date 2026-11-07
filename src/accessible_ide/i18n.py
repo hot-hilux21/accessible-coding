@@ -106,6 +106,7 @@ CONFIG_LABELS = {
     "theme_custom_comment": "theme.custom_comment",
     "theme_custom_number": "theme.custom_number",
     "theme_custom_function": "theme.custom_function",
+    "theme_custom_error": "theme.custom_error",
     "theme_gradient": "theme.gradient",
     # Named after the labels these two already carry in Settings, so the
     # rejection reads as the setting the reader changed rather than as a key

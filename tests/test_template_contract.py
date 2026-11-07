@@ -302,10 +302,10 @@ class TemplateContractTests(RenderedPageFixture):
         self.assertIn("/api/themes", self.js)
 
     def test_the_theme_builder_has_a_field_for_every_custom_colour(self):
-        # The builder edits the seven colours the reader can pick; the rest
-        # of the palette is derived from them. Each field has a picker, a
-        # hex box, an error line and a contrast status, all named after the
-        # colour so the template loop and the JS agree.
+        # The builder edits the reader's picked colours; the rest of the
+        # palette is derived from them. Each field has a picker, a hex box, an
+        # error line and a contrast status, all named after the colour so the
+        # template loop and the JS agree.
         for key in routes.CUSTOM_THEME_COLOURS:
             with self.subTest(key=key):
                 self.assertIn(f'id="theme-custom-{key}"', self.html)
@@ -1138,15 +1138,16 @@ class SetupWizardTests(RenderedPageFixture):
 
     def test_the_custom_step_asks_only_for_the_core_colours(self):
         # The startup screen is for making the editor readable, not for
-        # tuning syntax. Four grids, and the code colours are left alone.
+        # tuning syntax. Five grids - the four readability colours plus the
+        # error message - and the code colours are left alone.
         panel = re.search(
             r'<section id="setup-panel-custom".*?</section>', self.html, re.S
         )
         self.assertIsNotNone(panel, "no custom colours step in the setup screen")
         assert panel is not None
         body = panel.group(0)
-        self.assertEqual(body.count('class="hex-grid"'), 4)
-        for key in ("page", "bg", "fg", "selection"):
+        self.assertEqual(body.count('class="hex-grid"'), 5)
+        for key in ("page", "bg", "fg", "selection", "error"):
             with self.subTest(key=key):
                 self.assertIn(f'id="setup-theme-custom-{key}"', body)
         for key in ("keyword", "string", "comment", "number", "function"):
@@ -1158,7 +1159,7 @@ class SetupWizardTests(RenderedPageFixture):
 
     def test_the_code_colours_sit_under_an_advanced_disclosure(self):
         # In Settings the five syntax colours are still available, but
-        # behind a disclosure so the four core colours are what a reader
+        # behind a disclosure so the five core colours are what a reader
         # meets first.
         self.assertIn('<details class="theme-builder-advanced">', self.html)
         details = re.search(

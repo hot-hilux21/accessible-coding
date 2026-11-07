@@ -357,6 +357,11 @@
         </form>
         <div id="error-panel" class="error-panel" role="alert" hidden>
           <h3 class="error-title">{{ icon('triangle-alert', extra_class='error-icon') }} {{ t('error.title') }}</h3>
+          <label class="error-type-label" for="error-type">{{ t('error.type_label') }}</label>
+          <select id="error-type" class="tool-select error-type" name="error-type" aria-label="{{ t('error.type_label') }}">
+            <option value="custom">{{ t('error.type_custom') }}</option>
+            <option value="system">{{ t('error.type_system') }}</option>
+          </select>
           <p id="error-message" class="error-message"></p>
         </div>
       </section>
@@ -691,7 +696,7 @@
           <div class="field" id="theme-builder" hidden>
             <p class="field-help" id="theme-builder-help">{{ t('theme.custom_help') }}</p>
             <div class="theme-builder-grid">
-              {% for key, label in (('page', 'theme.custom_page'), ('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('selection', 'theme.custom_selection')) %}
+              {% for key, label in (('page', 'theme.custom_page'), ('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('selection', 'theme.custom_selection'), ('error', 'theme.custom_error')) %}
               <div class="field theme-builder-field">
                 <label for="theme-custom-{{ key }}">{{ t(label) }}</label>
                 <div class="hex-grid" role="radiogroup"
@@ -729,7 +734,7 @@
               {% endfor %}
             </div>
 
-            <!-- The code colours are a refinement of the four above, so
+            <!-- The code colours are a refinement of the five above, so
                  they live behind a disclosure rather than in the first
                  thing a reader meets. Nothing here is hidden from a
                  keyboard or a screen reader: details/summary is the
@@ -1490,7 +1495,7 @@
             <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.custom_legend') }}</legend>
             <p class="field-help" id="setup-custom-help">{{ t('setup.custom_help') }}</p>
             <div class="theme-builder-grid" aria-describedby="setup-custom-help">
-              {% for key, label in (('page', 'theme.custom_page'), ('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('selection', 'theme.custom_selection')) %}
+              {% for key, label in (('page', 'theme.custom_page'), ('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('selection', 'theme.custom_selection'), ('error', 'theme.custom_error')) %}
               <div class="field theme-builder-field">
                 <label for="setup-theme-custom-{{ key }}">{{ t(label) }}</label>
                 <div class="hex-grid" role="radiogroup"
@@ -1524,7 +1529,7 @@
               {% endfor %}
               <!-- The code colours are not asked here. They are a
                    refinement of a working theme, and the startup screen
-                   only needs the four colours that make the editor
+                   only needs the five colours that make the editor
                    readable. The stored values are carried through hidden
                    inputs so the palette preview and the save still send a
                    complete theme. -->
