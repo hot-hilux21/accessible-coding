@@ -92,6 +92,7 @@
   "glass.tint_reset": "استخدم لون السمة",
   "glossary.button": "قاموس",
   "glossary.button_title": "ابحث عن كلمة في بايثون",
+  "glossary.copy": "Copy",
   "glossary.count": "يتم عرض {0} من {1} مدخلات.",
   "glossary.empty": "ما فيه مدخل يطابق هذه الكلمة.",
   "glossary.english_note": "هذه المدخلات مكتوبة بالإنجليزية حالياً.",

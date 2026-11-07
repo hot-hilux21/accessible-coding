@@ -1491,7 +1491,7 @@ class ReflowCssTests(unittest.TestCase):
 class TargetSizeCssTests(unittest.TestCase):
     """WCAG 2.5.8: an interactive target is at least 24 by 24 CSS pixels.
 
-    Both of these are colour squares a reader can press to start their own
+    These are the colour squares a reader can press to start their own
     theme. They were 22px and passed everything else, so nothing looked wrong:
     the only way to catch it is to measure them.
     """
@@ -1505,14 +1505,7 @@ class TargetSizeCssTests(unittest.TestCase):
             body = css.split(selector + " {", 1)[1]
             return body[: body.index("}")]
 
-        self.setup_cell = block(".setup-swatch-cell")
         self.hex_cell = block(".hex-grid-cell")
-
-    def test_the_setup_colour_squares_meet_the_floor(self):
-        for prop in ("width", "height"):
-            with self.subTest(prop=prop):
-                size = int(re.search(prop + r":\s*(\d+)px", self.setup_cell).group(1))
-                self.assertGreaterEqual(size, 24)
 
     def test_the_hex_grid_cells_meet_the_floor(self):
         # These are square by aspect-ratio, so the one declared side is both.

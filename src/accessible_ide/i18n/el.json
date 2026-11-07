@@ -92,6 +92,7 @@
   "glass.tint_reset": "Χρήση χρώματος θέματος",
   "glossary.button": "Λεξικό",
   "glossary.button_title": "Αναζήτησε λέξη της Python",
+  "glossary.copy": "Copy",
   "glossary.count": "Εμφάνιση {0} από {1} καταχωρήσεις.",
   "glossary.empty": "Καμία καταχώρηση δεν ταιριάζει με αυτή τη λέξη.",
   "glossary.english_note": "Αυτές οι καταχωρήσεις είναι γραμμένες στα αγγλικά προς το παρόν.",

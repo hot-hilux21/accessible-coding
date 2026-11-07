@@ -92,6 +92,7 @@
   "glass.tint_reset": "使用主题颜色",
   "glossary.button": "词典",
   "glossary.button_title": "查一个 Python 词",
+  "glossary.copy": "Copy",
   "glossary.count": "显示 {1} 条中的 {0} 条。",
   "glossary.empty": "没有和这个词对应的条目。",
   "glossary.english_note": "这些条目目前用英文书写。",

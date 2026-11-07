@@ -92,6 +92,7 @@
   "glass.tint_reset": "테마 색 쓰기",
   "glossary.button": "용어 사전",
   "glossary.button_title": "Python 단어 찾아보기",
+  "glossary.copy": "Copy",
   "glossary.count": "{1}개 중 {0}개를 보여 줍니다.",
   "glossary.empty": "그 단어와 맞는 항목이 없습니다.",
   "glossary.english_note": "이 항목들은 지금은 영어로 되어 있습니다.",

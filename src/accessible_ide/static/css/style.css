@@ -2874,6 +2874,20 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   border-bottom: 0;
 }
 
+.glossary-example {
+  margin: var(--space-3) 0 var(--space-4);
+}
+
+.glossary-example .CodeMirror {
+  height: auto;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+}
+
+.glossary-copy {
+  margin-top: var(--space-2);
+}
+
 /* The term is code, so it takes the reader's code font rather than the mono
    fallback the transcripts use. Somebody who put OpenDyslexic on the code
    area did it because they read code in it, and this panel is entirely code

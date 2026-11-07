@@ -92,6 +92,7 @@
   "glass.tint_reset": "थीम का रंग उपयोग करें",
   "glossary.button": "शब्दकोश",
   "glossary.button_title": "Python का कोई शब्द खोजें",
+  "glossary.copy": "Copy",
   "glossary.count": "{1} में से {0} प्रविष्टियाँ दिखाई जा रही हैं।",
   "glossary.empty": "इस शब्द से कोई प्रविष्टि मेल नहीं खाती।",
   "glossary.english_note": "फ़िलहाल ये प्रविष्टियाँ अंग्रेज़ी में लिखी हैं।",

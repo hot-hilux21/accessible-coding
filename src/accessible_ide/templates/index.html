@@ -1307,6 +1307,13 @@
           </div>
           {% endfor %}
         </dl>
+        {% if section.example %}
+        <div class="glossary-example">
+          <textarea class="glossary-example-code" readonly>{{ section.example }}</textarea>
+          <button type="button" class="btn btn-small glossary-copy"
+                  data-copy="{{ section.example }}">{{ t('glossary.copy') }}</button>
+        </div>
+        {% endif %}
         {% if section.after %}
         <p class="glossary-aside">{{ inline_code(section.after) }}</p>
         {% endif %}

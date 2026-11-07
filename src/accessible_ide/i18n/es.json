@@ -92,6 +92,7 @@
   "glass.tint_reset": "Usar el color del tema",
   "glossary.button": "Diccionario",
   "glossary.button_title": "Buscar una palabra de Python",
+  "glossary.copy": "Copy",
   "glossary.count": "Se muestran {0} de {1} entradas.",
   "glossary.empty": "Ninguna entrada coincide con esa palabra.",
   "glossary.english_note": "Por ahora, estas entradas están en inglés.",

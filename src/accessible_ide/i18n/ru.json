@@ -92,6 +92,7 @@
   "glass.tint_reset": "Использовать цвет темы",
   "glossary.button": "Словарь",
   "glossary.button_title": "Найти слово Python",
+  "glossary.copy": "Copy",
   "glossary.count": "Показано {0} из {1} записей.",
   "glossary.empty": "Ни одна запись не совпадает с этим словом.",
   "glossary.english_note": "Пока эти записи написаны на английском языке.",

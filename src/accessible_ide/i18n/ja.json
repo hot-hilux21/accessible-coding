@@ -92,6 +92,7 @@
   "glass.tint_reset": "テーマの色を使う",
   "glossary.button": "用語集",
   "glossary.button_title": "Python の言葉を調べる",
+  "glossary.copy": "Copy",
   "glossary.count": "{1} 件中 {0} 件を表示しています。",
   "glossary.empty": "その言葉に一致する項目はありません。",
   "glossary.english_note": "現在、これらの項目は英語で書かれています。",

@@ -166,32 +166,34 @@ A glossary of the Python you will meet in this app. Each entry says what a comma
 
 ---
 
-### Introduction and getting started
+### Printing
 
-Python is a programming language you can type and run straight away.
-
-| Command | What it does |
-| --- | --- |
-| `python --version` | Check which version of Python is installed. |
-| `python script.py` | Run a Python file from the command line. |
-| `print()` | Show something on the screen. |
-
-### Syntax
-
-Python reads spaces at the start of a line to know how things belong together.
+print() shows something on the screen.
 
 | Command | What it does |
 | --- | --- |
-| `if x == 5:` | A line that ends with a colon starts a new block. |
-| `    print(x)` | Indented lines belong to the block above them. |
-| `# a comment` | Text after `#` is ignored by Python. |
+| `print("Hello")` | Show text on the screen. |
+| `print(5)` | Show a number. |
+| `print("Hi", name)` | Show several things at once. |
+
+```python
+print("Hello, world!")
+print("Counting:", 1, 2, 3)
+```
 
 ### Comments
 
+Text after # is ignored by Python.
+
 | Command | What it does |
 | --- | --- |
-| `# This is a comment` | Python ignores this line. |
+| `# a comment` | Text after # is ignored by Python. |
 | `# print("not run")` | You can comment out code to stop it running. |
+
+```python
+# This line is ignored
+print("This runs")  # and this comment too
+```
 
 ### Variables
 
@@ -203,24 +205,40 @@ Python reads spaces at the start of a line to know how things belong together.
 | `name = "Ana"` | Save text as name. |
 | `x, y = 5, 6` | Assign two values at the same time. |
 | `x = y = 7` | Assign the same value to two names. |
-
-### Data types
-
-Python works out the type from the value you save.
-
-| Command | What it does |
-| --- | --- |
 | `type(5)` | Find out the type of a value. |
 | `int` | Whole numbers like 1, 2, 3. |
 | `float` | Numbers with a decimal point like 3.5. |
 | `str` | Text like "hello". |
 | `bool` | True or False. |
 | `list` | A collection in order. |
-| `tuple` | A collection that cannot be changed. |
-| `set` | A collection with no duplicates. |
-| `dict` | Values saved under keys. |
+| `int("5")` | Turn text into an integer. |
+| `str(5)` | Turn a number into text. |
 
-### Numbers
+```python
+x = 5
+name = "Ana"
+print(type(x), type(name))
+print(int("5") + 1)
+```
+
+### User input
+
+Ask the user a question and get their answer.
+
+| Command | What it does |
+| --- | --- |
+| `name = input("What is your name? ")` | Ask for input and save it as text. |
+| `age = int(input("How old are you? "))` | Get input and turn it into a number. |
+| `print("Hi", name)` | Use the answer. |
+
+```python
+name = input("What is your name? ")
+print("Hello", name)
+```
+
+### Numbers and math
+
+Numbers and the signs that work on them.
 
 | Command | What it does |
 | --- | --- |
@@ -231,33 +249,22 @@ Python works out the type from the value you save.
 | `x * y` | Multiply numbers. |
 | `x / y` | Divide numbers. |
 | `x // y` | Divide and keep the whole number. |
-| `x % y` | Get the remainder. |
+| `x % y` | Get the remainder (modulus). |
 | `x ** y` | Raise to a power. |
+| `abs(-5)` | Get the absolute value. |
+| `round(3.14159, 2)` | Round to 2 decimal places. |
 
-### Casting
+```python
+x = 5
+y = 3.14
+print(x + y, x - y, x * y)
+print(x % 2, x ** 2)
+print(round(3.14159, 2))
+```
 
-Turn one type of value into another.
+### Booleans and comparisons
 
-| Command | What it does |
-| --- | --- |
-| `int("5")` | Turn text into an integer. |
-| `float("3.5")` | Turn text into a float. |
-| `str(5)` | Turn a number into text. |
-| `bool(0)` | Turn a value into True or False. |
-
-### Strings
-
-| Command | What it does |
-| --- | --- |
-| `"hello".upper()` | Make all letters uppercase. |
-| `"HELLO".lower()` | Make all letters lowercase. |
-| `len("hello")` | Get the length of text. |
-| `"hello"[0]` | Get the first character. |
-| `"hello" in "hello world"` | Check if text contains something. |
-| `"a,b".split(",")` | Split text into a list. |
-| `"a".replace("a","b")` | Replace part of the text. |
-
-### Booleans
+Values that are True or False, and the signs that compare.
 
 | Command | What it does |
 | --- | --- |
@@ -266,17 +273,80 @@ Turn one type of value into another.
 | `5 > 3` | Compare values to get True or False. |
 | `5 == 5` | Check if two values are equal. |
 | `5 != 3` | Check if two values are not equal. |
-| `bool("hello")` | Most values become True. Zero and empty become False. |
+| `5 >= 3` | Greater than or equal. |
+| `5 <= 3` | Less than or equal. |
+| `and or not` | Logical operators. |
 
-### Operators
+```python
+age = 14
+print(age > 10 and age < 20)
+print(age == 14, age != 5)
+```
+
+### Making decisions
+
+Run code only when a condition is True or False.
 
 | Command | What it does |
 | --- | --- |
-| `+ - * /` | Arithmetic operators. |
-| `== != < > <= >=` | Comparison operators. |
-| `and or not` | Logical operators. |
-| `in not in` | Membership operators. |
-| `is is not` | Identity operators. |
+| `if x > 5:` | Run if condition is True. |
+| `elif x == 5:` | Run if previous was False and this is True. |
+| `else:` | Run if all conditions are False. |
+| `if x > 5 and x < 10:` | Combine conditions. |
+| `if x > 5 or x < 2:` | Either condition can be True. |
+
+```python
+x = 7
+if x > 5:
+    print("big")
+elif x == 5:
+    print("five")
+else:
+    print("small")
+```
+
+### Loops
+
+Run code more than once.
+
+| Command | What it does |
+| --- | --- |
+| `while x < 5:` | Repeat while condition is True. |
+| `    x += 1` | Change something so the loop ends. |
+| `for i in range(3):` | Loop three times. |
+| `for fruit in fruits:` | Loop through each item in a list. |
+| `break` | Leave the loop. |
+| `continue` | Skip to the next item. |
+
+```python
+for i in range(3):
+    print("Counting:", i)
+
+x = 0
+while x < 3:
+    print("While:", x)
+    x += 1
+```
+
+### Functions
+
+Group code together and reuse it by name.
+
+| Command | What it does |
+| --- | --- |
+| `def greet():` | Define a function with no input. |
+| `    print("hi")` | Code that runs when called. |
+| `greet()` | Call the function. |
+| `def greet(name):` | Define a function that takes an input. |
+| `    return name` | Return a value from the function. |
+| `greet("Ana")` | Call with an argument. |
+
+```python
+def greet(name):
+    return "Hello " + name
+
+print(greet("Ana"))
+```
 
 ### Lists
 
@@ -292,222 +362,32 @@ Lists hold values in order and can be changed.
 | `fruits[0] = "banana"` | Change an item. |
 | `fruits.pop()` | Remove the last item. |
 
-### Tuples
+```python
+fruits = ["apple", "pear"]
+fruits.append("plum")
+print(fruits, len(fruits))
+fruits.remove("pear")
+print(fruits)
+```
 
-Tuples hold values in order but cannot be changed.
+### Formatting
 
-| Command | What it does |
-| --- | --- |
-| `colors = ("red", "blue")` | Create a tuple. |
-| `colors[0]` | Get the first item. |
-| `len(colors)` | Get how many items. |
-| `"red" in colors` | Check if an item is in the tuple. |
-
-### Sets
-
-Sets hold values with no duplicates and no set order.
-
-| Command | What it does |
-| --- | --- |
-| `nums = {1, 2, 3}` | Create a set. |
-| `nums.add(4)` | Add an item. |
-| `nums.remove(1)` | Remove an item. |
-| `len(nums)` | Get how many items. |
-| `1 in nums` | Check if an item is in the set. |
-
-### Dictionaries
-
-Dictionaries save values under keys.
-
-| Command | What it does |
-| --- | --- |
-| `me = {"name": "Ana", "age": 14}` | Create a dictionary. |
-| `me["name"]` | Get a value by key. |
-| `me["age"] = 15` | Change a value. |
-| `me["city"] = "Paris"` | Add a new key and value. |
-| `me.keys()` | Get all keys. |
-| `me.values()` | Get all values. |
-| `len(me)` | Get how many key value pairs. |
-
-### If...Else
-
-Run code only when a condition is True or False.
-
-| Command | What it does |
-| --- | --- |
-| `if x > 5:` | Run if condition is True. |
-| `elif x == 5:` | Run if previous was False and this is True. |
-| `else:` | Run if all conditions are False. |
-| `if x > 5 and x < 10:` | Combine conditions. |
-| `if x > 5 or x < 2:` | Either condition can be True. |
-
-### Match
-
-Compare a value against several patterns. Available in Python 3.10 and later.
-
-| Command | What it does |
-| --- | --- |
-| `match day:` | Start a match statement. |
-| `  case "Mon":` | Run if day matches this pattern. |
-| `    print("start")` | Code to run for this case. |
-| `  case _:` | A default case when nothing matches. |
-
-### While loops
-
-Keep running code while a condition is True.
-
-| Command | What it does |
-| --- | --- |
-| `while x < 5:` | Repeat while condition is True. |
-| `    x += 1` | Change something so the loop ends. |
-| `break` | Leave the loop straight away. |
-| `continue` | Skip the rest of this round and go to the next. |
-
-### For loops
-
-Loop through a sequence of items.
-
-| Command | What it does |
-| --- | --- |
-| `for i in range(3):` | Loop three times. |
-| `for fruit in fruits:` | Loop through each item in a list. |
-| `for c in "abc":` | Loop through each character in text. |
-| `break` | Leave the loop. |
-| `continue` | Skip to the next item. |
-
-### Functions
-
-Group code together and reuse it by name.
-
-| Command | What it does |
-| --- | --- |
-| `def greet():` | Define a function with no input. |
-| `    print("hi")` | Code that runs when called. |
-| `greet()` | Call the function. |
-| `def greet(name):` | Define a function that takes an input. |
-| `    return name` | Return a value from the function. |
-| `greet("Ana")` | Call with an argument. |
-
-### Range
-
-`range()` gives a sequence of numbers to use in loops.
-
-| Command | What it does |
-| --- | --- |
-| `range(5)` | Numbers from 0 up to but not including 5. |
-| `range(1, 5)` | Numbers from 1 up to but not including 5. |
-| `range(1, 10, 2)` | Numbers from 1 stepping by 2. |
-| `list(range(5))` | Turn range into a list to see the numbers. |
-
-### Arrays
-
-Python has lists. Some libraries also use arrays for numbers.
-
-| Command | What it does |
-| --- | --- |
-| `nums = [1, 2, 3]` | Create a list to hold numbers. |
-| `len(nums)` | Get the number of items. |
-| `nums.append(4)` | Add a new number. |
-| `nums[0] = 0` | Change a number. |
-
-### Iterators
-
-An iterator lets you go through items one by one.
-
-| Command | What it does |
-| --- | --- |
-| `fruits = ["apple", "pear"]` | A list is iterable. |
-| `it = iter(fruits)` | Get an iterator from the list. |
-| `next(it)` | Get the next item. |
-| `for fruit in fruits:` | A for loop uses iterators behind the scenes. |
-
-### Modules
-
-Modules let you reuse code from other files or built in tools.
-
-| Command | What it does |
-| --- | --- |
-| `import math` | Import a module. |
-| `math.sqrt(16)` | Use something from the module. |
-| `from math import sqrt` | Import just one thing. |
-| `import random` | Another common module. |
-| `random.randint(1, 10)` | Get a random number. |
-
-### Dates
-
-| Command | What it does |
-| --- | --- |
-| `from datetime import datetime` | Import the datetime tools. |
-| `datetime.now()` | Get the current date and time. |
-| `datetime.now().year` | Get just the year. |
-| `datetime.now().strftime("%Y-%m-%d")` | Format the date as text. |
-
-### Math
-
-| Command | What it does |
-| --- | --- |
-| `import math` | Import math tools. |
-| `math.pi` | Get pi. |
-| `math.sqrt(25)` | Get the square root. |
-| `math.ceil(3.2)` | Round up. |
-| `math.floor(3.8)` | Round down. |
-| `abs(-5)` | Get the absolute value. |
-
-### JSON
-
-Work with JSON data in Python.
-
-| Command | What it does |
-| --- | --- |
-| `import json` | Import the json module. |
-| `data = {"name": "Ana"}` | Python dictionary. |
-| `json.dumps(data)` | Turn a dictionary into JSON text. |
-| `json.loads("{\"name\": \"Ana\"}")` | Turn JSON text into a Python dictionary. |
-
-### RegEx
-
-Search and match text patterns.
-
-| Command | What it does |
-| --- | --- |
-| `import re` | Import the re module. |
-| `re.search("a", "apple")` | Search for a pattern. |
-| `re.findall("a", "apple")` | Find all matches. |
-| `re.match("a", "apple")` | Match at the start of text. |
-| `re.sub("a", "b", "apple")` | Replace matches. |
-
-### Try...Except
-
-Handle errors so your program does not crash.
-
-| Command | What it does |
-| --- | --- |
-| `try:` | Try to run code that might cause an error. |
-| `    x = int("abc")` | This will cause an error. |
-| `except ValueError:` | Run this if a ValueError happens. |
-| `    print("not a number")` | Show a friendly message. |
-| `else:` | Run this if no error happened. |
-| `finally:` | Run this no matter what. |
-
-### String formatting
+Format text and numbers.
 
 | Command | What it does |
 | --- | --- |
 | `"Hello {}".format("Ana")` | Format with curly braces. |
 | `f"Hello {name}"` | Format with f strings. |
-| `"Hello %s" % "Ana"` | Format with percent signs. |
-| `"{0} {1}".format("Hello", "Ana")` | Format with numbered placeholders. |
+| `round(3.14159, 2)` | Round to 2 decimal places. |
+| `"{:.2f}".format(3.14159)` | Format to 2 decimal places. |
+| `format(3.14159, ".3g")` | Format to 3 significant figures. |
 
-### User input
-
-Ask the user a question and get their answer.
-
-| Command | What it does |
-| --- | --- |
-| `name = input("What is your name? ")` | Ask for input and save it as text. |
-| `age = int(input("How old are you? "))` | Get input and turn it into a number. |
-| `print("Hi", name)` | Use the answer. |
-
+```python
+pi = 3.14159
+print(round(pi, 2))
+print(f"{pi:.2f}")
+print(format(pi, ".3g"))
+```
 
 ## Common mistakes of programmers
 
