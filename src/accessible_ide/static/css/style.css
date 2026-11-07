@@ -2921,7 +2921,8 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   padding: var(--space-3);
   font-family: var(--font-code);
   font-size: 0.95em;
-  line-height: 1.4;
+  line-height: var(--line-height, 1.5);
+  letter-spacing: var(--letter-spacing, normal);
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--panel-border);
@@ -2940,7 +2941,9 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
 }
 
 .glossary-nav-list a {
+  color: var(--accent);
   text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
 /* Big separation between sections, like the README. */
