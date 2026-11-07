@@ -344,6 +344,11 @@ DEFAULT_CONFIG = {
     'reading_ruler': False,
     'focus_mode': 'gutter',
     'blur_intensity': 0.5,
+    # How a runtime error is worded in the output pane: 'custom' is the
+    # plain-English translation, 'system' is Python's own message. Chosen
+    # in Settings, so it survives a reload and the output pane stays a
+    # plain place to read results.
+    'error_type': 'custom',
     # Every surface starts unfaded; only the code amount has a fade
     # default, matching the old code-only behaviour. Fade-all starts as
     # if only the code is being faded, and the reader slides each
@@ -2273,6 +2278,7 @@ CONFIG_TYPES = {
     'reading_ruler': bool,
     'focus_mode': str,
     'blur_intensity': (int, float),
+    'error_type': str,
     'fade_output': (int, float),
     'fade_shell': (int, float),
     'fade_settings': (int, float),
@@ -2335,6 +2341,7 @@ CONFIG_VALUES = {
     # never listed as a preset.
     'theme': set(THEMES.keys()) | {'custom'},
     'focus_mode': {'off', 'gutter', 'lines', 'fade'},
+    'error_type': {'custom', 'system'},
     'contrast': {'normal', 'high'},
     'glass_material': {'off', 'frosted', 'acrylic', 'mica', 'glossy'},
     'locale': set(i18n.LANGUAGES),

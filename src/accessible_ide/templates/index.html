@@ -354,11 +354,6 @@
         </form>
         <div id="error-panel" class="error-panel" role="alert" hidden>
           <h3 class="error-title">{{ icon('triangle-alert', extra_class='error-icon') }} {{ t('error.title') }}</h3>
-          <label class="error-type-label" for="error-type">{{ t('error.type_label') }}</label>
-          <select id="error-type" class="tool-select error-type" name="error-type" aria-label="{{ t('error.type_label') }}">
-            <option value="custom">{{ t('error.type_custom') }}</option>
-            <option value="system">{{ t('error.type_system') }}</option>
-          </select>
           <p id="error-message" class="error-message"></p>
         </div>
       </section>
@@ -931,6 +926,14 @@
             </button>
           </div>
           <p class="field-help" id="icon-only-help">{{ t('controls.labels_help') }}</p>
+
+          <div class="field">
+            <label for="error-type">{{ t('error.type_label') }}</label>
+            <select id="error-type" name="error-type">
+              <option value="custom" {% if config.error_type == 'custom' %}selected{% endif %}>{{ t('error.type_custom') }}</option>
+              <option value="system" {% if config.error_type == 'system' %}selected{% endif %}>{{ t('error.type_system') }}</option>
+            </select>
+          </div>
         </fieldset>
 
         {# What starts the program, and what stops one that is running.
@@ -1616,10 +1619,10 @@
        crowd. -->
   <button id="btn-hide-icons" class="btn btn-toggle hide-icons" type="button" role="switch"
           aria-checked="{% if config.icon_only %}true{% else %}false{% endif %}"
-          aria-label="icons on and off"
+          aria-label="labels on and off"
           aria-describedby="hide-icons-help">
     <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-    <span id="hide-icons-state" class="switch-text">{% if config.icon_only %}{{ t('switch.off') }}{% else %}{{ t('switch.on') }}{% endif %}</span>
+    <span id="hide-icons-state" class="switch-text">{% if config.icon_only %}{{ t('controls.labels_off') }}{% else %}{{ t('controls.labels_on') }}{% endif %}</span>
   </button>
   <p id="hide-icons-help" class="visually-hidden">{{ t('controls.labels_help') }}</p>
 

@@ -2387,13 +2387,15 @@
         answerForm.hidden = true;
         answerStatus.textContent = '';
         if (data.error) {
+          var showSystem = errorTypeSelect && errorTypeSelect.value === 'system';
           errorState.friendly = data.error;
           errorState.original = data.original_error || '';
           errorState.line = data.error_line;
-          errorTypeSelect.value = 'custom';
-          errorMessage.textContent = data.error;
+          errorMessage.textContent = showSystem
+            ? (errorState.original || errorState.friendly)
+            : errorState.friendly;
           errorPanel.hidden = false;
-          highlightErrorLine(data.error_line);
+          highlightErrorLine(showSystem ? null : data.error_line);
           playSound('error');
           if (ttsEnabled) speak(data.error);
         } else {
@@ -2987,14 +2989,13 @@
 
   if (errorTypeSelect) {
     errorTypeSelect.addEventListener('change', function () {
+      saveConfig({ error_type: errorTypeSelect.value });
       if (!errorState.friendly && !errorState.original) return;
       var showSystem = errorTypeSelect.value === 'system';
       errorMessage.textContent = showSystem
         ? (errorState.original || errorState.friendly)
         : errorState.friendly;
       highlightErrorLine(showSystem ? null : errorState.line);
-      playSound('error');
-      if (ttsEnabled) speak(errorMessage.textContent);
     });
   }
 
@@ -3935,7 +3936,7 @@
   // ---------- Interface labels ----------
   // Words on by default. One switch drives all three controls, so the
   // Settings one, the setup one and the page-level one can never disagree.
-  // ON means the icons are on, which here means the labels are showing.
+  // ON means the labels are showing, which is the default.
   var iconOnlyButton = document.getElementById('icon-only');
   var setupIconOnlyButton = document.getElementById('setup-icon-only');
   var hideIconsButton = document.getElementById('btn-hide-icons');
@@ -3956,8 +3957,8 @@
     if (hideIconsButton) {
       hideIconsButton.setAttribute('aria-checked', shown ? 'true' : 'false');
       hideIconsButton.classList.toggle('active', shown);
-      if (hideIconsState) hideIconsState.textContent = shown ? t('controls.icons_on') : t('controls.icons_off');
-      hideIconsButton.setAttribute('aria-label', 'icons on and off');
+      if (hideIconsState) hideIconsState.textContent = shown ? t('controls.labels_on') : t('controls.labels_off');
+      hideIconsButton.setAttribute('aria-label', 'labels on and off');
     }
   }
 
