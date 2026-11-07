@@ -1052,7 +1052,51 @@
     if (first) first.focus();
   }
 
+  function applySettingsSearch(query) {
+    var q = (query || '').trim().toLowerCase();
+    var groups = settingsDialog ? settingsDialog.querySelectorAll('.settings-group') : [];
+    var visibleGroups = 0;
+    Array.prototype.forEach.call(groups, function (group) {
+      var fields = group.querySelectorAll('.field');
+      var legend = group.querySelector('legend');
+      var legendText = legend ? legend.textContent.toLowerCase() : '';
+      var legendMatch = !!q && legendText.indexOf(q) !== -1;
+      var anyField = false;
+      Array.prototype.forEach.call(fields, function (field) {
+        var match = !q || legendMatch || field.textContent.toLowerCase().indexOf(q) !== -1;
+        field.hidden = !match;
+        if (match) anyField = true;
+      });
+      var showGroup = !q || legendMatch || anyField || fields.length === 0;
+      group.hidden = !showGroup;
+      if (showGroup) visibleGroups++;
+      // keep the matching nav link in step
+      var id = group.id;
+      if (id) {
+        var link = settingsDialog.querySelector('.settings-nav-list a[href="#' + id + '"]');
+        if (link && link.parentElement) link.parentElement.hidden = !showGroup;
+      }
+    });
+    var status = document.getElementById('settings-search-status');
+    if (status) {
+      if (!q) status.textContent = '';
+      else if (visibleGroups === 0) status.textContent = t('settings.search_no_results');
+      else status.textContent = '';
+    }
+  }
+
+  var settingsSearchInput = document.getElementById('settings-search');
+  if (settingsSearchInput) {
+    settingsSearchInput.addEventListener('input', function () {
+      applySettingsSearch(settingsSearchInput.value);
+    });
+  }
+
   function closeSettings() {
+    if (settingsSearchInput) {
+      settingsSearchInput.value = '';
+      applySettingsSearch('');
+    }
     if (typeof settingsDialog.close === 'function') {
       settingsDialog.close();
     } else {
@@ -1531,53 +1575,6 @@
           saveSetupColours();
         });
       });
-    // A preset's colour square starts the reader's own theme from that
-    // preset, so picking a colour never rewrites the shared preset.
-    Array.prototype.forEach.call(
-      setupDialog.querySelectorAll('.setup-swatch-cell'),
-      function (swatch) {
-        swatch.addEventListener('change', function () {
-          startThemeFrom(swatch.getAttribute('data-theme'),
-            swatch.getAttribute('data-role'), swatch.value);
-        });
-      });
-  }
-
-  // Start from the preset behind a setup swatch, then apply the one colour
-  // the reader just picked. Both the setup grid and the Settings builder are
-  // kept in step because both are in the document.
-  function startThemeFrom(themeKey, role, value) {
-    var base = themePalette[themeKey] || themePalette;
-    if (!base.keyword) return;
-    var picks = {
-      page: base.page || base.bg, bg: base.bg, fg: base.fg,
-      selection: base.selection, keyword: base.keyword,
-      string: base.string, comment: base.comment,
-      number: base.number, function: base.function,
-      error: base.error || '#ff6b6b'
-    };
-    picks[role] = value;
-    var payload = { theme: 'custom' };
-    Object.keys(picks).forEach(function (key) {
-      ['setup-theme-custom-', 'theme-custom-'].forEach(function (prefix) {
-        var field = document.getElementById(prefix + key);
-        var picker = document.getElementById(prefix + key + '-picker');
-        if (field) field.value = picks[key];
-        if (picker) picker.value = picks[key];
-      });
-      payload['theme_custom_' + key] = picks[key];
-    });
-    themeSelect.value = 'custom';
-    var customRadio = setupDialog.querySelector(
-      'input[name="setup-theme"][value="custom"]');
-    if (customRadio) customRadio.checked = true;
-    applyTheme('custom');
-    body.setAttribute('data-theme', 'custom');
-    if (typeof showSetupStep === 'function') {
-      showSetupStep(setupCurrentStep(), { focus: false });
-    }
-    if (typeof repaintSetupColours === 'function') repaintSetupColours();
-    saveConfig(payload);
   }
 
   // For anyone who skipped the first-run screen and wants it after all.
@@ -3981,6 +3978,33 @@
   if (hideIconsButton) {
     hideIconsButton.addEventListener('click', toggleIconOnly);
   }
+
+  // ---------- Shortcut label ----------
+  var showShortcutButton = document.getElementById('show-shortcut-label');
+  var setupShowShortcutButton = document.getElementById('setup-show-shortcut-label');
+
+  function paintShowShortcut(showing) {
+    function set(button) {
+      if (!button) return;
+      button.setAttribute('aria-checked', showing ? 'true' : 'false');
+      button.classList.toggle('active', showing);
+      var state = document.getElementById(button.id + '-state');
+      if (state) state.textContent = showing ? t('switch.on') : t('switch.off');
+    }
+    set(showShortcutButton);
+    set(setupShowShortcutButton);
+  }
+
+  function toggleShowShortcut() {
+    var showing = body.getAttribute('data-show-shortcut-label') !== 'true';
+    body.setAttribute('data-show-shortcut-label', showing ? 'true' : 'false');
+    paintShowShortcut(showing);
+    saveConfig({ show_shortcut_label: showing });
+  }
+
+  paintShowShortcut(body.getAttribute('data-show-shortcut-label') === 'true');
+  if (showShortcutButton) showShortcutButton.addEventListener('click', toggleShowShortcut);
+  if (setupShowShortcutButton) setupShowShortcutButton.addEventListener('click', toggleShowShortcut);
 
   // ---------- Reading ruler ----------
   // A band that follows the pointer over the editor, so one line stays easy

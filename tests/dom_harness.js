@@ -67,6 +67,8 @@ const KNOWN_IDS = new Set([
   // as optional, and the harness has to exercise that path.
   'theme-gradient', 'theme-gradient-state', 'theme-builder',
   'icon-only', 'setup-icon-only', 'icon-only-state', 'setup-icon-only-state',
+  'show-shortcut-label', 'setup-show-shortcut-label', 'show-shortcut-label-state', 'setup-show-shortcut-label-state',
+  'settings-search', 'settings-search-status',
   'reading-ruler', 'reading-ruler-state',
   // The builder renders its fields from a Jinja loop over these ten keys,
   // and each key emits four ids: the hex input, the colour picker, the

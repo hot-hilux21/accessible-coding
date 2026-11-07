@@ -121,7 +121,7 @@
     {% endfor %}
   </style>
 </head>
-<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-font-weight="{{ config.font_weight }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-word-spacing="{{ config.word_spacing }}" data-editor-font-size="{{ config.editor_font_size }}" data-editor-line-height="{{ config.editor_line_height }}" data-editor-letter-spacing="{{ config.editor_letter_spacing }}" data-output-font-size="{{ config.output_font_size }}" data-output-line-height="{{ config.output_line_height }}" data-output-letter-spacing="{{ config.output_letter_spacing }}" data-shell-font-size="{{ config.shell_font_size }}" data-shell-line-height="{{ config.shell_line_height }}" data-shell-letter-spacing="{{ config.shell_letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-fade-output="{{ config.fade_output }}" data-fade-shell="{{ config.fade_shell }}" data-fade-settings="{{ config.fade_settings }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-hover-code="{{ 'true' if config.tts_hover_code else 'false' }}" data-tts-hover-output="{{ 'true' if config.tts_hover_output else 'false' }}" data-tts-hover-shell="{{ 'true' if config.tts_hover_shell else 'false' }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-sound="{{ 'true' if config.sound_enabled else 'false' }}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}" data-gradient="{% if config.theme_gradient %}on{% else %}off{% endif %}" data-icon-only="{{ 'true' if config.icon_only else 'false' }}" data-reading-ruler="{{ 'true' if config.reading_ruler else 'false' }}"{% if body_style %} style="{{ body_style }}"{% endif %}>
+<body data-theme="{{ config.theme }}" data-font="{{ config.font }}" data-font-size="{{ config.font_size }}" data-font-weight="{{ config.font_weight }}" data-highlight-color="{{ config.highlight_color }}" data-line-height="{{ config.line_height }}" data-letter-spacing="{{ config.letter_spacing }}" data-word-spacing="{{ config.word_spacing }}" data-editor-font-size="{{ config.editor_font_size }}" data-editor-line-height="{{ config.editor_line_height }}" data-editor-letter-spacing="{{ config.editor_letter_spacing }}" data-output-font-size="{{ config.output_font_size }}" data-output-line-height="{{ config.output_line_height }}" data-output-letter-spacing="{{ config.output_letter_spacing }}" data-shell-font-size="{{ config.shell_font_size }}" data-shell-line-height="{{ config.shell_line_height }}" data-shell-letter-spacing="{{ config.shell_letter_spacing }}" data-focus-mode="{{ config.focus_mode }}" data-blur-intensity="{{ config.blur_intensity }}" data-fade-output="{{ config.fade_output }}" data-fade-shell="{{ config.fade_shell }}" data-fade-settings="{{ config.fade_settings }}" data-contrast="{{ config.contrast }}" data-tts-voice="{{ config.tts_voice }}" data-tts-rate="{{ config.tts_rate }}" data-tts-hover-scope="{{ config.tts_hover_scope }}" data-tts-hover-delay="{{ config.tts_hover_delay }}" data-tts-hover-code="{{ 'true' if config.tts_hover_code else 'false' }}" data-tts-hover-output="{{ 'true' if config.tts_hover_output else 'false' }}" data-tts-hover-shell="{{ 'true' if config.tts_hover_shell else 'false' }}" data-tts-voice-gender="{{ config.tts_voice_gender }}" data-locale="{{ locale }}" data-direction="{{ direction }}" data-reduce-motion="{% if config.reduce_motion is sameas true %}true{% elif config.reduce_motion is sameas false %}false{% else %}unset{% endif %}" data-sound="{{ 'true' if config.sound_enabled else 'false' }}" data-glass-material="{{ config.glass_material }}" data-glass-tint="{{ glass_tint }}" data-glass-choice="{{ glass_choice }}" data-gradient="{% if config.theme_gradient %}on{% else %}off{% endif %}" data-icon-only="{{ 'true' if config.icon_only else 'false' }}" data-show-shortcut-label="{{ 'true' if config.show_shortcut_label else 'false' }}" data-reading-ruler="{{ 'true' if config.reading_ruler else 'false' }}"{% if body_style %} style="{{ body_style }}"{% endif %}>
 
   <a class="skip-link" href="#editor">{{ t('app.skip_to_editor') }}</a>
 
@@ -143,7 +143,7 @@
     <div class="toolbar" role="toolbar" aria-label="{{ t('nav.tools') }}">
       <button id="btn-run" class="btn btn-primary" title="{{ t('nav.run_title', config.get('run_key', 'Ctrl+Enter')) }}"
               aria-label="{{ t('nav.run') }}">
-        <span class="btn-icon" aria-hidden="true">{{ icon('play') }}</span><span class="btn-label">{{ t('nav.run') }}</span>
+        <span class="btn-icon" aria-hidden="true">{{ icon('play') }}</span><span class="btn-label">{{ t('nav.run') }}</span><span class="btn-shortcut" aria-hidden="true">{{ config.get('run_key', 'Ctrl+Enter') }}</span>
       </button>
 
       {# Shown only while a program is running. The keyboard path to the same
@@ -457,6 +457,13 @@
     <div class="settings-form">
       <header class="settings-header">
         <h2 id="settings-title" class="settings-title">{{ t('settings.title') }}</h2>
+        <div class="settings-search">
+          <label for="settings-search" class="visually-hidden">{{ t('settings.search_label') }}</label>
+          <input type="search" id="settings-search" autocomplete="off"
+                 placeholder="{{ t('settings.search_placeholder') }}"
+                 aria-describedby="settings-search-status">
+          <p id="settings-search-status" class="settings-search-status" role="status" aria-live="polite"></p>
+        </div>
         <button id="btn-settings-close" class="btn btn-small" type="button" aria-label="{{ t('settings.close_label') }}">{{ t('settings.close') }}</button>
       </header>
 
@@ -997,6 +1004,18 @@
             </div>
             <p class="field-help key-status" id="keys-stop-status" role="status"></p>
           </div>
+
+          <div class="field field-inline">
+            <label for="show-shortcut-label">{{ t('controls.shortcut_labels') }}</label>
+            <button id="show-shortcut-label" class="btn btn-toggle {% if config.show_shortcut_label %}active{% endif %}"
+                    type="button" role="switch"
+                    aria-checked="{% if config.show_shortcut_label %}true{% else %}false{% endif %}"
+                    aria-describedby="show-shortcut-label-help">
+              <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+              <span id="show-shortcut-label-state" class="switch-text">{% if config.show_shortcut_label %}{{ t('switch.on') }}{% else %}{{ t('switch.off') }}{% endif %}</span>
+            </button>
+          </div>
+          <p class="field-help" id="show-shortcut-label-help">{{ t('controls.shortcut_labels_help') }}</p>
         </fieldset>
 
         <fieldset class="settings-group" id="group-speak">
@@ -1439,17 +1458,6 @@
                        {% if config.theme == key %}checked{% endif %}>
                 <span class="setup-choice-text">
                   <span class="setup-choice-name">{{ t('theme.' + key) }}</span>
-                  <!-- Each square opens the operating system's colour
-                       picker. Picking one starts from this theme and
-                       switches to the reader's own theme, so no preset is
-                       quietly rewritten. -->
-                  <span class="setup-swatch">
-                    {% for role, colour in (('bg', palette.bg), ('fg', palette.fg), ('keyword', palette.keyword), ('string', palette.string), ('number', palette.number), ('function', palette.function)) %}
-                    <input type="color" class="setup-swatch-cell" value="{{ colour }}"
-                           data-theme="{{ key }}" data-role="{{ role }}"
-                           aria-label="{{ t('theme.' + key) }}: {{ t('theme.custom_' + role) }}">
-                    {% endfor %}
-                  </span>
                 </span>
               </label>
               {% endfor %}
@@ -1580,6 +1588,18 @@
               </button>
             </div>
             <p class="field-help" id="setup-icon-only-help">{{ t('controls.labels_help') }}</p>
+
+            <div class="field field-inline">
+              <label for="setup-show-shortcut-label">{{ t('controls.shortcut_labels') }}</label>
+              <button id="setup-show-shortcut-label" class="btn btn-toggle {% if config.show_shortcut_label %}active{% endif %}"
+                      type="button" role="switch"
+                      aria-checked="{% if config.show_shortcut_label %}true{% else %}false{% endif %}"
+                      aria-describedby="setup-show-shortcut-label-help">
+                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                <span id="setup-show-shortcut-label-state" class="switch-text">{% if config.show_shortcut_label %}{{ t('switch.on') }}{% else %}{{ t('switch.off') }}{% endif %}</span>
+              </button>
+            </div>
+            <p class="field-help" id="setup-show-shortcut-label-help">{{ t('controls.shortcut_labels_help') }}</p>
           </fieldset>
         </section>
       </div>

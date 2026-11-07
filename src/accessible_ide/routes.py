@@ -338,6 +338,10 @@ DEFAULT_CONFIG = {
     # reader who knows the icons can turn the words off and keep the
     # tooltips, which leaves more room for the code.
     'icon_only': False,
+    # Whether the configured run/stop shortcut is painted as a small label
+    # beside the toolbar buttons. Off by default; the full shortcut is
+    # still in the button tooltip either way.
+    'show_shortcut_label': False,
     # A band that follows the pointer over the editor, so a reader can keep
     # their place across a long line. Off by default: it is a reading aid,
     # not part of the code surface.
@@ -2275,6 +2279,7 @@ CONFIG_TYPES = {
     'word_spacing': (int, float),
     'theme': str,
     'icon_only': bool,
+    'show_shortcut_label': bool,
     'reading_ruler': bool,
     'focus_mode': str,
     'blur_intensity': (int, float),

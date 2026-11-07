@@ -562,6 +562,23 @@ body[data-icon-only="true"] .btn-label {
   white-space: nowrap;
 }
 
+.btn-shortcut {
+  display: none;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-1);
+  font-size: 0.75em;
+  line-height: 1;
+  color: var(--fg);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+
+body[data-show-shortcut-label="true"] .btn-shortcut {
+  display: inline-block;
+}
+
 .btn:hover {
   border-color: var(--accent);
 }
@@ -1611,6 +1628,32 @@ body[data-contrast="high"][data-theme="pastel"] {
   letter-spacing: normal;
 }
 
+.settings-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 12em;
+  flex: 1 1 12em;
+  max-width: 24em;
+}
+
+.settings-search input[type="search"] {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  color: var(--fg);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+}
+
+.settings-search-status {
+  margin: 0;
+  min-height: 1em;
+  font-size: 0.85em;
+  color: var(--accent);
+}
+
 /* The panel scrolls beside the section list, so the header and the status
    line stay put. */
 .settings-body {
@@ -2592,33 +2635,10 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   color: var(--fg);
 }
 
-/* The theme swatch is a strip of colour squares, one per token, drawn from
-   the same table the editor reads. Each square is a real colour input, so a
-   reader can open one and start their own theme from this palette. */
-.setup-swatch {
-  display: flex;
-  gap: 2px;
-  margin-top: var(--space-1);
-}
-
-.setup-swatch-cell {
-  /* 24px rather than 22: WCAG 2.5.8 sets a 24px floor on the target, and a
-     colour square is a target like any other. The two extra pixels are not
-     visible as a change in the strip, but they are the difference between
-     meeting the criterion and missing it. */
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  background: var(--panel-bg);
-  border-radius: 4px;
-  border: 1px solid var(--panel-border);
-  cursor: pointer;
-}
-
-.setup-swatch-cell:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 2px;
-}
+/* The theme swatch used to be a strip of colour squares here, one per
+   token. Six inputs on each of four tiles read as noise rather than as a
+   choice, so what a theme looks like is shown where a reader edits one:
+   the Custom colours step. */
 
 /* ---------- The theme builder ---------- */
 
