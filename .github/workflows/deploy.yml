@@ -43,5 +43,11 @@ jobs:
             # build prints, so a stale checkout fails the run instead. Read to
             # a file first: grep -q closes the pipe on the first match and
             # curl then fails writing the rest of the page.
-            curl -fsS http://127.0.0.1:3000/ -o /tmp/accessible-coding-page.html
-            grep -q 'AccessibleCoding' /tmp/accessible-coding-page.html
+            if ! curl -fsS http://127.0.0.1:3000/ -o /tmp/accessible-coding-page.html; then
+              pm2 logs accessible-coding --lines 100 --nostream
+              exit 1
+            fi
+            if ! grep -q 'AccessibleCoding' /tmp/accessible-coding-page.html; then
+              pm2 logs accessible-coding --lines 100 --nostream
+              exit 1
+            fi
