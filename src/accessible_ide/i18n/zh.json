@@ -159,6 +159,8 @@
   "output.stopped": "已停止。程序不再运行。",
   "output.title": "输出",
   "pane.controls": "文字大小和间距",
+  "pane.fix_indent": "Fix indent",
+  "pane.indent": "Indent",
   "pane.line_numbers": "行号",
   "python.AttributeError": "你想用的属性或方法，这个对象上没有。",
   "python.EOFError": "输入意外结束了。",

@@ -159,6 +159,8 @@
   "output.stopped": "Зупинено. Програма більше не виконується.",
   "output.title": "Вивід",
   "pane.controls": "Розмір тексту та відступи",
+  "pane.fix_indent": "Fix indent",
+  "pane.indent": "Indent",
   "pane.line_numbers": "Номери рядків",
   "python.AttributeError": "Ви намагаєтеся скористатися атрибутом або методом, якого немає в цього об'єкта.",
   "python.EOFError": "Несподіваний кінець введення.",

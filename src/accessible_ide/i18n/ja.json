@@ -159,6 +159,8 @@
   "output.stopped": "停止しました。プログラムはもう実行されていません。",
   "output.title": "出力",
   "pane.controls": "文字の大きさと間隔",
+  "pane.fix_indent": "Fix indent",
+  "pane.indent": "Indent",
   "pane.line_numbers": "行番号",
   "python.AttributeError": "このオブジェクトには存在しない属性やメソッドを使おうとしています。",
   "python.EOFError": "入力が予期せず終わりました。",

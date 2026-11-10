@@ -267,6 +267,57 @@
     value: '# Welcome to AccessibleCoding!\n# Write Python code and press Run (or Ctrl+Enter).\n\nprint("Hello, world!")\n\nfor i in range(3):\n    print("Counting:", i)\n'
   });
 
+  // ---------- Indentation helpers ----------
+  var indentAddBtn = document.getElementById('pane-indent-add');
+  var indentFixBtn = document.getElementById('pane-indent-fix');
+
+  function indentSelection() {
+    if (!editor) return;
+    var doc = editor.getDoc();
+    var from = doc.getCursor('from');
+    var to = doc.getCursor('to');
+    if (from.line === to.line && from.ch === to.ch) {
+      doc.replaceRange('    ', { line: from.line, ch: 0 });
+      return;
+    }
+    for (var l = from.line; l <= to.line; l++) {
+      doc.replaceRange('    ', { line: l, ch: 0 });
+    }
+  }
+
+  function fixIndentation() {
+    if (!editor) return;
+    var lines = editor.getValue().split('\n');
+    var out = [];
+    var indent = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].replace(/\t/g, '    ');
+      var trimmed = line.trim();
+      if (trimmed === '') { out.push(''); continue; }
+      if (/^(elif|else|except|finally)\b/.test(trimmed)) {
+        indent = Math.max(0, indent - 4);
+      }
+      var prev = i > 0 ? lines[i - 1].trim() : '';
+      var baseIndent = indent;
+      if (prev.endsWith(':')) {
+        baseIndent = indent + 4;
+      }
+      var current = line.match(/^ */)[0].length;
+      var normalized = Math.round(current / 4) * 4;
+      if (normalized < baseIndent) normalized = baseIndent;
+      out.push(' '.repeat(normalized) + trimmed);
+      if (trimmed.endsWith(':')) {
+        indent = normalized;
+      } else if (/^(def |class |if |for |while |try:|with )/.test(trimmed)) {
+        indent = normalized;
+      }
+    }
+    editor.setValue(out.join('\n'));
+  }
+
+  if (indentAddBtn) indentAddBtn.addEventListener('click', indentSelection);
+  if (indentFixBtn) indentFixBtn.addEventListener('click', fixIndentation);
+
   // ---------- Unsaved-changes tracking ----------
   // The last text we know is safely on disk (or was freshly loaded). If the
   // editor differs from this, the reader has typed something not yet saved,

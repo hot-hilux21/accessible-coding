@@ -159,6 +159,8 @@
   "output.stopped": "Остановлено. Программа больше не выполняется.",
   "output.title": "Вывод",
   "pane.controls": "Размер текста и интервалы",
+  "pane.fix_indent": "Fix indent",
+  "pane.indent": "Indent",
   "pane.line_numbers": "Номера строк",
   "python.AttributeError": "Вы пытаетесь использовать атрибут или метод, которого нет у этого объекта.",
   "python.EOFError": "Неожиданный конец ввода.",

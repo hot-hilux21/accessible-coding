@@ -159,6 +159,8 @@
   "output.stopped": "Σταμάτησε. Το πρόγραμμα δεν τρέχει πια.",
   "output.title": "Έξοδος",
   "pane.controls": "Μέγεθος κειμένου και διάστιχο",
+  "pane.fix_indent": "Fix indent",
+  "pane.indent": "Indent",
   "pane.line_numbers": "Αριθμοί γραμμών",
   "python.AttributeError": "Προσπαθείς να χρησιμοποιήσεις γνώρισμα ή μέθοδο που δεν υπάρχει σε αυτό το αντικείμενο.",
   "python.EOFError": "Απρόσμενο τέλος εισόδου.",

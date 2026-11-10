@@ -159,6 +159,8 @@
   "output.stopped": "تم الإيقاف. لم يعد البرنامج يعمل.",
   "output.title": "المخرجات",
   "pane.controls": "حجم النص والمسافات",
+  "pane.fix_indent": "Fix indent",
+  "pane.indent": "Indent",
   "pane.line_numbers": "أرقام الأسطر",
   "python.AttributeError": "أنت تحاول استخدام خاصية أو طريقة ما موجودة على هذا العنصر.",
   "python.EOFError": "نهاية نص غير متوقعة.",

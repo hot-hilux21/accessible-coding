@@ -159,6 +159,8 @@
   "output.stopped": "멈췄습니다. 프로그램이 더 이상 실행되지 않습니다.",
   "output.title": "출력",
   "pane.controls": "글자 크기와 간격",
+  "pane.fix_indent": "Fix indent",
+  "pane.indent": "Indent",
   "pane.line_numbers": "줄 번호",
   "python.AttributeError": "이 객체에 없는 속성이나 메서드를 쓰려고 합니다.",
   "python.EOFError": "입력이 예상치 않게 끝났습니다.",

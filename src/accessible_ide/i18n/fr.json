@@ -159,6 +159,8 @@
   "output.stopped": "Arrêté. Le programme ne s'exécute plus.",
   "output.title": "Sortie",
   "pane.controls": "Taille et espacement du texte",
+  "pane.fix_indent": "Fix indent",
+  "pane.indent": "Indent",
   "pane.line_numbers": "Numéros de ligne",
   "python.AttributeError": "Vous utilisez un attribut ou une méthode qui n'existe pas sur cet objet.",
   "python.EOFError": "Fin de texte inattendue.",
