@@ -16,7 +16,7 @@ jobs:
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
             set -euo pipefail
-            cd /home/opc/accessible-coding
+            cd /home/opc/jojo-code-ide
             # A plain pull reports success when there is nothing to merge and
             # does nothing when the checkout has drifted, so the server was
             # left running a build from before the rename while every deploy
@@ -31,7 +31,7 @@ jobs:
             # run.sh, which loads .env and runs gunicorn. Restarting a name
             # that does not exist fails, and the site stays on the old code,
             # so start it if it is missing.
-            pm2 restart accessible-coding --update-env || pm2 start run.sh --name accessible-coding
+            pm2 restart jojo-code --update-env || pm2 start run.sh --name jojo-code
             # Make the process list survive a reboot.
             pm2 save
             # Fail the run when the app is not actually serving, instead of
