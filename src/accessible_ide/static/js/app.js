@@ -50,6 +50,22 @@
   // ---------- Elements ----------
   var editorEl = document.getElementById('editor');
   var outputEl = document.getElementById('output');
+  function breakLongSentences(text) {
+    if (!text) return text;
+    var sentences = String(text).match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [String(text)];
+    var out = [];
+    var count = 0;
+    for (var i = 0; i < sentences.length; i++) {
+      var s = sentences[i].trim();
+      if (!s) continue;
+      var words = s.split(/\s+/).filter(Boolean).length;
+      if (count > 0 && count + words > 15) { out.push(''); count = 0; }
+      out.push(s);
+      count += words;
+    }
+    return out.join('\n');
+  }
+
   var errorPanel = document.getElementById('error-panel');
   var errorMessage = document.getElementById('error-message');
   var errorTypeSelect = document.getElementById('error-type');
@@ -2430,9 +2446,10 @@
           errorState.friendly = data.error;
           errorState.original = data.original_error || '';
           errorState.line = data.error_line;
-          errorMessage.textContent = showSystem
-            ? (errorState.original || errorState.friendly)
-            : errorState.friendly;
+           var errorText = showSystem
+             ? (errorState.original || errorState.friendly)
+             : errorState.friendly;
+           errorMessage.textContent = breakLongSentences(errorText);
           errorPanel.hidden = false;
           highlightErrorLine(showSystem ? null : data.error_line);
           playSound('error');

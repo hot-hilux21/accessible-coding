@@ -583,6 +583,14 @@ body[data-show-shortcut-label="true"] .btn-shortcut {
   border-color: var(--accent);
 }
 
+/* The whole icon lights up with the button it sits in, so a reader can see
+   which control they are about to use without having to land exactly on
+   the glyph. */
+.btn:hover .btn-icon svg {
+  color: var(--accent);
+  filter: drop-shadow(0 0 3px var(--accent));
+}
+
 .btn:active {
   transform: translateY(1px);
 }
@@ -1326,6 +1334,7 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   font-size: 1em;
   line-height: 1.5;
   letter-spacing: normal;
+  white-space: pre-wrap;
 }
 
 /* Error line highlight in the editor. The tint is themed rather than a
