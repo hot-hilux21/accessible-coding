@@ -294,7 +294,10 @@
       if (/^(elif|else|except|finally)\b/.test(trimmed)) {
         indent = Math.max(0, indent - 1);
       }
-      var prev = i > 0 ? lines[i - 1].trim() : '';
+      var prev = '';
+      for (var j = i - 1; j >= 0; j--) {
+        if (lines[j].trim() !== '') { prev = lines[j].trim(); break; }
+      }
       var base = indent;
       if (prev.endsWith(':')) base = indent + 1;
       exp.push(base);
