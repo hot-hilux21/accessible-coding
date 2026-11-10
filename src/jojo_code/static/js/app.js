@@ -5692,5 +5692,23 @@
     }
   });
 
+  var jojoCredit = document.getElementById("jojo-credit");
+  if (jojoCredit) {
+    jojoCredit.addEventListener("mouseover", function () {
+      var rect = jojoCredit.getBoundingClientRect();
+      for (var i = 0; i < 24; i++) {
+        var piece = document.createElement("span");
+        piece.className = "confetti";
+        piece.style.left = (rect.left + rect.width / 2) + "px";
+        piece.style.top = (rect.top + rect.height / 2) + "px";
+        piece.style.background = ["#ff0040", "#ff8a00", "#ffe600", "#00ff6f", "#00cfff", "#7a00ff"][i % 6];
+        piece.style.setProperty("--dx", (Math.random() * 220 - 110) + "px");
+        piece.style.setProperty("--dy", (Math.random() * 220 - 110) + "px");
+        document.body.appendChild(piece);
+        setTimeout(function () { piece.remove(); }, 1000);
+      }
+    });
+  }
+
   tick();
 })();

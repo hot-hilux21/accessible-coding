@@ -2534,6 +2534,38 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   }
 }
 
+/* ---------- The JOJO credit ---------- */
+
+.jojo-credit {
+  display: inline-block;
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: var(--space-3) var(--space-5);
+  background: linear-gradient(90deg, #ff0040, #ff8a00, #ffe600, #00ff6f, #00cfff, #7a00ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  cursor: pointer;
+}
+
+.confetti {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: confetti-fall 1s ease-out forwards;
+}
+
+@keyframes confetti-fall {
+  to {
+    transform: translate(var(--dx), var(--dy)) rotate(720deg);
+    opacity: 0;
+  }
+}
+
 /* ============================================================
    First-run setup
    ============================================================

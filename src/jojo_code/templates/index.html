@@ -1265,7 +1265,11 @@
           <h3 class="field-label-static">{{ t('about.credits_title') }}</h3>
           <ul class="about-credits">
             {% for credit in credits %}
+            {% if credit == "JOJO" %}
+            <li><span class="jojo-credit" id="jojo-credit" tabindex="0">JOJO</span></li>
+            {% else %}
             <li>{{ credit }}</li>
+            {% endif %}
             {% endfor %}
           </ul>
           <p class="field-help">{{ t('about.credits_note') }}</p>
