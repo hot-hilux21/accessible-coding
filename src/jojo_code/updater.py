@@ -60,7 +60,7 @@ from pathlib import Path
 # variable. The whole point of checking a checksum is that the answer does
 # not depend on anything the machine running the app can be made to say.
 OWNER = 'hot-hilux21'
-REPO = 'accessible-coding'
+REPO = 'jojo-code-ide'
 # The file the app downloads when an update is offered is the Setup
 # installer, not the portable exe that sits beside it in the release.
 #
@@ -79,7 +79,7 @@ ASSET_NAME = 'JojoCode-Setup.exe'
 # either. The older copy also reads the manifest's url, so that url still
 # points at the older name. Remove both once the last build named the old
 # way has aged out.
-LEGACY_ASSET_NAMES = ('AccessibleIDE-Setup.exe',)
+LEGACY_ASSET_NAMES = ('AccessibleIDE-Setup.exe', 'AccessibleCoding-Setup.exe')
 MANIFEST_NAME = 'version.json'
 
 RELEASES_BASE = f'https://github.com/{OWNER}/{REPO}/releases'
