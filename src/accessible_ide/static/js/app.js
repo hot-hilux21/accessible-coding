@@ -395,6 +395,22 @@
   if (indentAddBtn) indentAddBtn.addEventListener('click', indentSelection);
   if (indentFixBtn) indentFixBtn.addEventListener('click', fixIndentation);
 
+  // ---------- Clear code and shell ----------
+  var clearBtn = document.getElementById('btn-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      if (hasUnsavedChanges && hasUnsavedChanges()) {
+        if (!confirm(t('logo.refresh_confirm'))) return;
+      }
+      if (editor) editor.setValue('');
+      savedSnapshot = editor ? editor.getValue() : '';
+      var shellOut = document.getElementById('shell-output');
+      if (shellOut) shellOut.textContent = '';
+      var outputEl = document.getElementById('output');
+      if (outputEl) outputEl.textContent = '';
+    });
+  }
+
   // ---------- Unsaved-changes tracking ----------
   // The last text we know is safely on disk (or was freshly loaded). If the
   // editor differs from this, the reader has typed something not yet saved,

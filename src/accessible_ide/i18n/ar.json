@@ -135,6 +135,8 @@
   "motion.help": "عند تشغيله تتوقف الأزرار والمفاتيح والألواح عن الحركة. لا يختفي شيء، بل تظهر الأشياء فوراً.",
   "motion.hint": "الحركة إضافة اختيارية. إيقافها لا يغيّر ما يفعله التطبيق، بل السرعة التي تظهر بها الأشياء فقط.",
   "motion.label": "تقليل الحركة",
+  "nav.clear": "Clear",
+  "nav.clear_title": "Clear all",
   "nav.open": "فتح",
   "nav.open_title": "فتح ملف Python",
   "nav.quit": "إنهاء AccessibleCoding",

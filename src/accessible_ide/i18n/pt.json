@@ -135,6 +135,8 @@
   "motion.help": "Ativar isto impede que botões, interruptores e painéis se movam. Nada se perde. As coisas aparecem na hora.",
   "motion.hint": "O movimento é extra. Desativá-lo nunca muda o que o aplicativo faz, só a rapidez com que as coisas aparecem.",
   "motion.label": "Reduzir movimento",
+  "nav.clear": "Clear",
+  "nav.clear_title": "Clear all",
   "nav.open": "Abrir",
   "nav.open_title": "Abrir um arquivo Python",
   "nav.quit": "Sair do AccessibleCoding",

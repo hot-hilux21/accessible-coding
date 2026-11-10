@@ -135,6 +135,8 @@
   "motion.help": "켜면 버튼, 스위치, 패널이 움직이지 않습니다. 잃는 것은 없습니다. 내용이 바로 나타납니다.",
   "motion.hint": "움직임은 덤입니다. 꺼도 앱이 하는 일은 바뀌지 않고, 내용이 나타나는 속도만 달라집니다.",
   "motion.label": "움직임 줄이기",
+  "nav.clear": "Clear",
+  "nav.clear_title": "Clear all",
   "nav.open": "열기",
   "nav.open_title": "Python 파일 열기",
   "nav.quit": "AccessibleCoding 끝내기",

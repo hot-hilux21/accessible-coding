@@ -135,6 +135,8 @@
   "motion.help": "打开后，按钮、开关和面板不再移动。什么都不会少。东西会直接出现。",
   "motion.hint": "动效只是额外的。关掉它不会改变应用做什么，只会改变东西出现的快慢。",
   "motion.label": "减少动效",
+  "nav.clear": "Clear",
+  "nav.clear_title": "Clear all",
   "nav.open": "打开",
   "nav.open_title": "打开一个 Python 文件",
   "nav.quit": "退出 AccessibleCoding",

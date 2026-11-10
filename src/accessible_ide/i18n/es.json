@@ -135,6 +135,8 @@
   "motion.help": "Al activarlo, los botones, los interruptores y los paneles dejan de moverse. No desaparece nada, solo llega todo de inmediato.",
   "motion.hint": "El movimiento es un extra. Desactivarlo no cambia lo que hace la aplicación, solo la rapidez con la que aparecen las cosas.",
   "motion.label": "Reducir el movimiento",
+  "nav.clear": "Clear",
+  "nav.clear_title": "Clear all",
   "nav.open": "Abrir",
   "nav.open_title": "Abrir un archivo de Python",
   "nav.quit": "Salir de AccessibleCoding",

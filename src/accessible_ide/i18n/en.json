@@ -135,6 +135,8 @@
   "motion.help": "Turning this on stops buttons, switches and panels moving. Nothing is lost. Things appear straight away.",
   "motion.hint": "Movement is extra. Turning it off never changes what the app does, only how quickly things arrive.",
   "motion.label": "Reduce motion",
+  "nav.clear": "Clear",
+  "nav.clear_title": "Clear all",
   "nav.open": "Open",
   "nav.open_title": "Open a Python file",
   "nav.quit": "Quit AccessibleCoding",

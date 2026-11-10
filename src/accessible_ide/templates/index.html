@@ -154,6 +154,11 @@
         <span class="btn-icon" aria-hidden="true">{{ icon('square') }}</span><span class="btn-label">{{ t('nav.stop') }}</span>
       </button>
 
+      <button id="btn-clear" class="btn btn-danger" type="button"
+              title="{{ t('nav.clear_title') }}" aria-label="{{ t('nav.clear') }}">
+        <span class="btn-icon" aria-hidden="true">{{ icon('trash-2') }}</span><span class="btn-label">{{ t('nav.clear') }}</span>
+      </button>
+
       {# The trace table sits beside Run because it describes a run. It stays
          unusable until one has happened, and the button is what somebody who
          has just run something reaches for next. #}

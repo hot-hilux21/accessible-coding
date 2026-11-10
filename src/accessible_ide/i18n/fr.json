@@ -135,6 +135,8 @@
   "motion.help": "En l'activant, les boutons, les interrupteurs et les panneaux cessent de bouger. Rien ne disparaît, les éléments arrivent simplement tout de suite.",
   "motion.hint": "Les animations sont un bonus. Les désactiver ne change pas ce que l'application fait, seulement la vitesse à laquelle les choses arrivent.",
   "motion.label": "Réduire les mouvements",
+  "nav.clear": "Clear",
+  "nav.clear_title": "Clear all",
   "nav.open": "Ouvrir",
   "nav.open_title": "Ouvrir un fichier Python",
   "nav.quit": "Quitter AccessibleCoding",

@@ -135,6 +135,8 @@
   "motion.help": "オンにすると、ボタン、スイッチ、パネルの動きが止まります。失われるものはありません。物はすぐに表示されます。",
   "motion.hint": "動きはおまけです。オフにしてもアプリの動作は変わりません。変わるのは表示の速さだけです。",
   "motion.label": "動きを減らす",
+  "nav.clear": "Clear",
+  "nav.clear_title": "Clear all",
   "nav.open": "開く",
   "nav.open_title": "Python ファイルを開く",
   "nav.quit": "AccessibleCoding を終了",

@@ -6,7 +6,7 @@ import secrets
 
 from flask import Flask, jsonify, request
 
-__version__ = "1.0.0-beta"
+__version__ = "2.0.0-beta"
 __author__ = "AccessibleCoding Contributors"
 
 
