@@ -131,6 +131,7 @@
   "language.label": "Idioma",
   "layout.editor_divider": "Redimensionar o editor e a saída",
   "layout.shell_divider": "Redimensionar a saída e o shell",
+  "logo.refresh_confirm": "Refresh?",
   "motion.help": "Ativar isto impede que botões, interruptores e painéis se movam. Nada se perde. As coisas aparecem na hora.",
   "motion.hint": "O movimento é extra. Desativá-lo nunca muda o que o aplicativo faz, só a rapidez com que as coisas aparecem.",
   "motion.label": "Reduzir movimento",

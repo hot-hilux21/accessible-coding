@@ -402,6 +402,39 @@
   // listener is needed: comparing on demand is cheaper and cannot drift.
   var savedSnapshot = editor.getValue();
 
+  // Clicking the logo refreshes the page, warning about unsaved code first.
+  var brandLogo = document.querySelector('.brand-logo');
+  if (brandLogo) {
+    brandLogo.style.cursor = 'pointer';
+    brandLogo.addEventListener('click', function () {
+      if (hasUnsavedChanges && hasUnsavedChanges()) {
+        if (!confirm(t('logo.refresh_confirm'))) return;
+      }
+      location.reload();
+    });
+  }
+
+  // Drag and drop a .py or .txt file onto the editor to load it.
+  if (editorEl) {
+    editorEl.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    });
+    editorEl.addEventListener('drop', function (e) {
+      e.preventDefault();
+      var files = e.dataTransfer ? e.dataTransfer.files : null;
+      if (!files || !files.length) return;
+      var file = files[0];
+      if (!/\.(py|txt)$/i.test(file.name || '')) return;
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        editor.setValue(ev.target.result || '');
+        savedSnapshot = editor.getValue();
+      };
+      reader.readAsText(file);
+    });
+  }
+
   function hasUnsavedChanges() {
     return editor.getValue() !== savedSnapshot;
   }

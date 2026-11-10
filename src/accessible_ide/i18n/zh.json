@@ -131,6 +131,7 @@
   "language.label": "语言",
   "layout.editor_divider": "调整编辑器和输出的大小",
   "layout.shell_divider": "调整输出和 shell 的大小",
+  "logo.refresh_confirm": "Refresh?",
   "motion.help": "打开后，按钮、开关和面板不再移动。什么都不会少。东西会直接出现。",
   "motion.hint": "动效只是额外的。关掉它不会改变应用做什么，只会改变东西出现的快慢。",
   "motion.label": "减少动效",

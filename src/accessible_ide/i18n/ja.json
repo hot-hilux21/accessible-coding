@@ -131,6 +131,7 @@
   "language.label": "言語",
   "layout.editor_divider": "エディタと出力の大きさを変える",
   "layout.shell_divider": "出力とシェルの大きさを変える",
+  "logo.refresh_confirm": "Refresh?",
   "motion.help": "オンにすると、ボタン、スイッチ、パネルの動きが止まります。失われるものはありません。物はすぐに表示されます。",
   "motion.hint": "動きはおまけです。オフにしてもアプリの動作は変わりません。変わるのは表示の速さだけです。",
   "motion.label": "動きを減らす",

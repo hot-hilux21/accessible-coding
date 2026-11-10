@@ -131,6 +131,7 @@
   "language.label": "언어",
   "layout.editor_divider": "편집기와 출력 크기 조절",
   "layout.shell_divider": "출력과 셸 크기 조절",
+  "logo.refresh_confirm": "Refresh?",
   "motion.help": "켜면 버튼, 스위치, 패널이 움직이지 않습니다. 잃는 것은 없습니다. 내용이 바로 나타납니다.",
   "motion.hint": "움직임은 덤입니다. 꺼도 앱이 하는 일은 바뀌지 않고, 내용이 나타나는 속도만 달라집니다.",
   "motion.label": "움직임 줄이기",
