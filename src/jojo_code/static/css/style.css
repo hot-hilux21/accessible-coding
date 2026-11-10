@@ -2559,6 +2559,11 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   .fx-spectrum b { animation: none; }
 }
 
+#credits-dialog .about-credits > p.field-help {
+  margin-top: var(--space-3);
+  text-align: center;
+}
+
 /* ---------- The JOJO credit ---------- */
 
 .jojo-credit {
@@ -2572,6 +2577,13 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   cursor: pointer;
   pointer-events: auto;
   user-select: none;
+}
+
+.jojo-credit img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
 }
 
 .confetti {
