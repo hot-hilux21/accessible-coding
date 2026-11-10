@@ -9,7 +9,7 @@
 #define MyAppVersion "2.0.0-beta"
 #define MyAppExeName "JojoCode.exe"
 #define MyAppPublisher "Jojo Code"
-#define MyAppURL "https://accessible-coding.duckdns.org"
+#define MyAppURL "https://jojocode.duckdns.org"
 
 [Setup]
 AppId={{8E5F2C1A-9B3D-4E7A-8C2F-1D4B6A9E3F50}

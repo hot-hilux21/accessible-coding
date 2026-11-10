@@ -92,7 +92,7 @@ class HostHeaderTests(unittest.TestCase):
     def test_the_hosted_site_is_answered_normally(self):
         # The live host, behind the Oracle gunicorn server.
         self.assertEqual(
-            self.get('accessible-coding.duckdns.org',
+            self.get('jojocode.duckdns.org',
                      SERVER_SOFTWARE='gunicorn/21.2.0').status_code,
             200)
 

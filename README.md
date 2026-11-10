@@ -85,7 +85,7 @@ Jojo Code is built for dyslexic and neurodivergent readers, not adapted for them
 
 ## Try it now
 
-- **Web app:** [https://accessible-coding.duckdns.org](https://accessible-coding.duckdns.org) — hosted on Oracle Cloud
+- **Web app:** [https://jojocode.duckdns.org](https://jojocode.duckdns.org) — hosted on Oracle Cloud
 - **Windows installer (recommended):** download `JojoCode-Setup.exe` from the [beta release](https://github.com/hot-hilux21/jojo-code-ide/releases/download/beta/JojoCode-Setup.exe) — installs the app to any folder, installs Python and adds it to PATH, and creates shortcuts
 - **Windows exe (portable):** download `JojoCode.exe` from the [beta release](https://github.com/hot-hilux21/jojo-code-ide/releases/download/beta/JojoCode.exe)
 
@@ -114,7 +114,7 @@ Jojo Code is built for dyslexic and neurodivergent readers, not adapted for them
 
 ### Browser (web)
 
-Open [https://accessible-coding.duckdns.org](https://accessible-coding.duckdns.org). No install needed. The site runs on Oracle Cloud and is updated automatically when `main` is pushed.
+Open [https://jojocode.duckdns.org](https://jojocode.duckdns.org). No install needed. The site runs on Oracle Cloud and is updated automatically when `main` is pushed.
 
 ### Development
 

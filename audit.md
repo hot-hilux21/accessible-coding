@@ -2,7 +2,7 @@
 
 **Audit date:** 5 November 2026  
 **Repository:** https://github.com/hot-hilux21/jojo-code-ide  
-**Live website:** https://accessible-coding.duckdns.org/  
+**Live website:** https://jojocode.duckdns.org/  
 **Scope:** Public repository overview/README, published live-site interface text, and product documentation visible without a connected GitHub account.
 
 > **Important scope limitation:** This is a public-surface and product audit, not a completed line-by-line source-code, penetration, browser-interaction, or assistive-technology audit. GitHub exposed the repository structure and README, but its source directories/raw files could not be retrieved in this review session. A GitHub connection would allow a deeper inspection of implementation files, tests, workflows, and history. Findings below are labelled so that documented strengths are not mistaken for independently verified implementation.
@@ -417,7 +417,7 @@ Do not prioritise adding more themes, visual effects, or dozens of settings unti
 ### References
 
 - Repository: https://github.com/hot-hilux21/jojo-code-ide
-- Live application: https://accessible-coding.duckdns.org/
+- Live application: https://jojocode.duckdns.org/
 - GitHub accessibility page guidance: https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/adding-an-accessibility-page-to-your-repository
 - WCAG overview (MDN): https://developer.mozilla.org/en-US/docs/Web/Accessibility/Guides/Understanding_WCAG
 - Accessibility tooling and manual testing (MDN): https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Accessibility/Tooling

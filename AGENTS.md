@@ -6,7 +6,7 @@ Jojo Code is a fully accessible, open-source IDE prioritizing dyslexic and neuro
 
 - **Authoritative spec:** `jojo-code-requirements.md` (root) — read this before planning any feature. The MVP feature checklist is in section 10.
 - **Status:** Shipped. Flask web app and Windows `.exe`; version 1.0.0.
-- **Live site:** https://accessible-coding.duckdns.org, hosted on Oracle Cloud. Pushing to `main` runs `.github/workflows/deploy.yml`, which pulls on the server and restarts `accessible-coding-py`.
+- **Live site:** https://jojocode.duckdns.org, hosted on Oracle Cloud. Pushing to `main` runs `.github/workflows/deploy.yml`, which pulls on the server and restarts `accessible-coding-py`.
 
 ## Repository Layout
 
