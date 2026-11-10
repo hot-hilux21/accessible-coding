@@ -285,34 +285,111 @@
     }
   }
 
-  function fixIndentation() {
-    if (!editor) return;
-    var lines = editor.getValue().split('\n');
-    var out = [];
+  function expectedIndents(lines) {
+    var exp = [];
     var indent = 0;
     for (var i = 0; i < lines.length; i++) {
-      var line = lines[i].replace(/\t/g, '    ');
-      var trimmed = line.trim();
-      if (trimmed === '') { out.push(''); continue; }
+      var trimmed = lines[i].trim();
+      if (trimmed === '') { exp.push(0); continue; }
       if (/^(elif|else|except|finally)\b/.test(trimmed)) {
         indent = Math.max(0, indent - 4);
       }
       var prev = i > 0 ? lines[i - 1].trim() : '';
-      var baseIndent = indent;
-      if (prev.endsWith(':')) {
-        baseIndent = indent + 4;
-      }
-      var current = line.match(/^ */)[0].length;
-      var normalized = Math.round(current / 4) * 4;
-      if (normalized < baseIndent) normalized = baseIndent;
-      out.push(' '.repeat(normalized) + trimmed);
+      var base = indent;
+      if (prev.endsWith(':')) base = indent + 4;
+      exp.push(base);
       if (trimmed.endsWith(':')) {
-        indent = normalized;
+        indent = base;
       } else if (/^(def |class |if |for |while |try:|with )/.test(trimmed)) {
-        indent = normalized;
+        indent = base;
       }
     }
-    editor.setValue(out.join('\n'));
+    return exp;
+  }
+
+  function collectIndentFaults() {
+    var lines = editor.getValue().split('\n');
+    var exp = expectedIndents(lines);
+    var faults = [];
+    for (var i = 0; i < lines.length; i++) {
+      var raw = lines[i];
+      var trimmed = raw.trim();
+      if (trimmed === '') continue;
+      var actual = (raw.match(/^ */) || [''])[0].length;
+      var hasTab = /\t/.test(raw.slice(0, raw.length - trimmed.length));
+      if (hasTab || actual !== exp[i]) {
+        faults.push({ line: i, reason: hasTab ? 'tabs' : 'indent' });
+      }
+    }
+    return { lines: lines, expected: exp, faults: faults };
+  }
+
+  function applyIndentFix(lines, expected, faultLines) {
+    var set = {};
+    for (var k = 0; k < faultLines.length; k++) set[faultLines[k]] = true;
+    var out = [];
+    for (var i = 0; i < lines.length; i++) {
+      var trimmed = lines[i].trim();
+      if (trimmed === '') { out.push(''); continue; }
+      if (set[i]) {
+        out.push(' '.repeat(expected[i]) + trimmed);
+      } else {
+        out.push(lines[i]);
+      }
+    }
+    return out.join('\n');
+  }
+
+  function showIndentToast(message) {
+    var toast = document.createElement('div');
+    toast.className = 'indent-toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(function () {
+      toast.classList.add('indent-toast-hide');
+      setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 400);
+    }, 2600);
+  }
+
+  function fixIndentation() {
+    if (!editor) return;
+    var info = collectIndentFaults();
+    if (info.faults.length === 0) {
+      showIndentToast(t('indent.no_faults'));
+      return;
+    }
+    var allAtOnce = confirm(t('indent.fix_all_prompt', info.faults.length));
+    if (allAtOnce) {
+      var fixedLines = info.faults.map(function (f) { return f.line + 1; });
+      editor.setValue(applyIndentFix(info.lines, info.expected, info.faults.map(function (f) { return f.line; })));
+      showIndentToast(t('indent.fixed_all', fixedLines.join(', ')));
+      return;
+    }
+    var remaining = info.faults.slice();
+    var fixed = [];
+    function step() {
+      if (remaining.length === 0) {
+        if (fixed.length) showIndentToast(t('indent.fixed_all', fixed.join(', ')));
+        return;
+      }
+      var fault = remaining.shift();
+      var lineNo = fault.line + 1;
+      var yes = confirm(t('indent.fault_at', lineNo));
+      if (yes) {
+        var currentLines = editor.getValue().split('\n');
+        var currentExpected = expectedIndents(currentLines);
+        editor.setValue(applyIndentFix(currentLines, currentExpected, [fault.line]));
+        fixed.push(lineNo);
+        showIndentToast(t('indent.fixed_one', lineNo));
+      }
+      if (remaining.length > 0) {
+        var next = confirm(t('indent.move_next'));
+        if (next) step();
+      } else {
+        if (fixed.length) showIndentToast(t('indent.fixed_all', fixed.join(', ')));
+      }
+    }
+    step();
   }
 
   if (indentAddBtn) indentAddBtn.addEventListener('click', indentSelection);

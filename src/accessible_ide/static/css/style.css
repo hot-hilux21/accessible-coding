@@ -2959,6 +2959,24 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   margin-top: var(--space-2);
 }
 
+.indent-toast {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 60;
+  padding: var(--space-3) var(--space-4);
+  background: var(--panel-bg);
+  color: var(--fg);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-3);
+  max-width: 24em;
+}
+
+.indent-toast-hide {
+  opacity: 0;
+}
+
 .glossary-example-code {
   width: 100%;
   min-height: 4em;
