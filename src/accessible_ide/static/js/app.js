@@ -348,6 +348,39 @@
     }, 2600);
   }
 
+  function collectIndentFaults() {
+    var lines = editor.getValue().split('\n');
+    var faults = [];
+    for (var i = 0; i < lines.length; i++) {
+      var raw = lines[i];
+      var trimmed = raw.trim();
+      if (trimmed === '') continue;
+      var leading = raw.slice(0, raw.length - trimmed.length);
+      if (/\t/.test(leading) && / /.test(leading)) {
+        faults.push({ line: i, reason: 'mixed' });
+      }
+    }
+    return { lines: lines, faults: faults };
+  }
+
+  function applyIndentFix(lines, faultLines) {
+    var set = {};
+    for (var k = 0; k < faultLines.length; k++) set[faultLines[k]] = true;
+    var out = [];
+    for (var i = 0; i < lines.length; i++) {
+      var trimmed = lines[i].trim();
+      if (trimmed === '') { out.push(''); continue; }
+      if (set[i]) {
+        var leading = lines[i].slice(0, lines[i].length - trimmed.length);
+        var spaces = leading.replace(/\t/g, '    ');
+        out.push(spaces + trimmed);
+      } else {
+        out.push(lines[i]);
+      }
+    }
+    return out.join('\n');
+  }
+
   function fixIndentation() {
     if (!editor) return;
     var info = collectIndentFaults();
@@ -358,7 +391,7 @@
     var allAtOnce = confirm(t('indent.fix_all_prompt', info.faults.length));
     if (allAtOnce) {
       var fixedLines = info.faults.map(function (f) { return f.line + 1; });
-      editor.setValue(applyIndentFix(info.lines, info.expected, info.faults.map(function (f) { return f.line; })));
+      editor.setValue(applyIndentFix(info.lines, info.faults.map(function (f) { return f.line; })));
       showIndentToast(t('indent.fixed_all', fixedLines.join(', ')));
       return;
     }
@@ -374,8 +407,7 @@
       var yes = confirm(t('indent.fault_at', lineNo));
       if (yes) {
         var currentLines = editor.getValue().split('\n');
-        var currentExpected = expectedIndents(currentLines);
-        editor.setValue(applyIndentFix(currentLines, currentExpected, [fault.line]));
+        editor.setValue(applyIndentFix(currentLines, [fault.line]));
         fixed.push(lineNo);
         showIndentToast(t('indent.fixed_one', lineNo));
       }
