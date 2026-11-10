@@ -158,6 +158,9 @@
   var settingsDialog = document.getElementById('settings-dialog');
   var btnSettings = document.getElementById('btn-settings');
   var btnCredits = document.getElementById('btn-credits');
+  var creditsDialog = document.getElementById('credits-dialog');
+  var btnCreditsClose = document.getElementById('btn-credits-close');
+  var creditsOpener = null;
   var btnSettingsClose = document.getElementById('btn-settings-close');
   var settingsStatus = document.getElementById('settings-status');
   var btnQuit = document.getElementById('btn-quit');
@@ -1360,6 +1363,33 @@
     // users are not dropped at the top of the page.
     if (settingsOpener && typeof settingsOpener.focus === 'function') {
       settingsOpener.focus();
+    }
+  }
+
+  // ---------- The credits dialog ----------
+  // Same shape as Settings: modal, Escape to close, focus returned to the
+  // opener. The credit list lives here as its own dialog rather than in a
+  // settings group, so the box is only ever reachable through the Credits
+  // button.
+  function openCredits() {
+    creditsOpener = document.activeElement;
+    if (typeof creditsDialog.showModal === 'function') {
+      creditsDialog.showModal();
+    } else {
+      creditsDialog.setAttribute('open', '');
+    }
+    if (btnCredits) btnCredits.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeCredits() {
+    if (typeof creditsDialog.close === 'function') {
+      creditsDialog.close();
+    } else {
+      creditsDialog.removeAttribute('open');
+    }
+    if (btnCredits) btnCredits.setAttribute('aria-expanded', 'false');
+    if (creditsOpener && typeof creditsOpener.focus === 'function') {
+      creditsOpener.focus();
     }
   }
 
@@ -4933,8 +4963,19 @@
   btnSettings.addEventListener('click', openSettings);
 
   if (btnCredits) {
-    btnCredits.addEventListener('click', function () {
-      openSettings('group-about');
+    btnCredits.addEventListener('click', openCredits);
+  }
+
+  if (btnCreditsClose) {
+    btnCreditsClose.addEventListener('click', function () {
+      closeCredits();
+    });
+  }
+
+  if (creditsDialog) {
+    creditsDialog.addEventListener('cancel', function (event) {
+      event.preventDefault();
+      closeCredits();
     });
   }
 

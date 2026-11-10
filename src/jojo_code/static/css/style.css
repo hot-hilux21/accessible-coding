@@ -2613,6 +2613,10 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
+.credits .settings-body {
+  grid-column: 1;
+}
+
 .setup .settings-body {
   grid-column: 1;
 }

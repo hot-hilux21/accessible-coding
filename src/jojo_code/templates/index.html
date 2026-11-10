@@ -1259,26 +1259,40 @@
           <p class="settings-hint">{{ t('about.summary') }}</p>
           <p class="field-help">{{ t('about.version', version) }}</p>
 
-          {# Credits. This list is yours to edit: replace a line with your own
-             words, one credit per line, or delete the examples. Nothing reads
-             it, so nothing breaks if the list changes length. #}
-          <h3 class="field-label-static">{{ t('about.credits_title') }}</h3>
-          <ul class="about-credits">
-            {% for credit in credits %}
-            {% if credit == "JOJO" %}
-            <p class="jojo-credit fx-spectrum" id="jojo-credit" tabindex="0" role="img" aria-label="JOJO"><b aria-hidden="true" style="--i:0">J</b><b aria-hidden="true" style="--i:1">O</b><b aria-hidden="true" style="--i:2">J</b><b aria-hidden="true" style="--i:3">O</b></p>
-            {% elif credit == "And... finally... the one who inspired me to care for others, understand others, be a real human being..." %}
-            <p class="field-help">{{ credit }}</p>
-            {% else %}
-            <li>{{ credit }}</li>
-            {% endif %}
-            {% endfor %}
-          </ul>
-          <p class="field-help">{{ t('about.credits_note') }}</p>
         </fieldset>
       </div>
 
       <p id="settings-status" class="settings-status" role="status" aria-live="polite"></p>
+    </div>
+  </dialog>
+
+  <!-- Credits. Its own dialog rather than a settings group, because the
+       credit list is a finished page the reader opens on purpose, and the
+       Credits button opens this box directly instead of dropping into
+       Settings at the bottom. The list is the maintainer's own words, so it
+       is exempt from the no-bare-English rule the same way the old About
+       block was. -->
+  <dialog id="credits-dialog" class="settings credits" aria-labelledby="credits-title">
+    <div class="settings-form">
+      <header class="settings-header">
+        <h2 id="credits-title" class="settings-title">{{ t('about.credits_title') }}</h2>
+        <button id="btn-credits-close" class="btn btn-small" type="button" aria-label="{{ t('settings.close_label') }}">{{ t('settings.close') }}</button>
+      </header>
+      <div class="settings-body">
+        <p class="settings-hint">{{ t('about.summary') }}</p>
+        <p class="field-help">{{ t('about.version', version) }}</p>
+
+        <h3 class="field-label-static">{{ t('about.credits_title') }}</h3>
+        <ul class="about-credits">
+          <li>ٱللَّٰه‎ for giving me my life</li>
+          <li>Parents for raising me, granting my laptop and time to cook up projects</li>
+          <li>My brothers for somehow not being nosy or disruptive...</li>
+          <li>AI for letting it happen (Claude, Opencode [Anomaly], Claude and all other tools used here)</li>
+          <p class="field-help">And... finally... the one who inspired me to care for others, understand others, be a real human being...</p>
+          <p class="jojo-credit fx-spectrum" id="jojo-credit" tabindex="0" role="img" aria-label="JOJO"><b aria-hidden="true" style="--i:0">J</b><b aria-hidden="true" style="--i:1">O</b><b aria-hidden="true" style="--i:2">J</b><b aria-hidden="true" style="--i:3">O</b></p>
+        </ul>
+        <p class="field-help">{{ t('about.credits_note') }}</p>
+      </div>
     </div>
   </dialog>
 

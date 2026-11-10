@@ -2415,7 +2415,8 @@ class CreditsButtonTests(RenderedPageFixture):
     def test_open_settings_can_land_on_a_group(self):
         self.assertIn("function openSettings(targetID)", self.js)
         self.assertIn("getElementById(targetID)", self.js)
-        self.assertIn("openSettings('group-about')", self.js)
+        self.assertIn("function openCredits", self.js)
+        self.assertIn("openCredits()", self.js)
 
     def test_the_about_group_is_the_focus_target(self):
         self.assertIn('id="group-about" tabindex="-1"', self.html)
