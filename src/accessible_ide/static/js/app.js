@@ -337,10 +337,41 @@
     return out.join('\n');
   }
 
-  function showIndentToast(message) {
+  function showIndentToast(message, lines) {
     var toast = document.createElement('div');
     toast.className = 'indent-toast';
-    toast.textContent = message;
+    var msg = document.createElement('span');
+    msg.textContent = message;
+    toast.appendChild(msg);
+    if (lines && lines.length) {
+      var info = document.createElement('button');
+      info.type = 'button';
+      info.className = 'btn btn-small indent-toast-info';
+      info.textContent = 'i';
+      info.addEventListener('click', function () {
+        var dlg = document.createElement('dialog');
+        dlg.className = 'indent-info';
+        var h = document.createElement('h3');
+        h.textContent = 'Fixed lines';
+        dlg.appendChild(h);
+        var ul = document.createElement('ul');
+        for (var i = 0; i < lines.length; i++) {
+          var li = document.createElement('li');
+          li.textContent = 'Line ' + lines[i];
+          ul.appendChild(li);
+        }
+        dlg.appendChild(ul);
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn btn-small';
+        close.textContent = 'Close';
+        close.addEventListener('click', function () { dlg.close(); dlg.remove(); });
+        dlg.appendChild(close);
+        document.body.appendChild(dlg);
+        dlg.showModal();
+      });
+      toast.appendChild(info);
+    }
     document.body.appendChild(toast);
     setTimeout(function () {
       toast.classList.add('indent-toast-hide');
@@ -392,14 +423,14 @@
     if (allAtOnce) {
       var fixedLines = info.faults.map(function (f) { return f.line + 1; });
       editor.setValue(applyIndentFix(info.lines, info.faults.map(function (f) { return f.line; })));
-      showIndentToast(t('indent.fixed_all', fixedLines.join(', ')));
+      showIndentToast(t('indent.fixed_all', fixedLines.join(', ')), fixedLines);
       return;
     }
     var remaining = info.faults.slice();
     var fixed = [];
     function step() {
       if (remaining.length === 0) {
-        if (fixed.length) showIndentToast(t('indent.fixed_all', fixed.join(', ')));
+        if (fixed.length) showIndentToast(t('indent.fixed_all', fixed.join(', ')), fixed);
         return;
       }
       var fault = remaining.shift();
@@ -409,13 +440,13 @@
         var currentLines = editor.getValue().split('\n');
         editor.setValue(applyIndentFix(currentLines, [fault.line]));
         fixed.push(lineNo);
-        showIndentToast(t('indent.fixed_one', lineNo));
+        showIndentToast(t('indent.fixed_one', lineNo), [lineNo]);
       }
       if (remaining.length > 0) {
         var next = confirm(t('indent.move_next'));
         if (next) step();
       } else {
-        if (fixed.length) showIndentToast(t('indent.fixed_all', fixed.join(', ')));
+        if (fixed.length) showIndentToast(t('indent.fixed_all', fixed.join(', ')), fixed);
       }
     }
     step();
@@ -2657,6 +2688,17 @@
              : errorState.friendly;
            errorMessage.textContent = breakLongSentences(errorText);
           errorPanel.hidden = false;
+          var fixBtn = document.getElementById('btn-fix-indent-error');
+          if (fixBtn) {
+            var isIndent = /indent/i.test(data.error || '') || /mixed/i.test(data.error || '');
+            fixBtn.hidden = !isIndent;
+            if (isIndent) {
+              fixBtn.onclick = function () {
+                fixIndentation();
+                fixBtn.hidden = true;
+              };
+            }
+          }
           highlightErrorLine(showSystem ? null : data.error_line);
           playSound('error');
           if (ttsEnabled) speak(data.error);

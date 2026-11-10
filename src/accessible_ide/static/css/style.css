@@ -2977,6 +2977,14 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   opacity: 0;
 }
 
+.indent-info {
+  min-width: 20em;
+}
+
+.indent-toast-info {
+  margin-left: var(--space-2);
+}
+
 .glossary-example-code {
   width: 100%;
   min-height: 4em;

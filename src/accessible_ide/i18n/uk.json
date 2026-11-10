@@ -116,6 +116,7 @@
   "group.ui": "Інтерфейс",
   "group.updates": "Оновлення",
   "indent.fault_at": "Fix {0}?",
+  "indent.fix": "Fix",
   "indent.fix_all_prompt": "Fix? {0}",
   "indent.fixed_all": "Fixed: {0}",
   "indent.fixed_one": "Fixed {0}.",
