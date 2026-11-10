@@ -5654,6 +5654,7 @@
   }
 
   var current = pickNext();
+  var chars = Array.from(current);
 
   function tick() {
     if (document.hidden) {
@@ -5663,8 +5664,8 @@
     }
     if (!deleting) {
       pos += 1;
-      document.title = current.slice(0, pos) + (pos < current.length ? "\u258C" : "");
-      if (pos >= current.length) {
+      document.title = chars.slice(0, pos).join("") + (pos < chars.length ? "\u258C" : "");
+      if (pos >= chars.length) {
         deleting = true;
         pause = 45;
       }
@@ -5673,10 +5674,11 @@
         pause -= 1;
       } else {
         pos -= 1;
-        document.title = current.slice(0, pos) + (pos > 0 ? "\u258C" : "");
+        document.title = chars.slice(0, pos).join("") + (pos > 0 ? "\u258C" : "");
         if (pos <= 0) {
           deleting = false;
           current = pickNext();
+          chars = Array.from(current);
         }
       }
     }
@@ -5689,6 +5691,7 @@
       pos = 0;
       deleting = false;
       current = pickNext();
+      chars = Array.from(current);
     }
   });
 

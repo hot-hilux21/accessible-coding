@@ -1266,7 +1266,9 @@
           <ul class="about-credits">
             {% for credit in credits %}
             {% if credit == "JOJO" %}
-            <li><span class="jojo-credit" id="jojo-credit" tabindex="0">JOJO</span></li>
+            <p class="jojo-credit fx-spectrum" id="jojo-credit" tabindex="0" role="img" aria-label="JOJO"><b aria-hidden="true" style="--i:0">J</b><b aria-hidden="true" style="--i:1">O</b><b aria-hidden="true" style="--i:2">J</b><b aria-hidden="true" style="--i:3">O</b></p>
+            {% elif credit == "And... finally... the one who inspired me to care for others, understand others, be a real human being..." %}
+            <p class="field-help">{{ credit }}</p>
             {% else %}
             <li>{{ credit }}</li>
             {% endif %}

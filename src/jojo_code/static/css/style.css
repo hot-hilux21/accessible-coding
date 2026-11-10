@@ -2534,20 +2534,44 @@ dialog[open] { animation: dialog-arrive var(--motion-med) var(--ease) both; }
   }
 }
 
+/* ---------- The Prisma spectrum ----------
+
+:root { --ink: currentColor; --ink-2: #FF4FD8; --ink-3: #4FF8FF; }
+
+/* 16 Prisma - each letter refracts a different band of the spectrum */
+.fx-spectrum {
+  font: 600 26px/1.1 "JetBrains Mono", monospace;
+  letter-spacing: .08em;
+}
+.fx-spectrum b {
+  font-weight: inherit;
+  display: inline-block;
+  color: var(--ink-2, #ff2d78);
+  filter: hue-rotate(calc(var(--i) * 42deg));
+  animation: fx-spectrum 2.4s linear;
+  animation-delay: calc(var(--i) * -.1s);
+}
+@keyframes fx-spectrum {
+  to { filter: hue-rotate(calc(var(--i) * 42deg + 360deg)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-spectrum b { animation: none; }
+}
+
 /* ---------- The JOJO credit ---------- */
 
 .jojo-credit {
-  display: inline-block;
+  display: block;
+  text-align: center;
   font-size: 3rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   padding: var(--space-3) var(--space-5);
-  background: linear-gradient(90deg, #ff0040, #ff8a00, #ffe600, #00ff6f, #00cfff, #7a00ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+  color: var(--ink, currentColor);
   cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
 }
 
 .confetti {
