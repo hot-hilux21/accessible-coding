@@ -4799,9 +4799,14 @@
   var MIN_PCT = 20;
   var MAX_PCT = 80;
   var editorWidthPct = 50;
+  var editorHeightPct = 50;
   // The shell opens at half the right column: output on top, shell below,
   // the two sharing the height evenly until the reader drags the divider.
   var shellHeightPct = 50;
+
+  function isStacked() {
+    return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+  }
 
   function clampPct(value) {
     return Math.min(MAX_PCT, Math.max(MIN_PCT, value));
@@ -4809,8 +4814,9 @@
 
   function applyLayout() {
     if (workspaceEl) workspaceEl.style.setProperty('--editor-width', editorWidthPct + '%');
+    if (workspaceEl) workspaceEl.style.setProperty('--editor-height', editorHeightPct + '%');
     if (rightColumn) rightColumn.style.setProperty('--shell-height', shellHeightPct + '%');
-    if (dividerMain) dividerMain.setAttribute('aria-valuenow', String(editorWidthPct));
+    if (dividerMain) dividerMain.setAttribute('aria-valuenow', String(isStacked() ? editorHeightPct : editorWidthPct));
     if (dividerShell) dividerShell.setAttribute('aria-valuenow', String(shellHeightPct));
   }
 
@@ -4850,11 +4856,20 @@
 
     function onMove(ev) {
       if (axis === 'vertical') {
-        var width = workspaceEl && workspaceEl.getBoundingClientRect ?
-          workspaceEl.getBoundingClientRect().width : 0;
-        if (width > 0) {
-          editorWidthPct = clampPct(startWidth + ((ev.clientX - startX) / width) * 100);
-          moved = true;
+        if (isStacked()) {
+          var height = workspaceEl && workspaceEl.getBoundingClientRect ?
+            workspaceEl.getBoundingClientRect().height : 0;
+          if (height > 0) {
+            editorHeightPct = clampPct(startHeight + ((ev.clientY - startY) / height) * 100);
+            moved = true;
+          }
+        } else {
+          var width = workspaceEl && workspaceEl.getBoundingClientRect ?
+            workspaceEl.getBoundingClientRect().width : 0;
+          if (width > 0) {
+            editorWidthPct = clampPct(startWidth + ((ev.clientX - startX) / width) * 100);
+            moved = true;
+          }
         }
       } else {
         var height = rightColumn && rightColumn.getBoundingClientRect ?

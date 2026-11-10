@@ -1483,9 +1483,9 @@ class ReflowCssTests(unittest.TestCase):
         block = self.narrow.split(".settings-form {", 1)[1].split("}", 1)[0]
         self.assertIn("grid-template-columns: minmax(0, 1fr)", block)
 
-    def test_the_divider_is_hidden_with_the_split(self):
+    def test_the_divider_stays_draggable_when_stacked(self):
         block = self.narrow.split(".divider {", 1)[1].split("}", 1)[0]
-        self.assertIn("display: none", block)
+        self.assertIn("display: block", block)
 
 
 class TargetSizeCssTests(unittest.TestCase):

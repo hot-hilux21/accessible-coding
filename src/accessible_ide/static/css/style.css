@@ -2187,7 +2187,24 @@ body[data-contrast="high"][data-theme="pastel"] {
     border-top: 1px solid var(--panel-border);
   }
   .divider {
-    display: none;
+    display: block;
+    flex: 0 0 12px;
+    width: auto;
+    height: 12px;
+  }
+  .divider::after {
+    top: 5px;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    width: auto;
+    height: 2px;
+  }
+  .workspace {
+    flex-direction: column;
+  }
+  .editor-pane {
+    flex: 0 0 var(--editor-height, 50%);
   }
   /* A phone has no width to spare for a column beside the sections, so the
      sections go back above them. They keep their own line each rather than
@@ -2214,6 +2231,7 @@ body[data-contrast="high"][data-theme="pastel"] {
     grid-column: 1;
   }
   .footer {
+    font-size: 0.8em;
     padding-bottom: 4rem;
   }
   body .reset-all {
