@@ -588,7 +588,7 @@ body[data-show-shortcut-label="true"] .btn-shortcut {
    the glyph. */
 .btn:hover .btn-icon svg {
   color: var(--accent);
-  filter: drop-shadow(0 0 3px var(--accent));
+  text-shadow: 0 0 4px var(--accent);
 }
 
 .btn:active {
@@ -2217,6 +2217,9 @@ body[data-contrast="high"][data-theme="pastel"] {
     padding-bottom: 4rem;
   }
   body .reset-all {
+    inset-block-end: 5rem;
+  }
+  body .hide-icons {
     inset-block-end: 5rem;
   }
 }

@@ -161,15 +161,16 @@ SECTIONS = (
         'title': 'Lists',
         'note': 'Lists hold values in order and can be changed.',
         'rows': (
-            ('`fruits = ["apple", "pear"]`', 'Create a list.'),
-            ('`fruits[0]`', 'Get the first item.'),
+            ('`fruits = []`', 'Create an empty list.'),
+            ('`fruits = ["apple", "pear"]`', 'Create a list with the items in it.'),
+            ('`fruits[0]`', 'Get the first item (lists are zero indexed, so the first item is 0).'),
             ('`len(fruits)`', 'Get how many items.'),
             ('`fruits.append("plum")`', 'Add an item to the end.'),
             ('`fruits.remove("pear")`', 'Remove an item.'),
             ('`fruits[0] = "banana"`', 'Change an item.'),
             ('`fruits.pop()`', 'Remove the last item.'),
         ),
-        'example': 'fruits = ["apple", "pear"]\nfruits.append("plum")\nprint(fruits, len(fruits))\nfruits.remove("pear")\nprint(fruits)',
+        'example': 'fruits = []\nfruits.append("apple")\nfruits.append("pear")\nprint(fruits, len(fruits))\nprint(fruits[0])',
     },
     {
         'title': 'Formatting',
@@ -182,6 +183,20 @@ SECTIONS = (
             ('`format(3.14159, ".3g")`', 'Format to 3 significant figures.'),
         ),
         'example': 'pi = 3.14159\nprint(round(pi, 2))\nprint(f"{pi:.2f}")\nprint(format(pi, ".3g"))',
+    },
+    {
+        'title': 'Vocabulary',
+        'note': 'Words you will meet in this app.',
+        'rows': (
+            ('`IDE`', 'Integrated Development Environment: the app you write code in.'),
+            ('`zero-index`', 'Counting starts at 0, so the first item is at index 0.'),
+            ('`interpreter`', 'Runs Python code line by line.'),
+            ('`compiler`', 'Turns code into another form before running.'),
+            ('`boolean`', 'A value that is True or False.'),
+            ('`operator`', 'A symbol like +, == or and that does work on values.'),
+            ('`terminal`', 'A text window where you type commands.'),
+        ),
+        'example': 'print("IDE, zero-index, interpreter, compiler, boolean, operator")',
     },
 )
 

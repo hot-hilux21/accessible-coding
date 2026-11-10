@@ -352,8 +352,9 @@ Lists hold values in order and can be changed.
 
 | Command | What it does |
 | --- | --- |
-| `fruits = ["apple", "pear"]` | Create a list. |
-| `fruits[0]` | Get the first item. |
+| `fruits = []` | Create an empty list. |
+| `fruits = ["apple", "pear"]` | Create a list with the items in it. |
+| `fruits[0]` | Get the first item (lists are zero indexed, so the first item is 0). |
 | `len(fruits)` | Get how many items. |
 | `fruits.append("plum")` | Add an item to the end. |
 | `fruits.remove("pear")` | Remove an item. |
@@ -361,11 +362,11 @@ Lists hold values in order and can be changed.
 | `fruits.pop()` | Remove the last item. |
 
 ```python
-fruits = ["apple", "pear"]
-fruits.append("plum")
+fruits = []
+fruits.append("apple")
+fruits.append("pear")
 print(fruits, len(fruits))
-fruits.remove("pear")
-print(fruits)
+print(fruits[0])
 ```
 
 ### Formatting
@@ -385,6 +386,24 @@ pi = 3.14159
 print(round(pi, 2))
 print(f"{pi:.2f}")
 print(format(pi, ".3g"))
+```
+
+### Vocabulary
+
+Words you will meet in this app.
+
+| Command | What it does |
+| --- | --- |
+| `IDE` | Integrated Development Environment: the app you write code in. |
+| `zero-index` | Counting starts at 0, so the first item is at index 0. |
+| `interpreter` | Runs Python code line by line. |
+| `compiler` | Turns code into another form before running. |
+| `boolean` | A value that is True or False. |
+| `operator` | A symbol like +, == or and that does work on values. |
+| `terminal` | A text window where you type commands. |
+
+```python
+print("IDE, zero-index, interpreter, compiler, boolean, operator")
 ```
 
 ## Common mistakes of programmers
