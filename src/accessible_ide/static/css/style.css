@@ -2213,6 +2213,12 @@ body[data-contrast="high"][data-theme="pastel"] {
   .settings-body {
     grid-column: 1;
   }
+  .footer {
+    padding-bottom: 4rem;
+  }
+  body .reset-all {
+    inset-block-end: 5rem;
+  }
 }
 
 /* ============================================================
@@ -2306,6 +2312,14 @@ body[data-contrast="high"][data-theme="pastel"] {
 body[data-reduce-motion='true'] *,
 body[data-reduce-motion='true'] *::before,
 body[data-reduce-motion='true'] *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* While a theme colour changes, hold every transition still so nothing
+   flashes. Used when the background gradient is toggled. */
+body.no-transition,
+body.no-transition * {
   transition: none !important;
   animation: none !important;
 }

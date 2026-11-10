@@ -694,6 +694,15 @@
                the theme select; app.js shows it and wires the fields. -->
           <div class="field" id="theme-builder" hidden>
             <p class="field-help" id="theme-builder-help">{{ t('theme.custom_help') }}</p>
+            <div class="field field-inline">
+              <label for="theme-preset">{{ t('theme.preset') }}</label>
+              <select id="theme-preset">
+                {% for key in quick_themes %}
+                <option value="{{ key }}">{{ t('theme.' ~ key) }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" class="btn btn-small" id="theme-preset-apply">{{ t('theme.preset_apply') }}</button>
+            </div>
             <div class="theme-builder-grid">
               {% for key, label in (('page', 'theme.custom_page'), ('bg', 'theme.custom_bg'), ('fg', 'theme.custom_fg'), ('selection', 'theme.custom_selection'), ('error', 'theme.custom_error')) %}
               <div class="field theme-builder-field">

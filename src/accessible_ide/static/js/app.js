@@ -3987,6 +3987,24 @@
           saveCustomTheme();
         });
       });
+
+    var themePreset = document.getElementById('theme-preset');
+    var themePresetApply = document.getElementById('theme-preset-apply');
+    if (themePresetApply && themePreset) {
+      themePresetApply.addEventListener('click', function () {
+        var base = themePalette[themePreset.value];
+        if (!base || !base.keyword) return;
+        themeBuilderFields.forEach(function (key) {
+          var hex = customFieldHex(key);
+          var picker = customFieldPicker(key);
+          var value = base[key] || base.bg || base.fg;
+          if (hex) hex.value = value;
+          if (picker) picker.value = value;
+        });
+        repaintCustomTheme();
+        saveCustomTheme();
+      });
+    }
   }
 
   // ---------- Interface labels ----------
@@ -4138,9 +4156,13 @@
   var themeGradientState = document.getElementById('theme-gradient-state');
 
   function applyThemeGradient(on) {
+    body.classList.add('no-transition');
     body.setAttribute('data-gradient', on ? 'on' : 'off');
     if (themeGradientState) themeGradientState.textContent = on
       ? t('switch.on') : t('switch.off');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { body.classList.remove('no-transition'); });
+    });
   }
 
   if (themeGradient) {
