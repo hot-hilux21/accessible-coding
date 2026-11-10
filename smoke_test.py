@@ -1,4 +1,4 @@
-"""Smoke test for AccessibleCoding (includes security checks)."""
+"""Smoke test for Jojo Code (includes security checks)."""
 import sys
 import os
 import io

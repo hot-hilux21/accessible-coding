@@ -1,4 +1,4 @@
-"""Translations for the AccessibleCoding interface.
+"""Translations for the Jojo Code interface.
 
 Every visible word in the app comes from a JSON catalogue in this folder.
 ``en.json`` is the reference: it must define every key, and every other
@@ -49,7 +49,7 @@ LANGUAGES: dict[str, tuple[str, str, str]] = {
 # Sentences that legitimately stay in English regardless of locale, so
 # the leftover-English check does not cry wolf on them.
 _ALLOWED_ENGLISH = {
-    "AccessibleCoding",
+    "Jojo Code",
     "GitHub",
     "Python",
     "Windows",
@@ -58,6 +58,14 @@ _ALLOWED_ENGLISH = {
     "EDI",
     "IDE",
     "sys",
+    "Extra modules (advanced)",
+    "Install these in your own Python with pip. They are not bundled with Jojo Code.",
+    "pygame, pygame-ce, arcade, pyglet, Pillow - Games and graphics.",
+    "numpy, pandas, matplotlib, scipy - Numbers, data and plots.",
+    "requests, flask, fastapi, beautifulsoup4 - Web and internet.",
+    "sqlalchemy, sqlite-utils - Databases.",
+    "pytest, rich, black - Testing and tidy code.",
+    "Example: pip install pygame numpy pandas matplotlib requests flask sqlalchemy pytest",
 }
 
 

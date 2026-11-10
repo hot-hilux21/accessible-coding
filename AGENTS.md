@@ -1,8 +1,8 @@
-# AGENTS.md — AccessibleCoding (Dyslexia IDE)
+# AGENTS.md — Jojo Code (Dyslexia IDE)
 
 ## Project Overview
 
-AccessibleCoding is a fully accessible, open-source IDE prioritizing dyslexic and neurodivergent learners. Python-first, with dyslexia-friendly fonts, configurable focus/blur modes, text-to-speech, plain-English errors, and customizable syntax highlighting.
+Jojo Code is a fully accessible, open-source IDE prioritizing dyslexic and neurodivergent learners. Python-first, with dyslexia-friendly fonts, configurable focus/blur modes, text-to-speech, plain-English errors, and customizable syntax highlighting.
 
 - **Authoritative spec:** `accessible-ide-requirements.md` (root) — read this before planning any feature. The MVP feature checklist is in section 10.
 - **Status:** Shipped. Flask web app and Windows `.exe`; version 1.0.0.

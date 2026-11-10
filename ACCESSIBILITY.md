@@ -1,6 +1,6 @@
 # Accessibility statement and testing approach
 
-AccessibleCoding targets WCAG 2.1 AA and selected WCAG 2.2 additions.
+Jojo Code targets WCAG 2.1 AA and selected WCAG 2.2 additions.
 
 ## Current evidence
 

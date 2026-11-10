@@ -47,7 +47,7 @@ jobs:
               pm2 logs accessible-coding --lines 100 --nostream
               exit 1
             fi
-            if ! grep -q 'AccessibleCoding' /tmp/accessible-coding-page.html; then
+            if ! grep -q 'Jojo Code' /tmp/accessible-coding-page.html; then
               pm2 logs accessible-coding --lines 100 --nostream
               exit 1
             fi

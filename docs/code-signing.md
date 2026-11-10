@@ -36,7 +36,7 @@ Apply at <https://signpath.org/apply>. The form asks for the repository, the
 license, and how the builds are produced. Everything it wants already exists in
 this repository, so the answers are short. What to say:
 
-- **Project:** AccessibleCoding, <https://github.com/hot-hilux21/accessible-coding>
+- **Project:** Jojo Code, <https://github.com/hot-hilux21/jojo-code-ide>
 - **License:** MIT (see `LICENSE` in the repository root)
 - **What it is:** a Python editor for dyslexic and neurodivergent learners, built
   as a Flask app that runs in a WebView2 window on Windows. Offered free, with
@@ -45,8 +45,8 @@ this repository, so the answers are short. What to say:
   on `main`. Two jobs build a PyInstaller bundle and an Inno Setup installer
   (`.github/workflows/build-release.yml`). Both are produced from the tagged
   commit by the workflow, with nothing built by hand outside it.
-- **What needs signing:** `AccessibleCoding.exe` (the portable build) and
-  `AccessibleCoding-Setup.exe` (the installer readers download).
+- **What needs signing:** `JojoCode.exe` (the portable build) and
+  `JojoCode-Setup.exe` (the installer readers download).
 
 They may ask for a maintainer to be named and for the repository to have the
 SignPath GitHub App installed, which is at <https://github.com/apps/signpath>.
@@ -87,14 +87,14 @@ with the executable inside it:
 ```xml
 <artifact-configuration xmlns="http://signpath.io/artifact-configuration">
   <zip-file>
-    <pe-file path="AccessibleCoding-Setup.exe">
+    <pe-file path="JojoCode-Setup.exe">
       <authenticode-sign />
     </pe-file>
   </zip-file>
 </artifact-configuration>
 ```
 
-and the same shape with `AccessibleCoding.exe` for the portable build. The `path`
+and the same shape with `JojoCode.exe` for the portable build. The `path`
 is matched against the entry names inside the archive, so if a release starts
 failing at the signing step with a message about a missing file, this is the
 line to look at first.
@@ -136,7 +136,7 @@ is unsigned, the same as before.
 On a Windows machine, on the file that was downloaded:
 
 ```powershell
-Get-AuthenticodeSignature .\AccessibleCoding-Setup.exe | Format-List Status, SignerCertificate
+Get-AuthenticodeSignature .\JojoCode-Setup.exe | Format-List Status, SignerCertificate
 ```
 
 `Status` should read `Valid` and the subject should name SignPath Foundation.

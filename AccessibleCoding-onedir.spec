@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller onedir spec for AccessibleCoding Windows installer build.
+"""PyInstaller onedir spec for Jojo Code Windows installer build.
 
-Produces dist/AccessibleCoding/ (folder with exe + _internal/).
+Produces dist/Jojo Code/ (folder with exe + _internal/).
 A folder install is more reliable than onefile: no temp extraction,
 faster startup, and fewer antivirus false positives.
 """
@@ -53,7 +53,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='AccessibleCoding',
+    name='JojoCode',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -77,5 +77,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='AccessibleCoding',
+    name='JojoCode',
 )

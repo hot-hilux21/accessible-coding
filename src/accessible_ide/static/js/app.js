@@ -1,5 +1,5 @@
 /* ============================================================
-   AccessibleCoding - Frontend logic
+   Jojo Code - Frontend logic
    CodeMirror editor, code runner, config persistence, TTS
    ============================================================ */
 
@@ -264,7 +264,7 @@
     indentWithTabs: false,
     lineWrapping: true,
     autofocus: true,
-    value: '# Welcome to AccessibleCoding!\n# Write Python code and press Run (or Ctrl+Enter).\n\nprint("Hello, world!")\n\nfor i in range(3):\n    print("Counting:", i)\n'
+    value: '# Welcome to Jojo Code!\n# Write Python code and press Run (or Ctrl+Enter).\n\nprint("Hello, world!")\n\nfor i in range(3):\n    print("Counting:", i)\n'
   });
 
   // ---------- Indentation helpers ----------
@@ -5616,19 +5616,19 @@
 // shows a louder message while the tab is in the background.
 (function () {
   var titles = [
-    "AccessibleCoding reads well",
-    "AccessibleCoding: \u0906\u0930\u093E\u092E \u0938\u0947",
-    "AccessibleCoding: confort",
-    "AccessibleCoding: comodidad",
-    "AccessibleCoding: l\u00EA bem",
-    "AccessibleCoding: \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F",
-    "AccessibleCoding: \uC77D\uAE30\uC26C\uC6B4",
-    "AccessibleCoding: \u8AAD\u307F\u3084\u3059\u3044",
-    "AccessibleCoding: \u8BFB\u5F97\u987A",
-    "AccessibleCoding: \u03B5\u03CD\u03BA\u03BF\u03BB\u03B1",
-    "AccessibleCoding: \u0628\u0631\u0627\u062D\u0629",
-    "AccessibleCoding: \u0628\u0633\u0647\u0648\u0644\u0629",
-    "AccessibleCoding: \u0437\u0440\u0443\u0447\u043D\u043E"
+    "Jojo Code reads well",
+    "Jojo Code: \u0906\u0930\u093E\u092E \u0938\u0947",
+    "Jojo Code: confort",
+    "Jojo Code: comodidad",
+    "Jojo Code: l\u00EA bem",
+    "Jojo Code: \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F",
+    "Jojo Code: \uC77D\uAE30\uC26C\uC6B4",
+    "Jojo Code: \u8AAD\u307F\u3084\u3059\u3044",
+    "Jojo Code: \u8BFB\u5F97\u987A",
+    "Jojo Code: \u03B5\u03CD\u03BA\u03BF\u03BB\u03B1",
+    "Jojo Code: \u0628\u0631\u0627\u062D\u0629",
+    "Jojo Code: \u0628\u0633\u0647\u0648\u0644\u0629",
+    "Jojo Code: \u0437\u0440\u0443\u0447\u043D\u043E"
   ];
   var eggs = [];
   fetch("/static/status.md").then(function (r) { return r.text(); }).then(function (text) {

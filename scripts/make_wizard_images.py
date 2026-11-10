@@ -37,7 +37,7 @@ MUTED = (170, 170, 170, 255)   # --muted   #AAAAAA
 PANEL = (430, 824)
 SMALL = 147
 
-WORDMARK = "AccessibleCoding"
+WORDMARK = "Jojo Code"
 TAGLINE = "Python editor"
 
 BOLD = "AtkinsonHyperlegible-Bold.ttf"

@@ -1,6 +1,6 @@
 # AccessibleIDE: Review, Rating and Next Steps
 
-Source reviewed: https://github.com/hot-hilux21/accessible-coding (code and README, read from the public repo; the live app and a screen reader were not tested).
+Source reviewed: https://github.com/hot-hilux21/jojo-code-ide (code and README, read from the public repo; the live app and a screen reader were not tested).
 
 ## Rating: 7.5 / 10 (beta v0.1.0)
 

@@ -1,4 +1,4 @@
-# AccessibleCoding
+# Jojo Code
 
 A fully accessible IDE for dyslexic and neurodivergent learners.
 
@@ -63,7 +63,7 @@ Jump to any section:
 
 ## Accessibility
 
-AccessibleCoding is built for dyslexic and neurodivergent readers, not adapted for them afterwards. The accessibility features are part of the interface, and the test suite checks the ones that can be measured.
+Jojo Code is built for dyslexic and neurodivergent readers, not adapted for them afterwards. The accessibility features are part of the interface, and the test suite checks the ones that can be measured.
 
 - **Reading fonts:** OpenDyslexic is the default. Atkinson Hyperlegible, Lexend and Nunito are bundled, and you can add your own `.ttf`, `.otf`, `.woff` or `.woff2` file. The chosen font can be applied to the code, the output, the shell and the rest of the interface separately.
 - **Text size and spacing:** font size, line height, letter spacing and text weight are adjustable, with separate controls for the editor, output and shell.
@@ -86,8 +86,8 @@ AccessibleCoding is built for dyslexic and neurodivergent readers, not adapted f
 ## Try it now
 
 - **Web app:** [https://accessible-coding.duckdns.org](https://accessible-coding.duckdns.org) — hosted on Oracle Cloud
-- **Windows installer (recommended):** download `AccessibleCoding-Setup.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleCoding-Setup.exe) — installs the app to any folder, installs Python and adds it to PATH, and creates shortcuts
-- **Windows exe (portable):** download `AccessibleCoding.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleCoding.exe)
+- **Windows installer (recommended):** download `JojoCode-Setup.exe` from the [beta release](https://github.com/hot-hilux21/jojo-code-ide/releases/download/beta/JojoCode-Setup.exe) — installs the app to any folder, installs Python and adds it to PATH, and creates shortcuts
+- **Windows exe (portable):** download `JojoCode.exe` from the [beta release](https://github.com/hot-hilux21/jojo-code-ide/releases/download/beta/JojoCode.exe)
 
 [↑ Back to contents](#contents) · [↓ Next: Getting started](#getting-started)
 
@@ -97,14 +97,14 @@ AccessibleCoding is built for dyslexic and neurodivergent readers, not adapted f
 
 ### Windows installer (recommended)
 
-1. Download `AccessibleCoding-Setup.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleCoding-Setup.exe)
+1. Download `JojoCode-Setup.exe` from the [beta release](https://github.com/hot-hilux21/jojo-code-ide/releases/download/beta/JojoCode-Setup.exe)
 2. Run it. Choose any install folder.
 3. Tick **Install Python and add it to PATH** (on by default) — the installer also installs the Microsoft Visual C++ runtime and the WebView2 runtime it needs.
 4. Finish, and the IDE opens in its own **desktop window** (no browser needed). Write Python, then press **Run** (or `Ctrl+Enter`).
 
 ### Windows portable (.exe)
 
-1. Download `AccessibleCoding.exe` from the [beta release](https://github.com/hot-hilux21/accessible-coding/releases/download/beta/AccessibleCoding.exe)
+1. Download `JojoCode.exe` from the [beta release](https://github.com/hot-hilux21/jojo-code-ide/releases/download/beta/JojoCode.exe)
 2. Double-click to run. A **desktop window** opens with the IDE (no browser tab).
 3. Write Python, then press **Run** (or `Ctrl+Enter`).
 
@@ -119,7 +119,7 @@ Open [https://accessible-coding.duckdns.org](https://accessible-coding.duckdns.o
 ### Development
 
 ```bash
-git clone https://github.com/hot-hilux21/accessible-coding.git
+git clone https://github.com/hot-hilux21/jojo-code-ide.git
 cd accessible-coding
 pip install -r requirements.txt
 python app.py
@@ -131,10 +131,10 @@ Then open http://localhost:5000
 
 ```bash
 pip install pyinstaller
-pyinstaller AccessibleCoding.spec --noconfirm
+pyinstaller Jojo Code.spec --noconfirm
 ```
 
-Your exe is at `dist/AccessibleCoding.exe`.
+Your exe is at `dist/JojoCode.exe`.
 
 ### Run tests
 
@@ -541,4 +541,4 @@ Feedback and testing help are always welcome — especially from the people this
 
 ---
 
-*AccessibleCoding — code comfortably.*
+*Jojo Code — code comfortably.*

@@ -1,5 +1,5 @@
 """
-AccessibleCoding - A fully accessible IDE for dyslexic and neurodivergent learners.
+Jojo Code - A fully accessible IDE for dyslexic and neurodivergent learners.
 """
 import os
 import secrets
@@ -7,7 +7,7 @@ import secrets
 from flask import Flask, jsonify, request
 
 __version__ = "2.0.0-beta"
-__author__ = "AccessibleCoding Contributors"
+__author__ = "Jojo Code Contributors"
 
 
 def create_app():

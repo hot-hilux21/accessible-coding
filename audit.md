@@ -1,7 +1,7 @@
-# AccessibleCoding — Product, Website & Engineering Audit
+# Jojo Code — Product, Website & Engineering Audit
 
 **Audit date:** 5 November 2026  
-**Repository:** https://github.com/hot-hilux21/accessible-coding  
+**Repository:** https://github.com/hot-hilux21/jojo-code-ide  
 **Live website:** https://accessible-coding.duckdns.org/  
 **Scope:** Public repository overview/README, published live-site interface text, and product documentation visible without a connected GitHub account.
 
@@ -11,7 +11,7 @@
 
 ## 1. Executive summary
 
-AccessibleCoding has a strong and unusually coherent purpose: a Python-first learning IDE designed around reading comfort, focus, plain-English feedback, and user-controlled presentation. The project already describes a substantial feature set: adjustable fonts and spacing, focus modes, a reading ruler, themes, text-to-speech, sound cues, keyboard controls, screen-reader support, a Python dictionary, and Windows/browser delivery.
+Jojo Code has a strong and unusually coherent purpose: a Python-first learning IDE designed around reading comfort, focus, plain-English feedback, and user-controlled presentation. The project already describes a substantial feature set: adjustable fonts and spacing, focus modes, a reading ruler, themes, text-to-speech, sound cues, keyboard controls, screen-reader support, a Python dictionary, and Windows/browser delivery.
 
 The most promising aspect is that accessibility is treated as part of the product rather than as a cosmetic overlay. The controls are granular, and the app recognises that the editor, output, shell, and surrounding interface can need different presentation settings.
 
@@ -416,7 +416,7 @@ Do not prioritise adding more themes, visual effects, or dozens of settings unti
 
 ### References
 
-- Repository: https://github.com/hot-hilux21/accessible-coding
+- Repository: https://github.com/hot-hilux21/jojo-code-ide
 - Live application: https://accessible-coding.duckdns.org/
 - GitHub accessibility page guidance: https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/adding-an-accessibility-page-to-your-repository
 - WCAG overview (MDN): https://developer.mozilla.org/en-US/docs/Web/Accessibility/Guides/Understanding_WCAG

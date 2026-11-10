@@ -101,7 +101,7 @@ class InstallerStampTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.iss = pathlib.Path(self.tmp.name) / "installer.iss"
         self.iss.write_text(
-            '#define MyAppName "AccessibleCoding"\n'
+            '#define MyAppName "Jojo Code"\n'
             '#define MyAppVersion "0.2.2"\n'
             '\n'
             'AppName={#MyAppName}\n'
@@ -179,7 +179,7 @@ class InstallLocationTests(unittest.TestCase):
     def test_it_installs_under_program_files(self):
         self.assertEqual(
             self.setting("DefaultDirName"),
-            r"{commonpf}\HotHilux_21\AccessibleCoding")
+            r"{commonpf}\HotHilux_21\Jojo Code")
 
     def test_elevating_is_requested_so_that_folder_is_writable(self):
         self.assertEqual(self.setting("PrivilegesRequired"), "admin")
@@ -216,7 +216,7 @@ class ManifestTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.exe = pathlib.Path(self.tmp.name) / "AccessibleCoding.exe"
+        self.exe = pathlib.Path(self.tmp.name) / "JojoCode.exe"
         self.exe.write_bytes(b"MZ" + b"pretend this is a program" * 100)
         self.url = f"{updater.RELEASES_BASE}/download/latest/{updater.ASSET_NAME}"
 
@@ -270,7 +270,7 @@ class ManifestTests(unittest.TestCase):
     def test_an_address_on_another_site_is_still_refused(self):
         with self.assertRaises(updater.UpdateError):
             updater._allowed_asset_url(
-                "https://example.com/releases/download/v1/AccessibleCoding.exe")
+                "https://example.com/releases/download/v1/JojoCode.exe")
 
     def test_a_stamped_build_offers_itself_as_an_update(self):
         # The round trip: stamp the real package, read the version back the

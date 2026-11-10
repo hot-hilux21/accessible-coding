@@ -830,7 +830,7 @@ class SetupWizardTests(RenderedPageFixture):
         )
         self.assertIsNotNone(progress)
         assert progress is not None  # narrow the type for checkers
-        self.assertIn("4", progress.group(1))
+        self.assertIn("5", progress.group(1))
         self.assertNotIn("/", progress.group(1))
         self.assertRegex(self.html, r'id="setup-progress"[^>]*role="status"')
 
@@ -848,10 +848,10 @@ class SetupWizardTests(RenderedPageFixture):
             shown,
             [("setup-panel-language", False), ("setup-panel-font", True),
              ("setup-panel-theme", False), ("setup-panel-custom", False),
-             ("setup-panel-tour", False)],
+             ("setup-panel-modules", False), ("setup-panel-tour", False)],
             "resuming on step 2 should show the font question and hide the rest",
         )
-        self.assertIn("Step 2 of 4", resumed)
+        self.assertIn("Step 2 of 5", resumed)
         # Back is hidden on the first step, because there is nowhere before
         # it to go, and offered from the second onwards.
         self.assertRegex(self.html, r'id="setup-back"[^>]*hidden')

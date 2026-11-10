@@ -1,4 +1,4 @@
-"""Tests for AccessibleCoding.
+"""Tests for Jojo Code.
 
 Uses only the standard library's unittest, so the project needs no
 test dependencies installed. Run from the repo root with:

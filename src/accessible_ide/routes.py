@@ -1,5 +1,5 @@
 """
-Main routes for AccessibleCoding.
+Main routes for Jojo Code.
 """
 from flask import Blueprint, render_template, request, jsonify, make_response, send_from_directory, has_request_context
 import hmac
@@ -219,7 +219,7 @@ USER_FONT_DIR = CONFIG_DIR / 'fonts'
 # The first-run setup screen, one step at a time. Defined here rather than in
 # the template so the validation below, the rendered progress text and the
 # step each panel is tagged with all read the same number.
-SETUP_STEPS = ('language', 'font', 'theme', 'custom', 'tour')
+SETUP_STEPS = ('language', 'font', 'theme', 'custom', 'modules', 'tour')
 SETUP_TOTAL_STEPS = len(SETUP_STEPS)
 
 # The custom colours step is only a step when the reader picked the custom
@@ -2608,7 +2608,7 @@ def config_export_api():
     # file the app wrote has to be a file the app can read back.
     config = {key: value for key, value in config.items() if value is not None}
     payload = json.dumps(
-        {'app': 'AccessibleCoding', 'version': __version__, 'config': config},
+        {'app': 'Jojo Code', 'version': __version__, 'config': config},
         indent=2, ensure_ascii=False,
     )
     response = make_response(payload)

@@ -123,7 +123,7 @@ class MissingCatalogueTests(unittest.TestCase):
         self.assertEqual(i18n.load_catalogue('fr'),
                          i18n.load_catalogue('en'))
         self.assertEqual(i18n.load_catalogue('fr')['app.title'],
-                         'AccessibleCoding: code that reads well')
+                         'Jojo Code: code that reads well')
 
     def test_an_unknown_language_falls_back_rather_than_failing(self):
         # A language we never heard of is not an error, it is English.

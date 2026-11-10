@@ -898,7 +898,7 @@ export default function App() {
           >
             <Badge variant="secondary">shadcn</Badge>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-              AccessibleCoding
+              Jojo Code
             </h1>
             <p className="text-muted-foreground">
               Accessible coding editor for dyslexic and neurodivergent learners.

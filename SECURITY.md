@@ -1,6 +1,6 @@
 # Security policy and threat model
 
-AccessibleCoding accepts Python code in its hosted execution environment. Security requirements are documented here while the hosted runner is hardened.
+Jojo Code accepts Python code in its hosted execution environment. Security requirements are documented here while the hosted runner is hardened.
 
 ## Current hosted execution state
 

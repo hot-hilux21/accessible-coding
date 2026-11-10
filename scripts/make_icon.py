@@ -1,4 +1,4 @@
-"""Generate the AccessibleCoding app icon (.ico).
+"""Generate the Jojo Code app icon (.ico).
 
 High-contrast, dyslexia-friendly: bold dark "A" on a rounded
 accent-yellow tile. Produces multi-size ICO for Windows.

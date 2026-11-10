@@ -412,7 +412,7 @@
   </main>
 
   <footer class="footer" role="contentinfo">
-    <p>{{ t('footer.text') }} <a href="https://github.com/hot-hilux21/accessible-coding" target="_blank" rel="noopener">{{ t('footer.github') }}</a></p>
+    <p>{{ t('footer.text') }} <a href="https://github.com/hot-hilux21/jojo-code-ide" target="_blank" rel="noopener">{{ t('footer.github') }}</a></p>
     <!-- A newer version, when a check has found one. A plain line in the
          main window rather than a badge or a flash: pressing it opens
          Settings at the updates group, where the check and the download
@@ -1593,7 +1593,22 @@
           </fieldset>
         </section>
 
-        <!-- ---------- Step 5: what this app does ---------- -->
+        <!-- ---------- Step 5: extra modules for advanced work ---------- -->
+        <section id="setup-panel-modules" class="setup-panel"
+                 {% if setup_step_key != 'modules' %}hidden{% endif %}>
+          <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.modules_title') }}</legend>
+          <p class="field-help">{{ t('setup.modules_help') }}</p>
+          <ul class="setup-tour">
+            <li><p class="setup-module-name">{{ t('setup.modules_games') }}</p></li>
+            <li><p class="setup-module-name">{{ t('setup.modules_data') }}</p></li>
+            <li><p class="setup-module-name">{{ t('setup.modules_web') }}</p></li>
+            <li><p class="setup-module-name">{{ t('setup.modules_db') }}</p></li>
+            <li><p class="setup-module-name">{{ t('setup.modules_quality') }}</p></li>
+          </ul>
+          <p class="field-help">{{ t('setup.modules_example') }}</p>
+        </section>
+
+        <!-- ---------- Step 6: what this app does ---------- -->
         <section id="setup-panel-tour" class="setup-panel"
                  {% if setup_step_key != 'tour' %}hidden{% endif %}>
           <h3 class="settings-legend setup-legend" tabindex="-1">{{ t('setup.tour_title') }}</h3>
