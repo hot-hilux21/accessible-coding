@@ -277,11 +277,11 @@
     var from = doc.getCursor('from');
     var to = doc.getCursor('to');
     if (from.line === to.line && from.ch === to.ch) {
-      doc.replaceRange('    ', { line: from.line, ch: 0 });
+      doc.replaceRange('\t', { line: from.line, ch: 0 });
       return;
     }
     for (var l = from.line; l <= to.line; l++) {
-      doc.replaceRange('    ', { line: l, ch: 0 });
+      doc.replaceRange('\t', { line: l, ch: 0 });
     }
   }
 
@@ -292,11 +292,11 @@
       var trimmed = lines[i].trim();
       if (trimmed === '') { exp.push(0); continue; }
       if (/^(elif|else|except|finally)\b/.test(trimmed)) {
-        indent = Math.max(0, indent - 4);
+        indent = Math.max(0, indent - 1);
       }
       var prev = i > 0 ? lines[i - 1].trim() : '';
       var base = indent;
-      if (prev.endsWith(':')) base = indent + 4;
+      if (prev.endsWith(':')) base = indent + 1;
       exp.push(base);
       if (trimmed.endsWith(':')) {
         indent = base;
@@ -315,7 +315,8 @@
       var raw = lines[i];
       var trimmed = raw.trim();
       if (trimmed === '') continue;
-      var actual = (raw.match(/^ */) || [''])[0].length;
+      var leading = raw.slice(0, raw.length - trimmed.length);
+      var actual = (leading.match(/\t/g) || []).length + Math.floor((leading.replace(/\t/g, '').length) / 4);
       var hasTab = /\t/.test(raw.slice(0, raw.length - trimmed.length));
       if (hasTab || actual !== exp[i]) {
         faults.push({ line: i, reason: hasTab ? 'tabs' : 'indent' });
@@ -332,7 +333,7 @@
       var trimmed = lines[i].trim();
       if (trimmed === '') { out.push(''); continue; }
       if (set[i]) {
-        out.push(' '.repeat(expected[i]) + trimmed);
+        out.push('\t'.repeat(expected[i]) + trimmed);
       } else {
         out.push(lines[i]);
       }
