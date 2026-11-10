@@ -19,7 +19,7 @@ import urllib.request
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from accessible_ide import create_app
+from jojo_code import create_app
 
 app = create_app()
 
@@ -183,7 +183,7 @@ def _tidy_leftover_updates():
     genuinely free.
     """
     try:
-        from accessible_ide import updater
+        from jojo_code import updater
         if updater.is_frozen():
             updater.tidy_helpers()
     except Exception:
@@ -199,7 +199,7 @@ def _apply_staged_update_on_exit():
     and a record that was not handed over is offered again on the next close.
     """
     try:
-        from accessible_ide import updater
+        from jojo_code import updater
         if not updater.is_frozen():
             return
         waiting = updater.pending_build()

@@ -10,7 +10,7 @@ os.environ['SANDBOX'] = '1'
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from accessible_ide import create_app
+from jojo_code import create_app
 
 # Several checks below assert on the wording of an error sentence. Sending a
 # locale with every request keeps them about the English text rather than
@@ -19,7 +19,7 @@ from accessible_ide import create_app
 # settings - which it used to do.
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-import accessible_ide.routes as routes
+import jojo_code.routes as routes
 
 _tmp = tempfile.TemporaryDirectory()
 routes.CONFIG_DIR = pathlib.Path(_tmp.name)

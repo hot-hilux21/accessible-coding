@@ -24,7 +24,7 @@ from make_icon import draw_icon  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 ASSETS = REPO / "installer" / "assets"
-FONTS = REPO / "src" / "accessible_ide" / "assets" / "fonts"
+FONTS = REPO / "src" / "jojo_code" / "assets" / "fonts"
 
 # The app's own tokens, so the installer cannot drift from the product.
 BG = (13, 13, 13, 255)         # --bg      #0D0D0D

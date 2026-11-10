@@ -24,14 +24,14 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import create_app, glossary, i18n, routes  # noqa: E402
-from accessible_ide.utils.colour import parse_hex  # noqa: E402
+from jojo_code import create_app, glossary, i18n, routes  # noqa: E402
+from jojo_code.utils.colour import parse_hex  # noqa: E402
 
-APP_JS = REPO_ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
+APP_JS = REPO_ROOT / "src" / "jojo_code" / "static" / "js" / "app.js"
 STYLESHEET = (
-    REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+    REPO_ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
 )
-INDEX_TEMPLATE = REPO_ROOT / "src" / "accessible_ide" / "templates" / "index.html"
+INDEX_TEMPLATE = REPO_ROOT / "src" / "jojo_code" / "templates" / "index.html"
 
 # Controls the settings panel is expected to provide. Listed separately
 # from the automatic scan so a missing control produces a clear message
@@ -444,7 +444,7 @@ class TemplateContractTests(RenderedPageFixture):
         # that exists, and that the string it gets is real prose rather than
         # an empty attribute.
         template = (
-            REPO_ROOT / "src" / "accessible_ide" / "templates" / "index.html"
+            REPO_ROOT / "src" / "jojo_code" / "templates" / "index.html"
         ).read_text(encoding="utf-8")
         english = i18n.load_catalogue("en")
 
@@ -1447,7 +1447,7 @@ class StaticAssetsTests(unittest.TestCase):
 
     def test_stylesheet_defines_the_settings_panel(self):
         css = (
-            REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+            REPO_ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
         ).read_text(encoding="utf-8")
         self.assertEqual(css.count("{"), css.count("}"), "unbalanced CSS braces")
         for selector in (".settings", ".settings-group", ".switch-track"):
@@ -1469,7 +1469,7 @@ class ReflowCssTests(unittest.TestCase):
 
     def setUp(self):
         css = (
-            REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+            REPO_ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
         ).read_text(encoding="utf-8")
         self.narrow = css.split("@media (max-width: 768px)", 1)[1]
         self.narrow = self.narrow[: self.narrow.index("\n}\n")]
@@ -1498,7 +1498,7 @@ class TargetSizeCssTests(unittest.TestCase):
 
     def setUp(self):
         css = (
-            REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+            REPO_ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
         ).read_text(encoding="utf-8")
 
         def block(selector):
@@ -1523,7 +1523,7 @@ class ReducedMotionCssTests(unittest.TestCase):
 
     def setUp(self):
         self.css = (
-            REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+            REPO_ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
         ).read_text(encoding="utf-8")
 
     def test_the_body_attribute_stops_movement(self):
@@ -1909,7 +1909,7 @@ class FrostedPanelAndMovementCssTests(RenderedPageFixture):
         panel, and stopping short of it. The panel always passes, so including
         it would make every answer look reachable.
         """
-        from accessible_ide.utils.colour import readable_on
+        from jojo_code.utils.colour import readable_on
 
         start = parse_hex(tint)
         texts = [

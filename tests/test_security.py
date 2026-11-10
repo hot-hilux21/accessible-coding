@@ -35,7 +35,7 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import create_app, routes  # noqa: E402
+from jojo_code import create_app, routes  # noqa: E402
 
 
 class SecurityTestCase(unittest.TestCase):

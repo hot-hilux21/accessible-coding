@@ -38,9 +38,9 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import create_app, routes, trace_runner  # noqa: E402
+from jojo_code import create_app, routes, trace_runner  # noqa: E402
 
-CHILD = REPO_ROOT / "src" / "accessible_ide" / "trace_runner.py"
+CHILD = REPO_ROOT / "src" / "jojo_code" / "trace_runner.py"
 
 # A loop, one statement per line, small enough to reason about in full.
 #
@@ -860,7 +860,7 @@ class ReaderInputTests(unittest.TestCase):
 class PackagingTests(unittest.TestCase):
     """Both builds have to ship the child programs on disk."""
 
-    SPECS = ("AccessibleCoding.spec", "AccessibleCoding-onedir.spec")
+    SPECS = ("JojoCode.spec", "JojoCode-onedir.spec")
 
     def test_both_specs_bundle_the_traced_child(self):
         # It is launched by path, not imported, so PyInstaller has to be told
@@ -894,7 +894,7 @@ class TraceWindowStylesheetTests(unittest.TestCase):
     draggable by whatever the pointer finds. That shipped once.
     """
 
-    CSS = REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+    CSS = REPO_ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
 
     # Comments are stripped before anything is read, so a comment that names a
     # property cannot pass for the property itself.

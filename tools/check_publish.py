@@ -35,7 +35,7 @@ def _load_updater():
 
     The job that publishes a release installs nothing. It downloads the built
     artifacts and moves a release tag; ``requirements.txt`` is never
-    installed there. ``accessible_ide/__init__.py`` builds the Flask
+    installed there. ``jojo_code/__init__.py`` builds the Flask
     application, so importing the package in that job dies on ``flask``
     before a single check runs - and because this tool runs *before* the
     release is moved, the guard added to protect dev publishes was itself
@@ -48,8 +48,8 @@ def _load_updater():
     ``updater.current_version()`` is the one function unavailable from here,
     because it imports ``__version__`` from the package. Nothing calls it.
     """
-    path = ROOT / 'src' / 'accessible_ide' / 'updater.py'
-    spec = importlib.util.spec_from_file_location('accessible_ide_updater', path)
+    path = ROOT / 'src' / 'jojo_code' / 'updater.py'
+    spec = importlib.util.spec_from_file_location('jojo_code_updater', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

@@ -16,7 +16,7 @@ import urllib.error
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
-from accessible_ide import updater  # noqa: E402
+from jojo_code import updater  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 

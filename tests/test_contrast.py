@@ -19,7 +19,7 @@ import sys
 import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-APP_JS = REPO_ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
+APP_JS = REPO_ROOT / "src" / "jojo_code" / "static" / "js" / "app.js"
 
 # The colours that are rendered as text and must clear 4.5:1 against the
 # theme background. `selection` and `cursor` are excluded: neither is text.
@@ -42,16 +42,16 @@ EPSILON = 1e-9
 
 
 def _load_routes():
-    """Import accessible_ide.routes from src/ without needing it installed."""
+    """Import jojo_code.routes from src/ without needing it installed."""
     src = str(REPO_ROOT / "src")
     if src not in sys.path:
         sys.path.append(src)
 
     # Imported as a package member rather than by file path: routes.py is
-    # part of accessible_ide and uses package-relative imports, so loading
+    # part of jojo_code and uses package-relative imports, so loading
     # it standalone would execute it with no parent package and blow up on
     # the first "from . import".
-    from accessible_ide import routes
+    from jojo_code import routes
 
     return routes
 

@@ -130,7 +130,7 @@ def icon(name, size=18, extra_class=''):
         body = _ICONS[name]
     except KeyError:
         raise KeyError(
-            'unknown icon %r; add it to accessible_ide.icons' % name
+            'unknown icon %r; add it to jojo_code.icons' % name
         )
     markup = _SVG.format(name=name, size=int(size), body=body)
     if extra_class:

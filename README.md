@@ -434,7 +434,7 @@ Everyone writes these when they are learning. The mistake is underlined, and the
 accessible-coding/
 ├── .github/workflows/       # CI: tests + exe build on release tags
 ├── docs/                    # Documentation
-├── src/accessible_ide/
+├── src/jojo_code/
 │   ├── assets/              # Fonts (OpenDyslexic, Atkinson Hyperlegible, Lexend, Nunito, Andika, Almarai, Mukta)
 │   ├── i18n/                # Translation catalogues (13 languages)
 │   ├── static/              # CSS + JavaScript (CodeMirror, app logic) + the interface sounds in static/audio
@@ -444,7 +444,7 @@ accessible-coding/
 │   ├── trace_runner.py      # Line-by-line variable trace
 │   └── utils/               # Helpers (colour maths, error translation)
 ├── tests/                   # Python tests and the DOM harness
-├── accessible-ide-requirements.md  # Full specification
+├── jojo-code-requirements.md  # Full specification
 ├── AGENTS.md                # Agent instructions
 └── README.md                # This file
 ```
@@ -509,7 +509,7 @@ See the [full specification](#full-specification) for details.
 
 ## Full specification
 
-The complete requirements document is at [accessible-ide-requirements.md](accessible-ide-requirements.md).
+The complete requirements document is at [jojo-code-requirements.md](jojo-code-requirements.md).
 
 It covers:
 

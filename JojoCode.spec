@@ -9,20 +9,20 @@ block_cipher = None
 # Every directory the app reads at runtime has to be listed here, or the
 # build is missing it and the page that needs it fails.
 datas = [
-    ('src/accessible_ide/static', 'accessible_ide/static'),
-    ('src/accessible_ide/templates', 'accessible_ide/templates'),
-    ('src/accessible_ide/assets', 'accessible_ide/assets'),
-    ('src/accessible_ide/i18n', 'accessible_ide/i18n'),
+    ('src/jojo_code/static', 'jojo_code/static'),
+    ('src/jojo_code/templates', 'jojo_code/templates'),
+    ('src/jojo_code/assets', 'jojo_code/assets'),
+    ('src/jojo_code/i18n', 'jojo_code/i18n'),
     # The traced child the app launches by path rather than importing. It is
     # read from disk and handed to a child interpreter, so it has to sit beside
     # the package in the bundle and not only inside it as compiled bytecode.
     # Bundled as a module alone it is not on disk, --run-script is pointed at a
     # file that is not there, and every run fails in the exe.
-    ('src/accessible_ide/trace_runner.py', 'accessible_ide'),
+    ('src/jojo_code/trace_runner.py', 'jojo_code'),
     # The shell's bootstrap is launched by path the same way, and its own
     # docstring says the spec lists it in datas. No spec did, so the packaged
     # shell had nothing on disk to start from.
-    ('src/accessible_ide/shell_bootstrap.py', 'accessible_ide'),
+    ('src/jojo_code/shell_bootstrap.py', 'jojo_code'),
 ]
 
 a = Analysis(
@@ -63,5 +63,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='src/accessible_ide/assets/icon.ico',
+    icon='src/jojo_code/assets/icon.ico',
 )

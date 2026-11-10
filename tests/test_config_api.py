@@ -25,7 +25,7 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import create_app, i18n, routes  # noqa: E402
+from jojo_code import create_app, i18n, routes  # noqa: E402
 
 
 class ConfigApiTestCase(unittest.TestCase):
@@ -454,7 +454,7 @@ class LocaleTests(ConfigApiTestCase):
         # clicked rather than the key stored in the file. The saved
         # language is the fallback, because the browser sends its own
         # locale and this request is deliberately not carrying one.
-        from accessible_ide import i18n
+        from jojo_code import i18n
 
         label_key = i18n.CONFIG_LABELS["contrast"]
         for code in ("en", "hi", "fr", "es", "ar", "uk"):
@@ -470,7 +470,7 @@ class LocaleTests(ConfigApiTestCase):
         # The picker saves and reloads, so this is belt and braces, but it
         # is what keeps an error in the language on screen if the save has
         # not landed yet.
-        from accessible_ide import i18n
+        from jojo_code import i18n
 
         self.assertEqual(self.post_settings(locale="es").status_code, 200)
         error = self.client.post(
@@ -515,7 +515,7 @@ class LocaleTests(ConfigApiTestCase):
         # The theme picker is built from /api/themes, whose names are English.
         # app.js looks each one up as theme.<key>, so every theme the server
         # offers needs a catalogue entry in every language.
-        from accessible_ide import i18n
+        from jojo_code import i18n
 
         for code, theme in routes.THEMES.items():
             for locale in i18n.LANGUAGES:
@@ -699,7 +699,7 @@ class PanelMaterialSettingTests(ConfigApiTestCase):
         # panel until that theme's own text stays readable on it. It has to
         # reach CSS before the first paint too, or the panels would flash the
         # theme colour and change.
-        from accessible_ide.utils import colour as tint_utils
+        from jojo_code.utils import colour as tint_utils
 
         theme = routes.DEFAULT_CONFIG["theme"]
         expected = tint_utils.safe_panel_tint(
@@ -904,7 +904,7 @@ class HoverAndClickSpeechTests(ConfigApiTestCase):
         # their code needs to be told it will not happen again. The promise
         # has to survive translation, so this checks the rendered page in
         # every language rather than the English source.
-        from accessible_ide import i18n
+        from jojo_code import i18n
 
         seen = {}
         for code in i18n.LANGUAGES:

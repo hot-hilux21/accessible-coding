@@ -15,7 +15,7 @@ from pathlib import Path
 
 from markupsafe import Markup
 
-from accessible_ide import glossary
+from jojo_code import glossary
 
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"

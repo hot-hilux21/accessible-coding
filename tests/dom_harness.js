@@ -9,7 +9,7 @@ const path = require('path');
 const vm = require('vm');
 
 const APP_JS = path.join(
-  __dirname, '..', 'src', 'accessible_ide', 'static', 'js', 'app.js'
+  __dirname, '..', 'src', 'jojo_code', 'static', 'js', 'app.js'
 );
 const source = fs.readFileSync(APP_JS, 'utf8');
 
@@ -18,7 +18,7 @@ const source = fs.readFileSync(APP_JS, 'utf8');
 // the arithmetic decides whether the reader can read the screen, and a stub
 // would let the checks pass against behaviour no reader ever gets.
 const TINT_JS = path.join(
-  __dirname, '..', 'src', 'accessible_ide', 'static', 'js', 'tint.js'
+  __dirname, '..', 'src', 'jojo_code', 'static', 'js', 'tint.js'
 );
 const tintSource = fs.readFileSync(TINT_JS, 'utf8');
 
@@ -894,7 +894,7 @@ const elements = new Map();
 // removed from en.json shows up here as a key rather than as empty text.
 const CATALOGUE = JSON.parse(
   fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'accessible_ide', 'i18n', 'en.json'),
+    path.join(__dirname, '..', 'src', 'jojo_code', 'i18n', 'en.json'),
     'utf8'
   )
 );
@@ -905,7 +905,7 @@ const CATALOGUES = { en: CATALOGUE };
 for (const code of ['hi', 'fr', 'es', 'ar', 'uk']) {
   CATALOGUES[code] = JSON.parse(
     fs.readFileSync(
-      path.join(__dirname, '..', 'src', 'accessible_ide', 'i18n', `${code}.json`),
+      path.join(__dirname, '..', 'src', 'jojo_code', 'i18n', `${code}.json`),
       'utf8'
     )
   );
@@ -3802,9 +3802,9 @@ function runLayoutChecks() {
 
   // The layout is remembered, so the reader does not have to drag it back
   // into place on every visit.
-  if (mainPage.store.get('accessible_ide_layout') !== '{"editorWidth":65,"shellHeight":50}') {
+  if (mainPage.store.get('jojo_code_layout') !== '{"editorWidth":65,"shellHeight":50}') {
     failed = true;
-    console.log(`FAIL the layout was not remembered: ${mainPage.store.get('accessible_ide_layout')}`);
+    console.log(`FAIL the layout was not remembered: ${mainPage.store.get('jojo_code_layout')}`);
   } else {
     console.log('     the layout is remembered for the next visit');
   }

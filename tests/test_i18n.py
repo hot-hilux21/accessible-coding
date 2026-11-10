@@ -11,12 +11,12 @@ import re
 import unittest
 from pathlib import Path
 
-from accessible_ide import i18n
+from jojo_code import i18n
 
 ROOT = Path(__file__).resolve().parent.parent
-TEMPLATE = ROOT / "src" / "accessible_ide" / "templates" / "index.html"
-APP_JS = ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
-STYLESHEET = ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+TEMPLATE = ROOT / "src" / "jojo_code" / "templates" / "index.html"
+APP_JS = ROOT / "src" / "jojo_code" / "static" / "js" / "app.js"
+STYLESHEET = ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
 
 LOCALES = ("en", "hi", "fr", "es", "ar", "uk", "hj", "pt", "ru", "ko", "ja", "zh", "el")
 

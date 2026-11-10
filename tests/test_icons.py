@@ -6,7 +6,7 @@ SRC = str(pathlib.Path(__file__).resolve().parent.parent / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import icons  # noqa: E402
+from jojo_code import icons  # noqa: E402
 
 
 class IconTests(unittest.TestCase):

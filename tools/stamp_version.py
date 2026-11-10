@@ -18,7 +18,7 @@ and into the manifest in exactly the same form. If those ever disagree the
 app compares a version against itself and can offer a downgrade, so the two
 steps live next to each other in one file that both workflows call.
 
-The version is written into ``src/accessible_ide/__init__.py`` rather than
+The version is written into ``src/jojo_code/__init__.py`` rather than
 kept in a separate data file because that is where the app already looks for
 it, and a second copy is a second thing to forget. ``installer.iss`` is
 stamped in the same step for a different reason: Inno Setup uses that number
@@ -36,7 +36,7 @@ import sys
 from datetime import datetime, timezone
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-INIT_FILE = REPO_ROOT / "src" / "accessible_ide" / "__init__.py"
+INIT_FILE = REPO_ROOT / "src" / "jojo_code" / "__init__.py"
 INSTALLER_FILE = REPO_ROOT / "installer.iss"
 
 VERSION_LINE = re.compile(r'^__version__\s*=\s*["\'][^"\']*["\']\s*$', re.MULTILINE)

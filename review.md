@@ -2,7 +2,7 @@
 
 ## 1. Repo audit
 
-**Scope of this audit.** I read README.md, accessible-ide-requirements.md, app.py, smoke_test.py and AGENTS.md. GitHub blocked the folder pages, so I could not read src/accessible_ide/ (routes.py, static, templates, updater, config, utils), tests/, .github/workflows/, docs/, scripts/, tools/, render.yaml or installer.iss. Anything about those is marked "verify". WCAG criterion numbers below are from memory; check them against the W3C WCAG 2.1 text.
+**Scope of this audit.** I read README.md, jojo-code-requirements.md, app.py, smoke_test.py and AGENTS.md. GitHub blocked the folder pages, so I could not read src/jojo_code/ (routes.py, static, templates, updater, config, utils), tests/, .github/workflows/, docs/, scripts/, tools/, render.yaml or installer.iss. Anything about those is marked "verify". WCAG criterion numbers below are from memory; check them against the W3C WCAG 2.1 text.
 
 **What exists today**
 - Flask app. app.py runs it in a PyWebView/WebView2 window on Windows; wsgi.py serves the Render deployment.
@@ -11,7 +11,7 @@
 - Bundled fonts (OpenDyslexic, Atkinson Hyperlegible, Lexend, Nunito), 4 themes, focus mode (hide gutter or blur other lines), text-to-speech (engine not stated), plain-English errors, and an error_line value returned by the run API.
 - JSON settings with key and value validation, and a /health endpoint.
 - UI in en, fr, ar and uk, which is not in the spec.
-- Windows installer, portable exe and a self-updater (app.py calls accessible_ide.updater).
+- Windows installer, portable exe and a self-updater (app.py calls jojo_code.updater).
 - Tests: smoke_test.py (module-level asserts) covers the page, run success and errors, sandbox, config validation, themes, fonts, access code, language switching and the rate limiter. AGENTS.md refers to tests/test_contrast.py, which I did not read.
 
 **MVP coverage against requirements doc section 10**
@@ -29,7 +29,7 @@
 - [ ] Save and open .py files from disk, and autosave the current buffer so a closed tab or crash loses nothing (static JS, templates, routes.py).
 - [ ] Support input() in the runner with a prompt in the output panel, and do not count waiting time toward the 10-second timeout; smoke_test.py does not cover it (routes.py run endpoint, tests/).
 - [ ] Publish a real release and confirm both README download links resolve (.github/workflows/, GitHub Releases).
-- [ ] Verify the updater only fetches from this project's release URL over HTTPS and checks a SHA-256 hash or signature before running the installer (src/accessible_ide/updater.py, app.py exit hook).
+- [ ] Verify the updater only fetches from this project's release URL over HTTPS and checks a SHA-256 hash or signature before running the installer (src/jojo_code/updater.py, app.py exit hook).
 
 - [ ] Do not rely on in-app checks alone to run strangers' code on the public web version: run it in an isolated process or container with CPU, memory and time limits and no network, or move web execution into the browser (Pyodide, a Web Worker) (routes.py, wsgi.py, render.yaml).
 - [ ] Full keyboard-only pass of every control, with a documented way to leave the editor without a mouse (static JS, templates).
@@ -45,7 +45,7 @@
 - [ ] Per-token syntax colour editing, as in spec 3.2 (static JS, theme table).
 - [ ] Configurable blur zones (line range, block, function, gutter) with a strength control and the spec's "keep syntax sharp" option (static JS, config/).
 - [ ] Visual error highlighting in the editor using error_line, with a marker and text, not colour alone (static JS, templates).
-- [ ] Step-by-step debugger that shows each line and variable values in plain language (new module under src/accessible_ide/, static JS).
+- [ ] Step-by-step debugger that shows each line and variable values in plain language (new module under src/jojo_code/, static JS).
 - [ ] TTS: say which engine is used today, then add a selector with at least 3 engines and a short description of each, plus rate, voice, volume, pause/stop and word highlighting (static JS, config/). Check the licence and maintenance status of anything you add; I am not certain Coqui TTS is still maintained, and ReciteMe is proprietary.
 - [ ] Code-aware reading for TTS (say "open bracket", "colon", ignore indentation whitespace), switchable in settings (static JS, utils/).
 - [ ] Settings export/import as a file, as in spec section 2 (routes.py, config/, templates).
@@ -59,7 +59,7 @@
 - [ ] Keep one hosting config. render.yaml, railway.json, vercel.json and a committed .vercel/ folder all exist, and README names only Render. Remove the others (repo root).
 - [ ] Check the Render plan for sleeping or cold starts against spec section 11 (99% uptime, first run under 2 minutes), and add an uptime monitor (render.yaml, docs/).
 - [ ] Code-sign the exe and installer, or at least publish SHA-256 checksums with each release; the unsigned warning is a barrier for the target users (installer.iss, AccessibleIDE.spec, release workflow).
-- [ ] Update README (status, version, languages, updater, sandbox limits), AGENTS.md (status, layout, mention of components/), and the spec checklist (README.md, AGENTS.md, accessible-ide-requirements.md).
+- [ ] Update README (status, version, languages, updater, sandbox limits), AGENTS.md (status, layout, mention of components/), and the spec checklist (README.md, AGENTS.md, jojo-code-requirements.md).
 - [ ] List which standard-library modules work on the web version and which on desktop, and explain blocked code in plain English (docs/, README).
 - [ ] Run the spec section 8 loop with 2 to 3 dyslexic testers and record the results (docs/).
 - [ ] Write an accessibility statement with tested tools, versions, date and known issues (docs/accessibility.md).

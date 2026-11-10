@@ -58,7 +58,7 @@ PrivilegesRequired=admin
 MinVersion=10.0
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
-SetupIconFile=src\accessible_ide\assets\icon.ico
+SetupIconFile=src\jojo_code\assets\icon.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

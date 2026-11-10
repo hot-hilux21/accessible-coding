@@ -21,7 +21,7 @@ sys.path.insert(0, str(REPO_ROOT / "tools"))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 import stamp_version  # noqa: E402
-from accessible_ide import updater  # noqa: E402
+from jojo_code import updater  # noqa: E402
 
 
 class StampTests(unittest.TestCase):
@@ -77,7 +77,7 @@ class StampTests(unittest.TestCase):
         # a release and the next commit that bumps the package version. Left to
         # drift, the checked-in installer is what a local ISCC run compiles,
         # and that is how a two-releases-old version reaches a reader.
-        from accessible_ide import __version__
+        from jojo_code import __version__
         script = stamp_version.INSTALLER_FILE.read_text(encoding="utf-8")
         found = re.search(r'#define\s+MyAppVersion\s+"([^"]*)"', script)
         self.assertIsNotNone(found, "installer.iss has no MyAppVersion")
@@ -207,7 +207,7 @@ class InstallLocationTests(unittest.TestCase):
     def test_settings_are_not_written_inside_the_install_folder(self):
         # Program Files is read-only for a normal user, so a program that
         # kept its settings next to its own files would fail to save them.
-        from accessible_ide import routes
+        from jojo_code import routes
         self.assertEqual(routes.CONFIG_DIR, pathlib.Path.home() / ".accessible-ide")
         self.assertNotIn("HotHilux_21", str(routes.CONFIG_DIR))
 
@@ -277,22 +277,22 @@ class ManifestTests(unittest.TestCase):
         # way the app does, and confirm the manifest is newer.
         #
         # Reload rather than deleting the module from sys.modules. Deleting
-        # it makes the next "from accessible_ide import updater" build a
+        # it makes the next "from jojo_code import updater" build a
         # second, different updater module, and any test holding a patch on
         # the first one is then quietly patching nothing.
-        init = REPO_ROOT / "src" / "accessible_ide" / "__init__.py"
+        init = REPO_ROOT / "src" / "jojo_code" / "__init__.py"
         original = init.read_text(encoding="utf-8")
-        import accessible_ide
+        import jojo_code
 
         def put_back():
             init.write_text(original, encoding="utf-8")
-            importlib.reload(accessible_ide)
+            importlib.reload(jojo_code)
 
         self.addCleanup(put_back)
 
         stamp_version.stamp_version(init, "999.0.0")
-        importlib.reload(accessible_ide)
-        stamped = accessible_ide.__version__
+        importlib.reload(jojo_code)
+        stamped = jojo_code.__version__
         self.assertEqual(stamped, "999.0.0")
 
         described = stamp_version.build_manifest(

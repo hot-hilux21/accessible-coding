@@ -18,7 +18,7 @@ sys.path.insert(0, str(REPO_ROOT / "tools"))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 import check_publish  # noqa: E402
-from accessible_ide import updater  # noqa: E402
+from jojo_code import updater  # noqa: E402
 
 PINNED = f"{updater.OWNER}/{updater.REPO}"
 GOOD_URL = (
@@ -192,7 +192,7 @@ class StandaloneImportTests(unittest.TestCase):
         # that still imported the package, and would prove nothing.
         done = self.run_without_the_app_dependencies(
             f"sys.path.insert(0, {str(REPO_ROOT / 'src')!r})\n"
-            "import accessible_ide\n"
+            "import jojo_code\n"
         )
         self.assertNotEqual(done.returncode, 0)
         self.assertIn("flask", done.stderr)

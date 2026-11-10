@@ -9,10 +9,10 @@ import json
 import unittest
 from pathlib import Path
 
-import accessible_ide
-from accessible_ide import routes
+import jojo_code
+from jojo_code import routes
 
-ROOT = Path(accessible_ide.__file__).resolve().parent
+ROOT = Path(jojo_code.__file__).resolve().parent
 APP_JS = (ROOT / 'static' / 'js' / 'app.js').read_text(encoding='utf-8')
 TEMPLATE = (ROOT / 'templates' / 'index.html').read_text(encoding='utf-8')
 

@@ -21,9 +21,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'src'))
 
-from accessible_ide import i18n  # noqa: E402
+from jojo_code import i18n  # noqa: E402
 
-SPECS = ('AccessibleCoding.spec', 'AccessibleCoding-onedir.spec')
+SPECS = ('JojoCode.spec', 'JojoCode-onedir.spec')
 
 # Every directory the app reads from disk at run time. The desktop build and
 # the hosted copy both need all of them; only the desktop one is frozen.
@@ -44,8 +44,8 @@ class SpecContentsTests(unittest.TestCase):
             for folder in RUNTIME_DIRS:
                 with self.subTest(spec=name, folder=folder):
                     self.assertIn(
-                        f"src/accessible_ide/{folder}', "
-                        f"'accessible_ide/{folder}'",
+                        f"src/jojo_code/{folder}', "
+                        f"'jojo_code/{folder}'",
                         text,
                         f'{name} does not bundle {folder}. A reader opening '
                         'that part of the app would get an error page.')
@@ -56,7 +56,7 @@ class SpecContentsTests(unittest.TestCase):
         for folder in RUNTIME_DIRS:
             with self.subTest(folder=folder):
                 self.assertTrue(
-                    (ROOT / 'src' / 'accessible_ide' / folder).is_dir(),
+                    (ROOT / 'src' / 'jojo_code' / folder).is_dir(),
                     f'{folder} is listed for bundling but does not exist')
 
     def test_no_spec_silently_drops_a_directory(self):
@@ -64,7 +64,7 @@ class SpecContentsTests(unittest.TestCase):
         # are compiled into the exe, and a placeholder holding nothing but a
         # .gitkeep is never read, so neither has to be listed - only a
         # directory the app actually opens files from does.
-        package = ROOT / 'src' / 'accessible_ide'
+        package = ROOT / 'src' / 'jojo_code'
         for path in sorted(package.iterdir()):
             if not path.is_dir() or path.name.startswith('__'):
                 continue
@@ -82,7 +82,7 @@ class SpecContentsTests(unittest.TestCase):
                 text = self.spec_text(name)
                 with self.subTest(spec=name, folder=path.name):
                     self.assertIn(
-                        f"accessible_ide/{path.name}'", text,
+                        f"jojo_code/{path.name}'", text,
                         f'{name} does not mention the {path.name} directory, '
                         'which holds files the app reads at run time')
 
@@ -141,7 +141,7 @@ class IsolatedConfigTests(unittest.TestCase):
     """
 
     def setUp(self):
-        from accessible_ide import create_app, routes
+        from jojo_code import create_app, routes
         self._tmp = tempfile.TemporaryDirectory()
         tmp = Path(self._tmp.name)
         self._saved = (routes.CONFIG_DIR, routes.CONFIG_FILE, routes.ACCESS_CODE)
@@ -155,14 +155,14 @@ class IsolatedConfigTests(unittest.TestCase):
         self.addCleanup(self.restore)
 
     def restore(self):
-        from accessible_ide import routes
+        from jojo_code import routes
         routes.CONFIG_DIR, routes.CONFIG_FILE, routes.ACCESS_CODE = self._saved
         i18n.I18N_DIR = self._i18n_dir
         i18n.load_catalogue.cache_clear()
         self._tmp.cleanup()
 
     def write_config(self, **values):
-        from accessible_ide import routes
+        from jojo_code import routes
         routes.save_config(values)
 
 

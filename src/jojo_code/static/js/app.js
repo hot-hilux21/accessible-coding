@@ -210,7 +210,7 @@
   // True, false, or null while the reader has not chosen and the system
   // preference is standing in.
   var reduceMotion = null;
-  var accessCode = localStorage.getItem('accessible_ide_code') || '';
+  var accessCode = localStorage.getItem('jojo_code_code') || '';
   var settingsOpener = null;
   var speechRate = 0.9;
   var speechVoiceName = '';
@@ -247,7 +247,7 @@
     var code = window.prompt(t('error.access_code_prompt'));
     if (code) {
       accessCode = code;
-      localStorage.setItem('accessible_ide_code', code);
+      localStorage.setItem('jojo_code_code', code);
       return true;
     }
     return false;
@@ -4992,7 +4992,7 @@
   var rightColumn = document.getElementById('right-column');
   var dividerMain = document.getElementById('divider-main');
   var dividerShell = document.getElementById('divider-shell');
-  var LAYOUT_KEY = 'accessible_ide_layout';
+  var LAYOUT_KEY = 'jojo_code_layout';
   var MIN_PCT = 20;
   var MAX_PCT = 80;
   var editorWidthPct = 50;

@@ -2,7 +2,7 @@
 
 What changed between releases, newest first. The version numbers match the
 release tags; the app stamps its own version from the tag at build time, so
-`src/accessible_ide/__init__.py` carries the last stable number rather than
+`src/jojo_code/__init__.py` carries the last stable number rather than
 the one being released.
 
 ---

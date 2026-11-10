@@ -4,7 +4,7 @@
 
 Jojo Code is a fully accessible, open-source IDE prioritizing dyslexic and neurodivergent learners. Python-first, with dyslexia-friendly fonts, configurable focus/blur modes, text-to-speech, plain-English errors, and customizable syntax highlighting.
 
-- **Authoritative spec:** `accessible-ide-requirements.md` (root) — read this before planning any feature. The MVP feature checklist is in section 10.
+- **Authoritative spec:** `jojo-code-requirements.md` (root) — read this before planning any feature. The MVP feature checklist is in section 10.
 - **Status:** Shipped. Flask web app and Windows `.exe`; version 1.0.0.
 - **Live site:** https://accessible-coding.duckdns.org, hosted on Oracle Cloud. Pushing to `main` runs `.github/workflows/deploy.yml`, which pulls on the server and restarts `accessible-coding-py`.
 
@@ -14,7 +14,7 @@ Jojo Code is a fully accessible, open-source IDE prioritizing dyslexic and neuro
 accessible-coding/
 ├── app.py                         # Desktop entry point (Flask + WebView2)
 ├── wsgi.py                        # Web entry point for gunicorn
-├── src/accessible_ide/
+├── src/jojo_code/
 │   ├── assets/fonts/              # Bundled fonts
 │   ├── i18n/                      # en, hi, fr, es, ar, uk catalogues
 │   ├── static/css/style.css       # Design tokens and component styles

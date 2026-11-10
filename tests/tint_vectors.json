@@ -1,7 +1,7 @@
 {
   "_comment": [
     "Shared ground truth for the two copies of the tint maths:",
-    "accessible_ide/utils/colour.py (server, first paint and save) and",
+    "jojo_code/utils/colour.py (server, first paint and save) and",
     "static/js/tint.js (browser, live theme change).",
     "Both test suites read this file, so a disagreement between them fails a",
     "test instead of showing the reader a colour that is subtly wrong.",

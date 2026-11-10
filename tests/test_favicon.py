@@ -4,8 +4,8 @@ import pathlib
 import tempfile
 import unittest
 
-from accessible_ide import create_app
-from accessible_ide import routes
+from jojo_code import create_app
+from jojo_code import routes
 
 
 class FaviconTests(unittest.TestCase):

@@ -36,7 +36,7 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import create_app, routes, shell  # noqa: E402
+from jojo_code import create_app, routes, shell  # noqa: E402
 
 
 def child_count():
@@ -213,7 +213,7 @@ class ShellSessionTests(unittest.TestCase):
         # starts another program is the ordinary way to fill a pipe, and
         # without a reader on the other end the child blocks on its own write
         # and the command dies at the timeout having printed nothing.
-        script = pathlib.Path(tempfile.gettempdir()) / "accessible_ide_noisy_child.py"
+        script = pathlib.Path(tempfile.gettempdir()) / "jojo_code_noisy_child.py"
         script.write_text(
             "import sys\n"
             "sys.stderr.write('the child said no\\n')\n"
@@ -239,7 +239,7 @@ class ShellSessionTests(unittest.TestCase):
         # The same wedge, past the point where the buffer is certainly full.
         # A few lines would have been swallowed; this is the size that used to
         # hang until the timeout.
-        script = pathlib.Path(tempfile.gettempdir()) / "accessible_ide_loud_child.py"
+        script = pathlib.Path(tempfile.gettempdir()) / "jojo_code_loud_child.py"
         script.write_text(
             "import sys\n"
             "for _ in range(20000):\n"

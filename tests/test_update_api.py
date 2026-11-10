@@ -22,7 +22,7 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import create_app, i18n, routes, updater  # noqa: E402
+from jojo_code import create_app, i18n, routes, updater  # noqa: E402
 
 
 class _Body:
@@ -127,7 +127,7 @@ class UpdateEndpointTestCase(unittest.TestCase):
 
 class VersionEndpointTests(UpdateEndpointTestCase):
     def test_it_reports_the_running_version(self):
-        from accessible_ide import __version__
+        from jojo_code import __version__
         body = self.client.get("/api/version").get_json()
         self.assertEqual(body["version"], __version__)
 

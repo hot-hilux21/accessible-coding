@@ -37,7 +37,7 @@ def draw_icon(size: int) -> Image.Image:
 if __name__ == "__main__":
     images = [draw_icon(s) for s in SIZES]
     images[-1].save(
-        "src/accessible_ide/assets/icon.ico",
+        "src/jojo_code/assets/icon.ico",
         format="ICO",
         sizes=[(s, s) for s in SIZES],
         append_images=images[:-1],

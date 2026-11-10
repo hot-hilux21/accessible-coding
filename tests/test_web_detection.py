@@ -16,8 +16,8 @@ from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from accessible_ide import create_app  # noqa: E402
-from accessible_ide import routes  # noqa: E402
+from jojo_code import create_app  # noqa: E402
+from jojo_code import routes  # noqa: E402
 
 
 WEB_SERVERS = ('gunicorn/21.2.0', 'uwsgi', 'waitress/2.1.0', 'uvicorn')

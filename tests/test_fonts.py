@@ -22,10 +22,10 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import create_app, routes  # noqa: E402
+from jojo_code import create_app, routes  # noqa: E402
 
-FONT_DIR = REPO_ROOT / "src" / "accessible_ide" / "assets" / "fonts"
-TEMPLATE = REPO_ROOT / "src" / "accessible_ide" / "templates" / "index.html"
+FONT_DIR = REPO_ROOT / "src" / "jojo_code" / "assets" / "fonts"
+TEMPLATE = REPO_ROOT / "src" / "jojo_code" / "templates" / "index.html"
 
 # Leading bytes of each real font container format.
 FONT_MAGIC = {
@@ -330,8 +330,8 @@ class DefaultFontTests(unittest.TestCase):
     mismatch shows as one font on the panel and another on the editor.
     """
 
-    STYLESHEET = REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
-    APP_JS = REPO_ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
+    STYLESHEET = REPO_ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
+    APP_JS = REPO_ROOT / "src" / "jojo_code" / "static" / "js" / "app.js"
 
     def _css(self):
         # Comments are stripped first. The token definitions explain what they
@@ -494,7 +494,7 @@ class MonospaceTests(unittest.TestCase):
     through one token.
     """
 
-    STYLESHEET = REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
+    STYLESHEET = REPO_ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
 
     def _rules(self):
         css = re.sub(
@@ -557,9 +557,9 @@ class FontAreaTests(unittest.TestCase):
     back through a one-word edit to a selector.
     """
 
-    STYLESHEET = REPO_ROOT / "src" / "accessible_ide" / "static" / "css" / "style.css"
-    TEMPLATE = REPO_ROOT / "src" / "accessible_ide" / "templates" / "index.html"
-    APP_JS = REPO_ROOT / "src" / "accessible_ide" / "static" / "js" / "app.js"
+    STYLESHEET = REPO_ROOT / "src" / "jojo_code" / "static" / "css" / "style.css"
+    TEMPLATE = REPO_ROOT / "src" / "jojo_code" / "templates" / "index.html"
+    APP_JS = REPO_ROOT / "src" / "jojo_code" / "static" / "js" / "app.js"
 
     # The tick id, the config key it saves under, and the token its area
     # reads. One table, because the three have to agree.

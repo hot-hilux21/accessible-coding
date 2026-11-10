@@ -19,7 +19,7 @@ SRC = str(REPO_ROOT / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
-from accessible_ide import i18n, routes  # noqa: E402
+from jojo_code import i18n, routes  # noqa: E402
 
 # The English wording, pinned. If a change to this file makes one of these
 # fail, the change is to the explanation, not to the test - and a change to

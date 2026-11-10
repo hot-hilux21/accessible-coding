@@ -22,11 +22,11 @@ import re
 import unittest
 from pathlib import Path
 
-from accessible_ide import create_app, routes
-from accessible_ide.utils import colour
+from jojo_code import create_app, routes
+from jojo_code.utils import colour
 
 HERE = Path(__file__).resolve().parent
-CSS = (HERE.parent / "src/accessible_ide/static/css/style.css").read_text(
+CSS = (HERE.parent / "src/jojo_code/static/css/style.css").read_text(
     encoding="utf-8"
 )
 VECTORS = json.loads((HERE / "tint_vectors.json").read_text(encoding="utf-8"))
@@ -332,7 +332,7 @@ class ServerAndBrowserAgreeTests(unittest.TestCase):
 
     def test_the_browser_copy_defines_the_same_functions(self):
         script = (
-            HERE.parent / "src/accessible_ide/static/js/tint.js"
+            HERE.parent / "src/jojo_code/static/js/tint.js"
         ).read_text(encoding="utf-8")
         for name in (
             "parseHex", "toHex", "toLinear", "toSrgb", "luminance",
@@ -346,7 +346,7 @@ class ServerAndBrowserAgreeTests(unittest.TestCase):
         # values that decide what colour a reader ends up looking at, and a
         # change to one copy has to be a change to both.
         script = (
-            HERE.parent / "src/accessible_ide/static/js/tint.js"
+            HERE.parent / "src/jojo_code/static/js/tint.js"
         ).read_text(encoding="utf-8")
         weights = ", ".join(str(w) for w in colour.CHANNEL_WEIGHTS)
         self.assertIn(f"CHANNEL_WEIGHTS = [{weights}]", script)
@@ -405,7 +405,7 @@ class ServerAndBrowserAgreeTests(unittest.TestCase):
         # file would be a second implementation to keep in step rather than a
         # check. This asserts the rule is stated once and used twice.
         script = (
-            HERE.parent / "src/accessible_ide/static/js/tint.js"
+            HERE.parent / "src/jojo_code/static/js/tint.js"
         ).read_text(encoding="utf-8")
         self.assertIn(
             "Math.min(255, Math.max(0, round(value)))", script,
