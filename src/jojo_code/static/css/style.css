@@ -1302,10 +1302,9 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
   margin: 0 var(--space-4) var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--error-bg);
-  border: 2px solid var(--error-border);
+  border: 1px solid var(--error-border);
   border-radius: var(--radius-sm);
   color: var(--error-fg);
-  box-shadow: var(--shadow-1);
 }
 
 .error-title {
@@ -1341,7 +1340,6 @@ body[data-focus-mode="lines"] .CodeMirror-lines:hover .CodeMirror-code > div:hov
    fixed salmon so it stays quiet on light themes and visible on dark. */
 .cm-error-line {
   background: var(--error-line) !important;
-  box-shadow: inset 3px 0 0 var(--error-border);
 }
 
 /* ---------- The Python shell ---------- */

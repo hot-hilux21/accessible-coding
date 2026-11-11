@@ -286,5 +286,23 @@ class RunResourceLimitTests(SecurityTestCase):
             routes._limit_child()
 
 
+# -- finding 5: sandbox blocks OS/code-execution escape hatches ----------
+ 
+ 
+class SandboxBlockTests(SecurityTestCase):
+    def test_the_new_escape_hatches_are_blocked(self):
+        routes.SANDBOX = True
+        for module in (
+            "posix", "nt", "os2", "ce", "_winapi", "msvcrt", "winreg",
+            "pty", "tty", "termios", "fcntl", "select", "code", "codeop",
+            "runpy", "pkgutil", "zipimport", "io", "pdb", "bdb", "trace",
+            "profile", "cProfile", "cffi", "cython",
+        ):
+            with self.subTest(module=module):
+                ok, _ = routes.check_sandbox("import " + module, None)
+                self.assertFalse(ok, module + " should be blocked")
+        routes.SANDBOX = False
+ 
+ 
 if __name__ == "__main__":
     unittest.main()

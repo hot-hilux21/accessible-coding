@@ -91,7 +91,7 @@ This file is the working checklist between v1 and v2. It records what is shipped
 
 ### P1: reading comfort
 
-- [ ] Let readers adjust the blur radius and choose which panes blur in focus mode (today the mode is fixed presets).
+- [x] Let readers adjust the blur radius and choose which panes blur in focus mode. Shipped via `blur_intensity` plus `fade_output`, `fade_shell` and `fade_settings` sliders in the per-pane toolbar; validated by `tests/test_config_api.py`.
 - [x] Add a reading ruler option (a horizontal highlight that follows the pointer) for line tracking. It lives in **Settings → Reading**, is off by default, and shades the line under the pointer with `background` only, so it costs no contrast and never draws over the text. The caret and the keyboard are untouched: this is a pointer aid, not a second cursor.
 - [x] Tune the custom theme contrast nudge. A failing pick now names the colour the editor uses instead, taken from the same derivation that paints the theme, so the message cannot drift from what is shown. The background, page and selection fields stopped being flagged: they were measured against the background they are not drawn on, so "Editor background" read "Too low" the moment any other field was touched.
 - [x] Allow exporting and importing settings as a small JSON file, so a reader can carry them between machines. The existing Settings backup (`/api/config/export`, `/api/config/import`) already carries every setting including the custom theme and is validated exactly as the panel is, so no separate theme file was needed.

@@ -95,7 +95,6 @@
   "glossary.copy": "Copy",
   "glossary.count": "{1}개 중 {0}개를 보여 줍니다.",
   "glossary.empty": "그 단어와 맞는 항목이 없습니다.",
-  "glossary.english_note": "이 항목들은 지금은 영어로 되어 있습니다.",
   "glossary.intro": "이 앱의 Python이 하는 일입니다. 같은 목록이 README에도 있습니다.",
   "glossary.search_label": "용어 사전에서 찾기",
   "glossary.title": "Python 용어 사전",
@@ -441,12 +440,6 @@
   "update.warn_body": "내려받기는 새 버전을 저장만 하고 아직 아무것도 바뀌지 않습니다. 설치하면 앱이 닫히고 새 버전이 놓인 뒤 앱이 다시 열립니다. 먼저 작업을 저장하세요.",
   "update.warn_cancel": "나중에",
   "update.warn_title": "먼저 작업을 저장하세요",
-  "setup.modules_title": "Extra modules (advanced)",
-  "setup.modules_help": "Install these in your own Python with pip. They are not bundled with Jojo Code.",
-  "setup.modules_games": "pygame, pygame-ce, arcade, pyglet, Pillow - Games and graphics.",
-  "setup.modules_data": "numpy, pandas, matplotlib, scipy - Numbers, data and plots.",
-  "setup.modules_web": "requests, flask, fastapi, beautifulsoup4 - Web and internet.",
-  "setup.modules_db": "sqlalchemy, sqlite-utils - Databases.",
-  "setup.modules_quality": "pytest, rich, black - Testing and tidy code.",
-  "setup.modules_example": "Example: pip install pygame numpy pandas matplotlib requests flask sqlalchemy pytest"
+  "feedback.title": "Feedback",
+  "feedback.message": "Message"
 }

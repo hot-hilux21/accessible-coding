@@ -95,7 +95,6 @@
   "glossary.copy": "Copy",
   "glossary.count": "Εμφάνιση {0} από {1} καταχωρήσεις.",
   "glossary.empty": "Καμία καταχώρηση δεν ταιριάζει με αυτή τη λέξη.",
-  "glossary.english_note": "Αυτές οι καταχωρήσεις είναι γραμμένες στα αγγλικά προς το παρόν.",
   "glossary.intro": "Τι κάνει η Python σε αυτή την εφαρμογή. Η ίδια λίστα είναι στο README.",
   "glossary.search_label": "Αναζήτηση στο λεξικό",
   "glossary.title": "Λεξικό Python",
@@ -441,12 +440,6 @@
   "update.warn_body": "Η λήψη αποθηκεύει μόνο τη νέα έκδοση· τίποτα δεν αλλάζει ακόμα. Η εγκατάσταση κλείνει την εφαρμογή, τοποθετεί τη νέα έκδοση και την ανοίγει ξανά. Αποθήκευσε πρώτα τη δουλειά σου.",
   "update.warn_cancel": "Όχι τώρα",
   "update.warn_title": "Αποθήκευσε πρώτα τη δουλειά σου",
-  "setup.modules_title": "Extra modules (advanced)",
-  "setup.modules_help": "Install these in your own Python with pip. They are not bundled with Jojo Code.",
-  "setup.modules_games": "pygame, pygame-ce, arcade, pyglet, Pillow - Games and graphics.",
-  "setup.modules_data": "numpy, pandas, matplotlib, scipy - Numbers, data and plots.",
-  "setup.modules_web": "requests, flask, fastapi, beautifulsoup4 - Web and internet.",
-  "setup.modules_db": "sqlalchemy, sqlite-utils - Databases.",
-  "setup.modules_quality": "pytest, rich, black - Testing and tidy code.",
-  "setup.modules_example": "Example: pip install pygame numpy pandas matplotlib requests flask sqlalchemy pytest"
+  "feedback.title": "Feedback",
+  "feedback.message": "Message"
 }

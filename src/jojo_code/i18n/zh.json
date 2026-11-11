@@ -95,7 +95,6 @@
   "glossary.copy": "Copy",
   "glossary.count": "显示 {1} 条中的 {0} 条。",
   "glossary.empty": "没有和这个词对应的条目。",
-  "glossary.english_note": "这些条目目前用英文书写。",
   "glossary.intro": "这个应用里的 Python 都有什么。同一份列表也在 README 里。",
   "glossary.search_label": "搜索词典",
   "glossary.title": "Python 词典",
@@ -441,12 +440,6 @@
   "update.warn_body": "下载只是把新版本存下来，还不会改动什么。安装会关掉应用，把新版本放到位置上，再重新打开应用。请先保存你的工作。",
   "update.warn_cancel": "现在不",
   "update.warn_title": "请先保存你的工作",
-  "setup.modules_title": "Extra modules (advanced)",
-  "setup.modules_help": "Install these in your own Python with pip. They are not bundled with Jojo Code.",
-  "setup.modules_games": "pygame, pygame-ce, arcade, pyglet, Pillow - Games and graphics.",
-  "setup.modules_data": "numpy, pandas, matplotlib, scipy - Numbers, data and plots.",
-  "setup.modules_web": "requests, flask, fastapi, beautifulsoup4 - Web and internet.",
-  "setup.modules_db": "sqlalchemy, sqlite-utils - Databases.",
-  "setup.modules_quality": "pytest, rich, black - Testing and tidy code.",
-  "setup.modules_example": "Example: pip install pygame numpy pandas matplotlib requests flask sqlalchemy pytest"
+  "feedback.title": "Feedback",
+  "feedback.message": "Message"
 }

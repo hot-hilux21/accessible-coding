@@ -830,7 +830,7 @@ class SetupWizardTests(RenderedPageFixture):
         )
         self.assertIsNotNone(progress)
         assert progress is not None  # narrow the type for checkers
-        self.assertIn("5", progress.group(1))
+        self.assertIn("4", progress.group(1))
         self.assertNotIn("/", progress.group(1))
         self.assertRegex(self.html, r'id="setup-progress"[^>]*role="status"')
 
@@ -848,10 +848,10 @@ class SetupWizardTests(RenderedPageFixture):
             shown,
             [("setup-panel-language", False), ("setup-panel-font", True),
              ("setup-panel-theme", False), ("setup-panel-custom", False),
-             ("setup-panel-modules", False), ("setup-panel-tour", False)],
+             ("setup-panel-tour", False)],
             "resuming on step 2 should show the font question and hide the rest",
         )
-        self.assertIn("Step 2 of 5", resumed)
+        self.assertIn("Step 2 of 4", resumed)
         # Back is hidden on the first step, because there is nowhere before
         # it to go, and offered from the second onwards.
         self.assertRegex(self.html, r'id="setup-back"[^>]*hidden')
@@ -2420,3 +2420,21 @@ class CreditsButtonTests(RenderedPageFixture):
 
     def test_the_about_group_is_the_focus_target(self):
         self.assertIn('id="group-about" tabindex="-1"', self.html)
+
+
+class VersionBadgeTests(RenderedPageFixture):
+    """The version badge in the top bar names the build the reader runs.
+
+    The badge is coded to the beta release, not a shorthand: the number
+    comes from the package, so it names the specific version being run. The
+    hover carries the commit the reader is on.
+    """
+
+    def test_the_badge_names_the_running_version(self):
+        self.assertIn('class="version-badge"', self.html)
+        self.assertIn("v" + routes._package_version(), self.html)
+
+    def test_the_badge_hover_names_the_commit(self):
+        commit = routes._build_commit()
+        self.assertTrue(commit, "the badge hover needs a commit to name")
+        self.assertIn(f'title="Commit {commit}"', self.html)

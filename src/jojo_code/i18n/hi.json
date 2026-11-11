@@ -95,7 +95,6 @@
   "glossary.copy": "Copy",
   "glossary.count": "{1} में से {0} प्रविष्टियाँ दिखाई जा रही हैं।",
   "glossary.empty": "इस शब्द से कोई प्रविष्टि मेल नहीं खाती।",
-  "glossary.english_note": "फ़िलहाल ये प्रविष्टियाँ अंग्रेज़ी में लिखी हैं।",
   "glossary.intro": "इस ऐप में Python की कमांड क्या करती हैं। यही सूची README में भी है।",
   "glossary.search_label": "शब्दकोश में खोजें",
   "glossary.title": "Python शब्दकोश",
@@ -441,12 +440,6 @@
   "update.warn_body": "डाउनलोड सिर्फ नया वर्शन सेव करता है; अभी कुछ भी नहीं बदलता। इंस्टॉल करने पर ऐप बंद होता है, नया वर्शन लगता है, और ऐप फिर से खुलता है, इसलिए जो सेव नहीं किया है उसे सेव कर लें।",
   "update.warn_cancel": "अभी नहीं",
   "update.warn_title": "पहले अपना काम सेव करें",
-  "setup.modules_title": "Extra modules (advanced)",
-  "setup.modules_help": "Install these in your own Python with pip. They are not bundled with Jojo Code.",
-  "setup.modules_games": "pygame, pygame-ce, arcade, pyglet, Pillow - Games and graphics.",
-  "setup.modules_data": "numpy, pandas, matplotlib, scipy - Numbers, data and plots.",
-  "setup.modules_web": "requests, flask, fastapi, beautifulsoup4 - Web and internet.",
-  "setup.modules_db": "sqlalchemy, sqlite-utils - Databases.",
-  "setup.modules_quality": "pytest, rich, black - Testing and tidy code.",
-  "setup.modules_example": "Example: pip install pygame numpy pandas matplotlib requests flask sqlalchemy pytest"
+  "feedback.title": "Feedback",
+  "feedback.message": "Message"
 }

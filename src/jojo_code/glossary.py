@@ -227,6 +227,28 @@ def inline_code(text):
     return Markup(''.join(out))
 
 
-def entry_count():
+def entry_count(locale=None):
     """How many entries the dialog holds. Used by the status line and tests."""
-    return sum(len(section['rows']) for section in SECTIONS)
+    return sum(len(section['rows']) for section in sections_for(locale))
+
+
+def sections_for(locale=None):
+    """The glossary sections for ``locale``, falling back to English.
+
+    The English copy is the one pinned to the README by tests/test_glossary.py.
+    Translated copies live in sibling modules and are only used when they
+    exist, so a missing translation degrades to English rather than breaking.
+    """
+    code = (locale or '').split('-')[0].lower()
+    if code in ('uk', 'ar', 'hi'):
+        try:
+            if code == 'uk':
+                from . import glossary_uk as module
+            elif code == 'ar':
+                from . import glossary_ar as module
+            else:
+                from . import glossary_hi as module
+            return module.SECTIONS
+        except Exception:
+            pass
+    return SECTIONS

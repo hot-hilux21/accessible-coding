@@ -131,7 +131,7 @@
         <img src="{{ url_for('static', filename='favicon.svg') }}" alt="" width="22" height="22">
       </span>
       <h1 class="brand-name">{{ t('brand.name') }}</h1>
-      <span class="version-badge">v{{ version }}</span>
+      <span class="version-badge"{% if build_commit %} title="Commit {{ build_commit }}"{% endif %}>v{{ version }}</span>
       {# Credits sit beside the name rather than inside Settings because they
          are the one thing on that panel a reader looks for without knowing
          where to look. This opens Settings and lands on them. #}
@@ -204,6 +204,11 @@
                 aria-expanded="false" aria-controls="glossary-dialog"
                 title="{{ t('glossary.button_title') }}" aria-label="{{ t('glossary.button') }}">
           <span class="btn-icon" aria-hidden="true">{{ icon('book-open') }}</span><span class="btn-label">{{ t('glossary.button') }}</span>
+        </button>
+        <button id="btn-feedback" class="btn btn-toggle" type="button" aria-haspopup="dialog"
+                aria-expanded="false" aria-controls="feedback-dialog"
+                title="{{ t('feedback.title') }}" aria-label="{{ t('feedback.title') }}">
+          <span class="btn-icon" aria-hidden="true">{{ icon('message-square') }}</span><span class="btn-label">{{ t('feedback.title') }}</span>
         </button>
         <button id="btn-settings" class="btn btn-toggle" aria-haspopup="dialog"
                 aria-expanded="false" aria-controls="settings-dialog"
@@ -1307,6 +1312,20 @@
        now, and the panel says so on screen: a reader who cannot tell a
        careful translation from a plausible wrong one is worse off than one
        who is told which language they are reading. -->
+  <dialog id="feedback-dialog" class="glossary" aria-labelledby="feedback-title">
+    <header class="glossary-header">
+      <h2 id="feedback-title" class="settings-title">{{ t('feedback.title') }}</h2>
+      <button id="btn-feedback-close" class="btn btn-small" type="button"
+              aria-label="{{ t('settings.close_label') }}">{{ t('settings.close') }}</button>
+    </header>
+    <div class="field">
+      <label for="feedback-text">{{ t('feedback.message') }}</label>
+      <textarea id="feedback-text" rows="6" style="width:100%"></textarea>
+    </div>
+    <button id="btn-feedback-send" class="btn" type="button">{{ t('output.answer_send') }}</button>
+    <p id="feedback-status" aria-live="polite"></p>
+  </dialog>
+
   <dialog id="glossary-dialog" class="glossary" aria-labelledby="glossary-title"
           data-total="{{ glossary_entries }}">
     <header class="glossary-header">
@@ -1323,7 +1342,6 @@
     </header>
 
     <p class="glossary-intro">{{ t('glossary.intro') }}</p>
-    <p class="glossary-english">{{ t('glossary.english_note') }}</p>
 
     <div class="glossary-searchbar">
       <div class="field">
@@ -1613,22 +1631,7 @@
           </fieldset>
         </section>
 
-        <!-- ---------- Step 5: extra modules for advanced work ---------- -->
-        <section id="setup-panel-modules" class="setup-panel"
-                 {% if setup_step_key != 'modules' %}hidden{% endif %}>
-          <legend class="settings-legend setup-legend" tabindex="-1">{{ t('setup.modules_title') }}</legend>
-          <p class="field-help">{{ t('setup.modules_help') }}</p>
-          <ul class="setup-tour">
-            <li><p class="setup-module-name">{{ t('setup.modules_games') }}</p></li>
-            <li><p class="setup-module-name">{{ t('setup.modules_data') }}</p></li>
-            <li><p class="setup-module-name">{{ t('setup.modules_web') }}</p></li>
-            <li><p class="setup-module-name">{{ t('setup.modules_db') }}</p></li>
-            <li><p class="setup-module-name">{{ t('setup.modules_quality') }}</p></li>
-          </ul>
-          <p class="field-help">{{ t('setup.modules_example') }}</p>
-        </section>
-
-        <!-- ---------- Step 6: what this app does ---------- -->
+        <!-- ---------- Step 5: what this app does ---------- -->
         <section id="setup-panel-tour" class="setup-panel"
                  {% if setup_step_key != 'tour' %}hidden{% endif %}>
           <h3 class="settings-legend setup-legend" tabindex="-1">{{ t('setup.tour_title') }}</h3>

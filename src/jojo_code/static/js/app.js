@@ -170,6 +170,13 @@
   var glossaryDialog = document.getElementById('glossary-dialog');
   var btnGlossary = document.getElementById('btn-glossary');
   var btnGlossaryClose = document.getElementById('btn-glossary-close');
+  var btnFeedback = document.getElementById('btn-feedback');
+  var btnFeedbackClose = document.getElementById('btn-feedback-close');
+  var btnFeedbackSend = document.getElementById('btn-feedback-send');
+  var feedbackDialog = document.getElementById('feedback-dialog');
+  var feedbackText = document.getElementById('feedback-text');
+  var feedbackStatus = document.getElementById('feedback-status');
+  var feedbackOpener = null;
   var glossarySearch = document.getElementById('glossary-search');
   var glossaryStatus = document.getElementById('glossary-status');
   var glossaryEmpty = document.getElementById('glossary-empty');
@@ -269,6 +276,19 @@
     autofocus: true,
     value: '# Welcome to Jojo Code!\n# Write Python code and press Run (or Ctrl+Enter).\n\nprint("Hello, world!")\n\nfor i in range(3):\n    print("Counting:", i)\n'
   });
+  // Autosave: keep the last edited code so a refresh or crash does not lose it.
+  (function () {
+    var AUTOSAVE_KEY = 'jojo_code_autosave';
+    try {
+      var saved = localStorage.getItem(AUTOSAVE_KEY);
+      if (saved && saved.trim()) {
+        editor.setValue(saved);
+      }
+      editor.on('change', function () {
+        try { localStorage.setItem(AUTOSAVE_KEY, editor.getValue()); } catch (e) {}
+      });
+    } catch (e) {}
+  })();
 
   // ---------- Indentation helpers ----------
   var indentAddBtn = document.getElementById('pane-indent-add');
@@ -1496,6 +1516,66 @@
     }
   }
 
+  function openFeedback() {
+    if (!feedbackDialog) return;
+    feedbackOpener = document.activeElement;
+    if (typeof feedbackDialog.showModal === 'function') {
+      feedbackDialog.showModal();
+    } else {
+      feedbackDialog.setAttribute('open', '');
+    }
+    if (btnFeedback) btnFeedback.setAttribute('aria-expanded', 'true');
+    if (feedbackText) feedbackText.focus();
+  }
+
+  function closeFeedback() {
+    if (!feedbackDialog) return;
+    if (typeof feedbackDialog.close === 'function') {
+      feedbackDialog.close();
+    } else {
+      feedbackDialog.removeAttribute('open');
+    }
+    if (btnFeedback) btnFeedback.setAttribute('aria-expanded', 'false');
+    if (feedbackOpener && typeof feedbackOpener.focus === 'function') {
+      feedbackOpener.focus();
+    }
+  }
+
+  if (btnFeedback) {
+    btnFeedback.addEventListener('click', openFeedback);
+  }
+  if (btnFeedbackClose) {
+    btnFeedbackClose.addEventListener('click', function (event) {
+      event.preventDefault();
+      closeFeedback();
+    });
+  }
+  if (feedbackDialog) {
+    feedbackDialog.addEventListener('cancel', function (event) {
+      event.preventDefault();
+      closeFeedback();
+    });
+  }
+  if (btnFeedbackSend) {
+    btnFeedbackSend.addEventListener('click', function (event) {
+      event.preventDefault();
+      var text = feedbackText ? feedbackText.value.trim() : '';
+      if (!text) return;
+      fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      }).then(function (response) {
+        if (feedbackStatus) {
+          feedbackStatus.textContent = response.ok ? t('settings.saved') : t('settings.save_failed');
+        }
+        if (response.ok && feedbackText) feedbackText.value = '';
+      }).catch(function () {
+        if (feedbackStatus) feedbackStatus.textContent = t('settings.save_failed');
+      });
+    });
+  }
+
   if (settingsDialog) {
     settingsDialog.addEventListener('click', function (event) {
       if (event.target === settingsDialog) closeSettings();
@@ -2311,6 +2391,17 @@
       female: 'female|woman|girl|жінка|поліна|polina|тетяна|tetyana|'
         + 'ukrainian-female',
       male: 'male|man|boy|чоловік|остап|ostap|ukrainian-male',
+    },
+    ru: {
+      // Windows Russian: Irina and Pavel. Edge natural voices are Dariya
+      // and Dmitry; Yandex voices are named Alena and Filipp. Google names
+      // its Russian voices in Russian, so the endonyms are matched too.
+      female: 'female|woman|girl|женщина|ирин|irina|дарья|dariya|daria|'
+        + 'алена|alena|елена|elena|ольга|olga|анна|anna|мария|maria|'
+        + 'татьяна|tatiana|светлана|svetlana|russian-female',
+      male: 'male|man|boy|мужчина|павел|pavel|дмитрий|dmitry|dmitri|'
+        + 'филипп|filipp|иван|ivan|александр|alexander|сергей|sergei|'
+        + 'максим|maxim|russian-male',
     },
   };
 
@@ -5715,7 +5806,7 @@
         pause -= 1;
       } else {
         pos -= 1;
-        document.title = chars.slice(0, pos).join("") + (pos > 0 ? "\u258C" : "");
+        if (pos > 0) document.title = chars.slice(0, pos).join("") + "\u258C";
         if (pos <= 0) {
           deleting = false;
           current = pickNext();

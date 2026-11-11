@@ -188,6 +188,13 @@ BLOCKED_IMPORTS = [
     'tempfile', 'pickle', 'marshal', 'shelve', 'sqlite3', 'webbrowser',
     'platform', 'getpass', 'pwd', 'grp', 'resource', 'signal', 'asyncio',
     'concurrent', 'ssl', 'ftplib', 'nntplib', 'cgi', 'cgitb', 'wsgiref',
+    # OS-level and code-execution escape hatches that the text sandbox must
+    # not let a hosted program reach. These are not part of the beginner
+    # surface and each one can bypass the import/builtin checks above.
+    'posix', 'nt', 'os2', 'ce', '_winapi', 'msvcrt', 'winreg',
+    'pty', 'tty', 'termios', 'fcntl', 'select', 'code', 'codeop',
+    'runpy', 'pkgutil', 'zipimport', 'io', 'pdb', 'bdb', 'trace',
+    'profile', 'cProfile', 'cffi', 'cython',
 ]
 
 # Builtins that are blocked in the sandboxed web runner
@@ -219,7 +226,7 @@ USER_FONT_DIR = CONFIG_DIR / 'fonts'
 # The first-run setup screen, one step at a time. Defined here rather than in
 # the template so the validation below, the rendered progress text and the
 # step each panel is tagged with all read the same number.
-SETUP_STEPS = ('language', 'font', 'theme', 'custom', 'modules', 'tour')
+SETUP_STEPS = ('language', 'font', 'theme', 'custom', 'tour')
 SETUP_TOTAL_STEPS = len(SETUP_STEPS)
 
 # The custom colours step is only a step when the reader picked the custom
@@ -1519,6 +1526,24 @@ def _package_version():
     return __version__
 
 
+def _build_commit() -> str:
+    """The short commit hash this build came from, for the badge's hover.
+
+    Empty when the tree is not a git checkout - the packaged exe carries no
+    repo, and an empty title is worse than no title. The hosted site runs
+    from a checkout, so it answers; local runs and tests answer too.
+    """
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            capture_output=True, text=True, timeout=10, check=True,
+        )
+        commit = result.stdout.strip()
+        return commit or ''
+    except Exception:
+        return ''
+
+
 REACT_DIST = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
 
 # The React UI is not approved for default use yet (see AGENTS.md). Flip this
@@ -1621,6 +1646,7 @@ def index():
                          # they were current - and there is a whole update
                          # panel on this page insisting the number matters.
                          version=_package_version(),
+                          build_commit=_build_commit(),
                          locale=locale,
                          direction=i18n.direction(locale),
                          languages=i18n.available(),
@@ -1638,8 +1664,8 @@ def index():
                          # the dialog renders without script, and the entry
                          # text goes through inline_code because the entries
                          # mark the code parts with backticks.
-                         glossary=glossary.SECTIONS,
-                         glossary_entries=glossary.entry_count(),
+                         glossary=glossary.sections_for(locale),
+                         glossary_entries=glossary.entry_count(locale),
                          inline_code=glossary.inline_code,
                          # The presses offered for running and stopping, handed
                          # over as data so the list the reader sees and the
@@ -2654,6 +2680,85 @@ def config_import_api():
     config.update(imported)
     save_config(config)
     return jsonify({'success': True, 'config': config})
+
+
+SETTINGS_PROFILES = {
+    'comfortable': {
+        'font_size': 18, 'line_height': 1.6, 'letter_spacing': 1.0,
+        'focus_mode': 'lines', 'blur_intensity': 0.3,
+    },
+    'low_distraction': {
+        'focus_mode': 'fade', 'blur_intensity': 0.6,
+        'fade_output': 0.4, 'fade_shell': 0.4, 'fade_settings': 0.4,
+    },
+    'high_contrast': {'theme': 'high-contrast', 'contrast': 'high'},
+    'screen_reader': {
+        'sound_enabled': True, 'tts_enabled': True, 'focus_mode': 'off',
+    },
+}
+
+
+@main_bp.route('/api/profile/apply', methods=['POST'])
+def profile_apply_api():
+    data = request.get_json(silent=True) or {}
+    if not access_code_ok(data):
+        return jsonify({'success': False, 'error': 'access required'}), 403
+    name = data.get('profile')
+    if name not in SETTINGS_PROFILES:
+        return jsonify({'success': False, 'error': 'unknown profile'}), 400
+    config = load_config()
+    config.update(SETTINGS_PROFILES[name])
+    save_config(config)
+    return jsonify({'success': True, 'config': config})
+
+
+@main_bp.route('/api/analytics', methods=['GET'])
+def analytics_get_api():
+    path = CONFIG_DIR / 'analytics.json'
+    try:
+        data = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
+    except Exception:
+        data = {}
+    return jsonify(data)
+
+
+@main_bp.route('/api/analytics/record', methods=['POST'])
+def analytics_record_api():
+    data = request.get_json(silent=True) or {}
+    if not access_code_ok(data):
+        return jsonify({'success': False}), 403
+    event = data.get('event')
+    if not isinstance(event, str) or not event.strip():
+        return jsonify({'success': False}), 400
+    path = CONFIG_DIR / 'analytics.json'
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        counts = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
+        counts[event] = int(counts.get(event, 0)) + 1
+        path.write_text(json.dumps(counts, indent=2), encoding='utf-8')
+    except Exception:
+        return jsonify({'success': False}), 500
+    return jsonify({'success': True})
+
+
+@main_bp.route('/api/feedback', methods=['POST'])
+def feedback_api():
+    """Store reader feedback locally; no network, no tracking."""
+    data = request.get_json(silent=True) or {}
+    if not access_code_ok(data):
+        return jsonify({'success': False, 'error': 'access required'}), 403
+    message = data.get('message')
+    if not isinstance(message, str) or not message.strip():
+        return jsonify({'success': False, 'error': 'message required'}), 400
+    if len(message) > 4000:
+        return jsonify({'success': False, 'error': 'message too long'}), 400
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        with open(CONFIG_DIR / 'feedback.jsonl', 'a', encoding='utf-8') as handle:
+            handle.write(json.dumps({'ts': time.time(), 'message': message}) + '\\n')
+    except Exception:
+        return jsonify({'success': False, 'error': 'could not save feedback'}), 500
+    return jsonify({'success': True})
 
 
 @main_bp.route('/api/version')

@@ -95,7 +95,6 @@
   "glossary.copy": "Copy",
   "glossary.count": "Показано {0} из {1} записей.",
   "glossary.empty": "Ни одна запись не совпадает с этим словом.",
-  "glossary.english_note": "Пока эти записи написаны на английском языке.",
   "glossary.intro": "Что делает Python в этом приложении. Тот же список есть в README.",
   "glossary.search_label": "Поиск по словарю",
   "glossary.title": "Словарь Python",
@@ -441,12 +440,6 @@
   "update.warn_body": "Загрузка только сохраняет новую версию; пока ничего не меняется. Установка закрывает приложение, устанавливает новую версию и снова открывает приложение. Сначала сохраните работу.",
   "update.warn_cancel": "Не сейчас",
   "update.warn_title": "Сначала сохраните работу",
-  "setup.modules_title": "Extra modules (advanced)",
-  "setup.modules_help": "Install these in your own Python with pip. They are not bundled with Jojo Code.",
-  "setup.modules_games": "pygame, pygame-ce, arcade, pyglet, Pillow - Games and graphics.",
-  "setup.modules_data": "numpy, pandas, matplotlib, scipy - Numbers, data and plots.",
-  "setup.modules_web": "requests, flask, fastapi, beautifulsoup4 - Web and internet.",
-  "setup.modules_db": "sqlalchemy, sqlite-utils - Databases.",
-  "setup.modules_quality": "pytest, rich, black - Testing and tidy code.",
-  "setup.modules_example": "Example: pip install pygame numpy pandas matplotlib requests flask sqlalchemy pytest"
+  "feedback.title": "Feedback",
+  "feedback.message": "Message"
 }

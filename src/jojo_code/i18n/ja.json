@@ -95,7 +95,6 @@
   "glossary.copy": "Copy",
   "glossary.count": "{1} 件中 {0} 件を表示しています。",
   "glossary.empty": "その言葉に一致する項目はありません。",
-  "glossary.english_note": "現在、これらの項目は英語で書かれています。",
   "glossary.intro": "このアプリの Python が何をするかの説明です。同じ一覧が README にもあります。",
   "glossary.search_label": "用語集を検索",
   "glossary.title": "Python 用語集",
@@ -441,12 +440,6 @@
   "update.warn_body": "ダウンロードは新しいバージョンを保存するだけで、まだ何も変わりません。インストールするとアプリが閉じ、新しいバージョンに置き換えてから、もう一度開きます。先に作業を保存してください。",
   "update.warn_cancel": "今はしない",
   "update.warn_title": "先に作業を保存してください",
-  "setup.modules_title": "Extra modules (advanced)",
-  "setup.modules_help": "Install these in your own Python with pip. They are not bundled with Jojo Code.",
-  "setup.modules_games": "pygame, pygame-ce, arcade, pyglet, Pillow - Games and graphics.",
-  "setup.modules_data": "numpy, pandas, matplotlib, scipy - Numbers, data and plots.",
-  "setup.modules_web": "requests, flask, fastapi, beautifulsoup4 - Web and internet.",
-  "setup.modules_db": "sqlalchemy, sqlite-utils - Databases.",
-  "setup.modules_quality": "pytest, rich, black - Testing and tidy code.",
-  "setup.modules_example": "Example: pip install pygame numpy pandas matplotlib requests flask sqlalchemy pytest"
+  "feedback.title": "Feedback",
+  "feedback.message": "Message"
 }

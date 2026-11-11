@@ -58,14 +58,6 @@ _ALLOWED_ENGLISH = {
     "EDI",
     "IDE",
     "sys",
-    "Extra modules (advanced)",
-    "Install these in your own Python with pip. They are not bundled with Jojo Code.",
-    "pygame, pygame-ce, arcade, pyglet, Pillow - Games and graphics.",
-    "numpy, pandas, matplotlib, scipy - Numbers, data and plots.",
-    "requests, flask, fastapi, beautifulsoup4 - Web and internet.",
-    "sqlalchemy, sqlite-utils - Databases.",
-    "pytest, rich, black - Testing and tidy code.",
-    "Example: pip install pygame numpy pandas matplotlib requests flask sqlalchemy pytest",
 }
 
 
