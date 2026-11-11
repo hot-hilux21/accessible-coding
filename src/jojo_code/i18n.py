@@ -58,6 +58,7 @@ _ALLOWED_ENGLISH = {
     "EDI",
     "IDE",
     "sys",
+    "Added a space after # in comments.",
 }
 
 

@@ -442,5 +442,6 @@
   "update.warn_title": "请先保存你的工作",
   "feedback.title": "Feedback",
   "feedback.message": "Message",
-  "pane.cleanup": "Clean up"
+  "pane.cleanup": "Clean up",
+  "cleanup.done": "Added a space after # in comments."
 }

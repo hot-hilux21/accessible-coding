@@ -492,7 +492,7 @@
       return;
     }
     editor.setValue(out.join('\n'));
-    showIndentToast(t('settings.saved'));
+    showIndentToast(t('cleanup.done'));
   }
 
   var cleanupBtn = document.getElementById('pane-cleanup');
