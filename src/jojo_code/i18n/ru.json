@@ -441,5 +441,6 @@
   "update.warn_cancel": "Не сейчас",
   "update.warn_title": "Сначала сохраните работу",
   "feedback.title": "Feedback",
-  "feedback.message": "Message"
+  "feedback.message": "Message",
+  "pane.cleanup": "Clean up"
 }

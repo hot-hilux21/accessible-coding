@@ -475,6 +475,29 @@
     step();
   }
 
+  function cleanupComments() {
+    if (!editor) return;
+    var lines = editor.getValue().split('\n');
+    var changed = 0;
+    var out = lines.map(function (line) {
+      var m = line.match(/^(\s*)#([^\s!].*)$/);
+      if (m && !/^\s*#!/.test(line)) {
+        changed++;
+        return m[1] + '# ' + m[2];
+      }
+      return line;
+    });
+    if (changed === 0) {
+      showIndentToast(t('indent.no_faults'));
+      return;
+    }
+    editor.setValue(out.join('\n'));
+    showIndentToast(t('settings.saved'));
+  }
+
+  var cleanupBtn = document.getElementById('pane-cleanup');
+  if (cleanupBtn) cleanupBtn.addEventListener('click', cleanupComments);
+
   if (indentAddBtn) indentAddBtn.addEventListener('click', indentSelection);
   if (indentFixBtn) indentFixBtn.addEventListener('click', fixIndentation);
 

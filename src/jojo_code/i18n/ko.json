@@ -441,5 +441,6 @@
   "update.warn_cancel": "나중에",
   "update.warn_title": "먼저 작업을 저장하세요",
   "feedback.title": "Feedback",
-  "feedback.message": "Message"
+  "feedback.message": "Message",
+  "pane.cleanup": "Clean up"
 }

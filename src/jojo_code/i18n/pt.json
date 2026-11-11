@@ -441,5 +441,6 @@
   "update.warn_cancel": "Agora não",
   "update.warn_title": "Salve seu trabalho primeiro",
   "feedback.title": "Feedback",
-  "feedback.message": "Message"
+  "feedback.message": "Message",
+  "pane.cleanup": "Clean up"
 }

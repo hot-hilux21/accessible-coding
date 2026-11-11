@@ -441,5 +441,6 @@
   "update.warn_cancel": "Όχι τώρα",
   "update.warn_title": "Αποθήκευσε πρώτα τη δουλειά σου",
   "feedback.title": "Feedback",
-  "feedback.message": "Message"
+  "feedback.message": "Message",
+  "pane.cleanup": "Clean up"
 }

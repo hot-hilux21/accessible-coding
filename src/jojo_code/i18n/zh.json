@@ -441,5 +441,6 @@
   "update.warn_cancel": "现在不",
   "update.warn_title": "请先保存你的工作",
   "feedback.title": "Feedback",
-  "feedback.message": "Message"
+  "feedback.message": "Message",
+  "pane.cleanup": "Clean up"
 }

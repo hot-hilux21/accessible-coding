@@ -441,5 +441,6 @@
   "update.warn_cancel": "ليس الآن",
   "update.warn_title": "احفظ عملك أولاً",
   "feedback.title": "Feedback",
-  "feedback.message": "Message"
+  "feedback.message": "Message",
+  "pane.cleanup": "Clean up"
 }

@@ -441,5 +441,6 @@
   "update.warn_cancel": "अभी नहीं",
   "update.warn_title": "पहले अपना काम सेव करें",
   "feedback.title": "Feedback",
-  "feedback.message": "Message"
+  "feedback.message": "Message",
+  "pane.cleanup": "Clean up"
 }

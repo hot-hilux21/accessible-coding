@@ -441,5 +441,6 @@
   "update.warn_cancel": "今はしない",
   "update.warn_title": "先に作業を保存してください",
   "feedback.title": "Feedback",
-  "feedback.message": "Message"
+  "feedback.message": "Message",
+  "pane.cleanup": "Clean up"
 }
