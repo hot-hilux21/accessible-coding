@@ -5388,7 +5388,24 @@
   }
 
   function shellRun() {
-    if (shellBusy || !shellSession || !shellInput) return;
+    if (shellBusy || !shellInput) return;
+    if (!shellSession) {
+      shellPost('/api/shell/start')
+        .then(function (data) {
+          if (shellFail(data)) return;
+          if (!data.session) {
+            shellSay(data.error || t('shell.no_session'), true);
+            return;
+          }
+          shellSession = data.session;
+          if (shellStatus) shellStatus.textContent = t('shell.status_waiting');
+          shellRun();
+        })
+        .catch(function () {
+          shellSay(t('shell.closed'), true);
+        });
+      return;
+    }
     var code = shellInput.value;
     if (!code.trim()) return;
     // The line is echoed with its prompt the way a terminal echoes it, so
