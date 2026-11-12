@@ -5392,6 +5392,14 @@
     if (!shellSession) {
       shellPost('/api/shell/start')
         .then(function (data) {
+          if (data.code_required) {
+            if (promptForAccessCode()) {
+              shellRun();
+            } else {
+              shellSay(data.error || t('shell.no_session'), true);
+            }
+            return;
+          }
           if (shellFail(data)) return;
           if (!data.session) {
             shellSay(data.error || t('shell.no_session'), true);
