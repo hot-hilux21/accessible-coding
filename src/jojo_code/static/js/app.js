@@ -5431,33 +5431,113 @@
           var overlay = document.createElement('div');
           overlay.style.position = 'fixed';
           overlay.style.inset = '0';
-          overlay.style.display = 'flex';
-          overlay.style.alignItems = 'center';
-          overlay.style.justifyContent = 'center';
-          overlay.style.background = 'rgba(0,0,0,0.6)';
           overlay.style.zIndex = '9999';
-          var box = document.createElement('div');
-          box.style.background = '#000';
-          box.style.padding = '8px';
-          box.style.borderRadius = '8px';
-          var close = document.createElement('button');
-          close.textContent = 'Close';
-          close.style.display = 'block';
-          close.style.margin = '0 0 8px auto';
-          close.addEventListener('click', function () { overlay.remove(); });
+          var win = document.createElement('div');
+          win.style.position = 'absolute';
+          win.style.left = '80px';
+          win.style.top = '60px';
+          win.style.width = '800px';
+          win.style.height = '600px';
+          win.style.background = '#111';
+          win.style.border = '1px solid #444';
+          win.style.borderRadius = '8px';
+          win.style.display = 'flex';
+          win.style.flexDirection = 'column';
+          win.style.overflow = 'hidden';
+          win.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
+          var bar = document.createElement('div');
+          bar.style.background = '#222';
+          bar.style.color = '#fff';
+          bar.style.padding = '6px 10px';
+          bar.style.display = 'flex';
+          bar.style.justifyContent = 'space-between';
+          bar.style.alignItems = 'center';
+          bar.style.cursor = 'move';
+          bar.style.userSelect = 'none';
+          var title = document.createElement('span');
+          title.textContent = 'Doom';
+          var controls = document.createElement('div');
+          var full = document.createElement('button');
+          full.textContent = ' ( ) ';
+          full.style.marginRight = '6px';
+          full.addEventListener('click', function () {
+            if (!win.dataset.full) {
+              win.dataset.prev = JSON.stringify({l:win.style.left,t:win.style.top,w:win.style.width,h:win.style.height});
+              win.style.left = '0';
+              win.style.top = '0';
+              win.style.width = '100vw';
+              win.style.height = '100vh';
+              win.dataset.full = '1';
+            } else {
+              var p = JSON.parse(win.dataset.prev || '{}');
+              win.style.left = p.l || '80px';
+              win.style.top = p.t || '60px';
+              win.style.width = p.w || '800px';
+              win.style.height = p.h || '600px';
+              delete win.dataset.full;
+            }
+          });
+          var x = document.createElement('button');
+          x.textContent = '×';
+          x.style.fontSize = '18px';
+          x.style.lineHeight = '1';
+          x.addEventListener('click', function () { overlay.remove(); });
+          controls.appendChild(full);
+          controls.appendChild(x);
+          bar.appendChild(title);
+          bar.appendChild(controls);
           var frame = document.createElement('iframe');
           frame.src = 'https://js-dos.com/games/doom.exe.html';
-          frame.width = '640';
-          frame.height = '400';
-          frame.setAttribute('title', 'Doom');
+          frame.style.flex = '1';
+          frame.style.width = '100%';
           frame.style.border = '0';
-          box.appendChild(close);
-          box.appendChild(frame);
-          overlay.appendChild(box);
-          overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) overlay.remove();
-          });
+          frame.setAttribute('title', 'Doom');
+          var grip = document.createElement('div');
+          grip.style.position = 'absolute';
+          grip.style.right = '0';
+          grip.style.bottom = '0';
+          grip.style.width = '16px';
+          grip.style.height = '16px';
+          grip.style.cursor = 'nwse-resize';
+          grip.style.background = 'rgba(255,255,255,0.25)';
+          win.appendChild(bar);
+          win.appendChild(frame);
+          win.appendChild(grip);
+          overlay.appendChild(win);
           document.body.appendChild(overlay);
+          // Drag
+          var dragging = false, dx = 0, dy = 0;
+          bar.addEventListener('mousedown', function (e) {
+            if (win.dataset.full) return;
+            dragging = true;
+            dx = e.clientX - win.offsetLeft;
+            dy = e.clientY - win.offsetTop;
+            e.preventDefault();
+          });
+          document.addEventListener('mousemove', function (e) {
+            if (!dragging) return;
+            win.style.left = (e.clientX - dx) + 'px';
+            win.style.top = (e.clientY - dy) + 'px';
+          });
+          document.addEventListener('mouseup', function () { dragging = false; });
+          // Resize
+          var resizing = false, sx = 0, sy = 0, sw = 0, sh = 0;
+          grip.addEventListener('mousedown', function (e) {
+            if (win.dataset.full) return;
+            resizing = true;
+            sx = e.clientX;
+            sy = e.clientY;
+            sw = win.offsetWidth;
+            sh = win.offsetHeight;
+            e.preventDefault();
+            e.stopPropagation();
+          });
+          document.addEventListener('mousemove', function (e) {
+            if (!resizing) return;
+            win.style.width = Math.max(320, sw + (e.clientX - sx)) + 'px';
+            win.style.height = Math.max(240, sh + (e.clientY - sy)) + 'px';
+          });
+          document.addEventListener('mouseup', function () { resizing = false; });
         }
         if (data.error) {
           shellSay(data.error, true);
