@@ -1314,18 +1314,22 @@
        now, and the panel says so on screen: a reader who cannot tell a
        careful translation from a plausible wrong one is worse off than one
        who is told which language they are reading. -->
-  <dialog id="feedback-dialog" class="glossary" aria-labelledby="feedback-title">
-    <header class="glossary-header">
-      <h2 id="feedback-title" class="settings-title">{{ t('feedback.title') }}</h2>
-      <button id="btn-feedback-close" class="btn btn-small" type="button"
-              aria-label="{{ t('settings.close_label') }}">{{ t('settings.close') }}</button>
-    </header>
-    <div class="field">
-      <label for="feedback-text">{{ t('feedback.message') }}</label>
-      <textarea id="feedback-text" rows="6" style="width:100%"></textarea>
+  <dialog id="feedback-dialog" class="settings" aria-labelledby="feedback-title">
+    <div class="settings-form">
+      <header class="settings-header">
+        <h2 id="feedback-title" class="settings-title">{{ t('feedback.title') }}</h2>
+        <button id="btn-feedback-close" class="btn btn-small" type="button"
+                aria-label="{{ t('settings.close_label') }}">{{ t('settings.close') }}</button>
+      </header>
+      <div class="settings-body">
+        <div class="field">
+          <label for="feedback-text">{{ t('feedback.message') }}</label>
+          <textarea id="feedback-text" rows="6" style="width:100%"></textarea>
+        </div>
+        <button id="btn-feedback-send" class="btn" type="button">{{ t('output.answer_send') }}</button>
+        <p id="feedback-status" aria-live="polite"></p>
+      </div>
     </div>
-    <button id="btn-feedback-send" class="btn" type="button">{{ t('output.answer_send') }}</button>
-    <p id="feedback-status" aria-live="polite"></p>
   </dialog>
 
   <dialog id="glossary-dialog" class="glossary" aria-labelledby="glossary-title"

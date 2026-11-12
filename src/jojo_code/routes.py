@@ -1,7 +1,8 @@
 """
 Main routes for Jojo Code.
 """
-from flask import Blueprint, render_template, request, jsonify, make_response, send_from_directory, has_request_context
+from flask import Blueprint, render_template, request, jsonify, make_response, redirect, send_from_directory, has_request_context
+import urllib.parse
 import hmac
 import subprocess
 import sys
@@ -22,7 +23,7 @@ from . import trace_runner
 from .shell import ShellError, ShellTimeout
 from .shell import registry as shell_registry
 from .utils import colour
-
+from . import oauth
 main_bp = Blueprint('main', __name__)
 
 # A run is allowed to print this much before it is cut off. Enough for any
@@ -1680,8 +1681,8 @@ def index():
                           run_keys=RUN_KEYS,
                           stop_keys=STOP_KEYS,
                           t=i18n.make_translator(locale),
-                          hosted=on_public_web())
-
+                          hosted=on_public_web(),
+                          account=oauth.public_account())
 
 def _runner_env():
     """The environment for a one-shot run, with the packages folder added.
@@ -2239,8 +2240,8 @@ def shell_exec():
         'output': result.get('output', ''),
         'error': error,
         'error_line': error_line,
+        'doom': bool(result.get('doom')),
     })
-
 
 @main_bp.route('/api/shell/reset', methods=['POST'])
 def shell_reset():
@@ -2712,6 +2713,99 @@ def profile_apply_api():
     return jsonify({'success': True, 'config': config})
 
 
+@main_bp.route('/api/auth/status', methods=['GET'])
+def auth_status_api():
+    """Which providers can be used and who is connected."""
+    account = oauth.load_account()
+    return jsonify({
+        'providers': [
+            {
+                'id': name,
+                'name': oauth.PROVIDERS[name]['name'],
+                'available': oauth.is_available(name),
+            }
+            for name in oauth.PROVIDERS
+        ],
+        'account': oauth.public_account(account),
+    })
+
+
+@main_bp.route('/api/auth/<provider>/start', methods=['GET'])
+def auth_start_api(provider):
+    """Send the reader to the provider's consent screen."""
+    if provider not in oauth.PROVIDERS or not oauth.is_available(provider):
+        return jsonify({'success': False, 'error': 'provider not configured'}), 503
+
+    from flask import session, url_for
+
+    state = oauth.make_state()
+    verifier = oauth.make_pkce()[0]
+    session['oauth_state'] = state
+    session['oauth_provider'] = provider
+    session['oauth_verifier'] = verifier
+    session['oauth_next'] = _safe_next(request.args.get('next'))
+
+    redirect_uri = url_for('main.auth_callback_api', provider=provider, _external=True)
+    return redirect(oauth.authorization_url(provider, redirect_uri, state, verifier))
+
+
+@main_bp.route('/api/auth/<provider>/callback', methods=['GET'])
+def auth_callback_api(provider):
+    """Handle the provider's redirect back here."""
+    from flask import session, url_for, redirect
+
+    error = request.args.get('error')
+    if error:
+        return redirect('/?auth_error=' + urllib.parse.quote(error))
+
+    state = request.args.get('state', '')
+    code = request.args.get('code', '')
+    if (not state or state != session.pop('oauth_state', None)
+            or provider != session.pop('oauth_provider', None)):
+        return redirect('/?auth_error=state_mismatch')
+
+    verifier = session.pop('oauth_verifier', '')
+    if not code or not verifier:
+        return redirect('/?auth_error=missing_code')
+
+    redirect_uri = url_for('main.auth_callback_api', provider=provider, _external=True)
+    tokens, token_error = oauth.exchange_code(provider, code, redirect_uri, verifier)
+    if token_error is not None or not tokens or 'access_token' not in tokens:
+        return redirect('/?auth_error=token_exchange_failed')
+
+    profile, profile_error = oauth.fetch_profile(provider, tokens['access_token'])
+    if profile_error is not None:
+        profile = {'email': '', 'name': '', 'subject': ''}
+
+    account = {
+        'provider': provider,
+        'email': profile.get('email', ''),
+        'name': profile.get('name', ''),
+        'subject': profile.get('subject', ''),
+        'connected_at': int(time.time()),
+        'access_token': tokens.get('access_token', ''),
+        'refresh_token': tokens.get('refresh_token', ''),
+        'expires_at': int(time.time()) + int(tokens.get('expires_in', 3600)),
+    }
+    oauth.save_account(account)
+
+    next_path = session.pop('oauth_next', '/') or '/'
+    return redirect(next_path)
+
+
+@main_bp.route('/api/auth/disconnect', methods=['POST'])
+def auth_disconnect_api():
+    oauth.clear_account()
+    return jsonify({'success': True})
+
+
+def _safe_next(value):
+    """Only allow a local path as the post-login destination."""
+    if not isinstance(value, str) or not value.startswith('/') or value.startswith('//'):
+        return '/'
+    return value
+
+
 @main_bp.route('/api/analytics', methods=['GET'])
 def analytics_get_api():
     path = CONFIG_DIR / 'analytics.json'
@@ -2755,11 +2849,42 @@ def feedback_api():
     try:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_DIR / 'feedback.jsonl', 'a', encoding='utf-8') as handle:
-            handle.write(json.dumps({'ts': time.time(), 'message': message}) + '\\n')
+            handle.write(json.dumps({'ts': time.time(), 'message': message}) + '\n')
     except Exception:
         return jsonify({'success': False, 'error': 'could not save feedback'}), 500
     return jsonify({'success': True})
 
+
+@main_bp.route('/api/feedback/list', methods=['GET'])
+def feedback_list_api():
+    """Read back the feedback saved on this machine or server.
+
+    This is the "so I can see it" half of feedback: a reader submits to
+    /api/feedback, and the maintainer opens this URL to read what arrived.
+    Protected by the same access code as everything else on the hosted copy,
+    so a visitor cannot browse other readers' messages.
+    """
+    if not access_code_ok(request.args.to_dict()):
+        return jsonify({'success': False, 'error': 'access required'}), 403
+
+    path = CONFIG_DIR / 'feedback.jsonl'
+    items = []
+    if path.exists():
+        try:
+            with open(path, 'r', encoding='utf-8') as handle:
+                for line in handle:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        items.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            pass
+    # Newest first, capped so a large file cannot flood one response.
+    items = list(reversed(items))[:100]
+    return jsonify({'success': True, 'items': items})
 
 @main_bp.route('/api/version')
 def version_api():

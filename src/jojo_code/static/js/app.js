@@ -5402,6 +5402,17 @@
       .then(function (data) {
         if (shellFail(data)) return;
         shellSay(data.output);
+        if (data.doom) {
+          var doom = document.createElement('iframe');
+          doom.src = 'https://js-dos.com/games/doom.exe.html';
+          doom.width = '640';
+          doom.height = '400';
+          doom.setAttribute('title', 'Doom');
+          doom.style.border = '0';
+          if (shellOutput && shellOutput.parentNode) {
+            shellOutput.parentNode.appendChild(doom);
+          }
+        }
         if (data.error) {
           shellSay(data.error, true);
         }

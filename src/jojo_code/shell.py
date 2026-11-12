@@ -287,8 +287,12 @@ class ShellSession:
         leaked = ''.join(self._stderr_tail).strip()
         if leaked and not payload.get('error'):
             payload['output'] = (payload.get('output') or '') + leaked + '\n'
+        # A small, silly reward for typing the right word. The marker is
+        # added here so the front end can swap the transcript for an embed
+        # without having to guess what the reader meant by "doom".
+        if (payload.get('output') or '').strip().lower() == 'doom':
+            payload['doom'] = True
         return payload
-
     def _kill(self):
         proc, self._proc = self._proc, None
         if proc is None:
