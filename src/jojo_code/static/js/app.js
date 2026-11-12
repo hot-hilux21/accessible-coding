@@ -5461,6 +5461,10 @@
           full.textContent = ' ( ) ';
           full.style.marginRight = '6px';
           full.addEventListener('click', function () {
+            try {
+              if (frame.requestFullscreen) { frame.requestFullscreen(); return; }
+              if (frame.webkitRequestFullscreen) { frame.webkitRequestFullscreen(); return; }
+            } catch (e) {}
             if (!win.dataset.full) {
               win.dataset.prev = JSON.stringify({l:win.style.left,t:win.style.top,w:win.style.width,h:win.style.height});
               win.style.left = '0';
@@ -5486,12 +5490,19 @@
           controls.appendChild(x);
           bar.appendChild(title);
           bar.appendChild(controls);
+          var help = document.createElement('div');
+          help.textContent = 'Controls: arrows move, Ctrl fire, Space open doors, Shift run, Alt strafe, 1-7 weapons, Esc menu.';
+          help.style.background = '#1a1a1a';
+          help.style.color = '#ccc';
+          help.style.fontSize = '12px';
+          help.style.padding = '4px 8px';
           var frame = document.createElement('iframe');
           frame.src = 'https://js-dos.com/games/doom.exe.html';
           frame.style.flex = '1';
           frame.style.width = '100%';
           frame.style.border = '0';
           frame.setAttribute('title', 'Doom');
+          frame.setAttribute('allowfullscreen', 'true');
           var grip = document.createElement('div');
           grip.style.position = 'absolute';
           grip.style.right = '0';
@@ -5501,6 +5512,7 @@
           grip.style.cursor = 'nwse-resize';
           grip.style.background = 'rgba(255,255,255,0.25)';
           win.appendChild(bar);
+          win.appendChild(help);
           win.appendChild(frame);
           win.appendChild(grip);
           overlay.appendChild(win);
