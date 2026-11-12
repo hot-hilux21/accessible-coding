@@ -218,7 +218,12 @@ class ShellSession:
         with self._lock:
             self.last_used = time.time()
             proc = self._send({'code': code})
-            return self._read_reply(proc, timeout or self._timeout)
+            result = self._read_reply(proc, timeout or self._timeout)
+            # Cheat codes: a bare word that is not Python is still allowed
+            # to do something. "doom" is the first; more can join the table.
+            if isinstance(result, dict) and code.strip().lower() == 'doom':
+                result['doom'] = True
+            return result
 
     def reset(self):
         """Forget the namespace but keep the process.

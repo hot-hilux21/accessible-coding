@@ -5403,15 +5403,36 @@
         if (shellFail(data)) return;
         shellSay(data.output);
         if (data.doom) {
-          var doom = document.createElement('iframe');
-          doom.src = 'https://js-dos.com/games/doom.exe.html';
-          doom.width = '640';
-          doom.height = '400';
-          doom.setAttribute('title', 'Doom');
-          doom.style.border = '0';
-          if (shellOutput && shellOutput.parentNode) {
-            shellOutput.parentNode.appendChild(doom);
-          }
+          var overlay = document.createElement('div');
+          overlay.style.position = 'fixed';
+          overlay.style.inset = '0';
+          overlay.style.display = 'flex';
+          overlay.style.alignItems = 'center';
+          overlay.style.justifyContent = 'center';
+          overlay.style.background = 'rgba(0,0,0,0.6)';
+          overlay.style.zIndex = '9999';
+          var box = document.createElement('div');
+          box.style.background = '#000';
+          box.style.padding = '8px';
+          box.style.borderRadius = '8px';
+          var close = document.createElement('button');
+          close.textContent = 'Close';
+          close.style.display = 'block';
+          close.style.margin = '0 0 8px auto';
+          close.addEventListener('click', function () { overlay.remove(); });
+          var frame = document.createElement('iframe');
+          frame.src = 'https://js-dos.com/games/doom.exe.html';
+          frame.width = '640';
+          frame.height = '400';
+          frame.setAttribute('title', 'Doom');
+          frame.style.border = '0';
+          box.appendChild(close);
+          box.appendChild(frame);
+          overlay.appendChild(box);
+          overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) overlay.remove();
+          });
+          document.body.appendChild(overlay);
         }
         if (data.error) {
           shellSay(data.error, true);
